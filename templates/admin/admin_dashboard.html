@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard – SalonFlow{% endblock %}
+{% block extra_css %}
+<style>
+body{background:var(--g50)}
+.layout{display:flex;min-height:100vh}
+/* SIDEBAR */
+.sb{width:220px;background:var(--dark);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100}
+.sb-logo{padding:20px 18px;border-bottom:1px solid rgba(255,255,255,.07)}
+.sb-logo-inner{display:flex;align-items:center;gap:9px}
+.sb-icon{width:32px;height:32px;background:linear-gradient(135deg,var(--t600),var(--t400));border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:.85rem}
+.sb-txt{font-family:var(--df);font-size:1.25rem;font-weight:700;color:#fff}
+.sb-tag{font-size:.58rem;font-weight:700;letter-spacing:.1em;background:rgba(245,158,11,.2);color:var(--amber);padding:1px 6px;border-radius:4px;margin-left:4px}
+.sb-nav{flex:1;padding:14px 8px}
+.sb-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;color:rgba(255,255,255,.55);font-size:.84rem;font-weight:500;transition:var(--ease);cursor:pointer;margin-bottom:2px;text-decoration:none}
+.sb-item:hover{background:rgba(255,255,255,.07);color:rgba(255,255,255,.9)}
+.sb-item.active{background:rgba(13,148,136,.25);color:#fff;border:1px solid rgba(13,148,136,.3)}
+.sb-item i{width:16px;text-align:center;font-size:.83rem}
+.sb-foot{padding:12px 10px;border-top:1px solid rgba(255,255,255,.07)}
+.sb-user{display:flex;align-items:center;gap:8px;padding:8px 10px}
+.sb-av{width:30px;height:30px;background:var(--t700);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;color:#fff}
+.sb-uname{font-size:.78rem;font-weight:600;color:#fff}
+.sb-uemail{font-size:.65rem;color:rgba(255,255,255,.38)}
+/* MAIN */
+.main{margin-left:220px;flex:1;display:flex;flex-direction:column;min-height:100vh}
+.topbar{background:var(--w);border-bottom:1px solid var(--g100);padding:12px 24px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:50}
+.tb-title{font-family:var(--df);font-size:1.4rem;font-weight:700;color:var(--g900)}
+.tb-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.tb-date{font-size:.78rem;color:var(--g500)}
+.tb-logout{display:flex;align-items:center;gap:6px;padding:7px 14px;background:var(--g50);border:1px solid var(--g200);border-radius:8px;font-size:.82rem;font-weight:600;color:var(--g600);cursor:pointer;transition:var(--ease)}
+.tb-logout:hover{background:#fee2e2;color:#ef4444;border-color:#fecaca}
+.content{padding:24px}
+/* Stats */
+.stats{display:grid;grid-template-columns:repeat(6,1fr);gap:14px;margin-bottom:24px}
+.scard{background:var(--w);border-radius:14px;padding:18px;border:1px solid var(--g100);text-align:center}
+.sc-val{font-family:var(--df);font-size:1.9rem;font-weight:700;color:var(--g900);line-height:1;margin-bottom:3px}
+.sc-lbl{font-size:.72rem;color:var(--g500)}
+.sc-icon{font-size:.95rem;margin-bottom:7px}
+/* Table */
+.card{background:var(--w);border-radius:16px;border:1px solid var(--g100);overflow:hidden}
+.card-hd{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--g100);flex-wrap:wrap;gap:10px}
+.card-hd h3{font-size:.97rem;font-weight:700;color:var(--g900)}
+.search-box{display:flex;align-items:center;gap:8px;background:var(--g50);border:1px solid var(--g200);border-radius:9px;padding:7px 12px}
+.search-box input{background:none;border:none;outline:none;font-size:.84rem;color:var(--g800);width:200px}
+.search-box i{color:var(--g400);font-size:.82rem}
+table{width:100%;border-collapse:collapse}
+thead th{padding:11px 16px;text-align:left;font-size:.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--g500);background:var(--g50);border-bottom:1px solid var(--g100)}
+tbody tr{border-bottom:1px solid var(--g50);transition:background .15s}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:var(--t50)}
+tbody td{padding:12px 16px;font-size:.84rem;color:var(--g800);vertical-align:middle}
+.u-av{width:30px;height:30px;background:var(--t200);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.68rem;font-weight:700;color:var(--t800);flex-shrink:0}
+.u-name{font-weight:600;color:var(--g900);font-size:.86rem}
+.u-email{font-size:.73rem;color:var(--g400)}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:100px;font-size:.67rem;font-weight:700}
+.b-verified{background:#dcfce7;color:#166534}.b-pending{background:#fef9c3;color:#854d0e}
+.b-active{background:var(--t100);color:var(--t800)}.b-suspended{background:#fee2e2;color:#991b1b}
+.b-starter{background:var(--g100);color:var(--g600)}.b-pro{background:var(--t100);color:var(--t700)}.b-business{background:#fef3c7;color:#92400e}
+.action-btns{display:flex;gap:6px}
+.ab{padding:5px 10px;border-radius:7px;font-size:.72rem;font-weight:600;cursor:pointer;border:none;transition:var(--ease);font-family:var(--bf)}
+.ab-verify{background:#dcfce7;color:#166534}.ab-verify:hover{background:#bbf7d0}
+.ab-suspend{background:#fee2e2;color:#991b1b}.ab-suspend:hover{background:#fecaca}
+.ab-activate{background:var(--t50);color:var(--t700)}.ab-activate:hover{background:var(--t100)}
+.pagination{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-top:1px solid var(--g100)}
+.pg-info{font-size:.8rem;color:var(--g500)}
+.pg-btns{display:flex;gap:6px}
+.pg-btn{padding:6px 12px;border:1px solid var(--g200);border-radius:7px;font-size:.8rem;color:var(--g600);cursor:pointer;background:var(--w);transition:var(--ease);font-family:var(--bf)}
+.pg-btn:hover{background:var(--t50);color:var(--t600);border-color:var(--t300)}
+.pg-btn.active{background:var(--t600);color:#fff;border-color:var(--t600)}
+@media(max-width:1200px){.stats{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:768px){.sb{display:none}.main{margin-left:0}.stats{grid-template-columns:repeat(2,1fr)}}
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="layout">
+  <!-- ADMIN SIDEBAR -->
+  <aside class="sb">
+    <div class="sb-logo">
+      <div class="sb-logo-inner">
+        <div class="sb-icon"><i class="fas fa-scissors"></i></div>
+        <span class="sb-txt">SalonFlow <span class="sb-tag">ADMIN</span></span>
+      </div>
+    </div>
+    <nav class="sb-nav">
+      <a href="{{ url_for('admin_dashboard') }}" class="sb-item {% if not view or view == 'dashboard' %}active{% endif %}"><i class="fas fa-th-large"></i>Dashboard</a>
+      <a href="{{ url_for('admin_dashboard') }}" class="sb-item {% if view == 'users' %}active{% endif %}"><i class="fas fa-users"></i>Users</a>
+      <a class="sb-item"><i class="fas fa-chart-bar"></i>Analytics</a>
+      <a class="sb-item"><i class="fas fa-credit-card"></i>Subscriptions</a>
+      <a class="sb-item"><i class="fas fa-cog"></i>Settings</a>
+    </nav>
+    <div class="sb-foot">
+      <div class="sb-user">
+        <div class="sb-av">{{ admin.username[0].upper() if admin else 'A' }}</div>
+        <div>
+          <div class="sb-uname">{{ admin.username if admin else 'Admin' }}</div>
+          <div class="sb-uemail">{{ admin.email if admin else '' }}</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <header class="topbar">
+      <span class="tb-title">{% if view == 'users' %}User Management{% else %}Admin Dashboard{% endif %}</span>
+      <div class="tb-right">
+        <span class="tb-date" id="tb-date"></span>
+        <a href="{{ url_for('admin_logout') }}" class="tb-logout"><i class="fas fa-sign-out-alt"></i> Sign Out</a>
+      </div>
+    </header>
+
+    <div class="content">
+
+      {% if stats %}
+      <!-- STATS ROW -->
+      <div class="stats">
+        <div class="scard"><div class="sc-icon" style="color:var(--t500)">👥</div><div class="sc-val">{{ stats.total_users }}</div><div class="sc-lbl">Total Users</div></div>
+        <div class="scard"><div class="sc-icon" style="color:#10b981">✅</div><div class="sc-val">{{ stats.verified_users }}</div><div class="sc-lbl">Verified</div></div>
+        <div class="scard"><div class="sc-icon" style="color:var(--amber)">⏳</div><div class="sc-val">{{ stats.unverified_users }}</div><div class="sc-lbl">Unverified</div></div>
+        <div class="scard"><div class="sc-icon" style="color:var(--g400)">🌱</div><div class="sc-val">{{ stats.starter_users }}</div><div class="sc-lbl">Starter</div></div>
+        <div class="scard"><div class="sc-icon" style="color:var(--t500)">⭐</div><div class="sc-val">{{ stats.pro_users }}</div><div class="sc-lbl">Pro</div></div>
+        <div class="scard"><div class="sc-icon" style="color:var(--amber)">🏢</div><div class="sc-val">{{ stats.biz_users }}</div><div class="sc-lbl">Business</div></div>
+      </div>
+      {% endif %}
+
+      <!-- USERS TABLE -->
+      <div class="card">
+        <div class="card-hd">
+          <h3>{% if view == 'users' %}All Users{% else %}Recent Signups{% endif %}</h3>
+          <form method="GET" action="{{ url_for('admin_dashboard') }}" style="display:flex;gap:8px">
+            <div class="search-box">
+              <i class="fas fa-search"></i>
+              <input type="text" name="q" placeholder="Search email, salon…" value="{{ q or '' }}">
+            </div>
+            <button type="submit" style="padding:7px 14px;background:var(--t600);color:#fff;border:none;border-radius:9px;font-size:.82rem;font-weight:600;cursor:pointer;font-family:var(--bf)">Search</button>
+            {% if q %}<a href="{{ url_for('admin_dashboard') }}" style="padding:7px 14px;background:var(--g50);border:1px solid var(--g200);border-radius:9px;font-size:.82rem;font-weight:600;color:var(--g600);display:flex;align-items:center">Clear</a>{% endif %}
+          </form>
+        </div>
+        <div style="overflow-x:auto">
+          <table>
+            <thead>
+              <tr>
+                <th>Salon / User</th>
+                <th>Phone</th>
+                <th>Plan</th>
+                <th>Status</th>
+                <th>Verified</th>
+                <th>Joined</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% set user_list = users_page.items if users_page else recent_users %}
+              {% if user_list %}
+              {% for u in user_list %}
+              <tr>
+                <td>
+                  <div style="display:flex;align-items:center;gap:9px">
+                    <div class="u-av">{{ u.initials }}</div>
+                    <div>
+                      <div class="u-name">{{ u.salon_name }}</div>
+                      <div class="u-email">{{ u.email }}</div>
+                    </div>
+                  </div>
+                </td>
+                <td style="color:var(--g500)">{{ u.phone or '—' }}</td>
+                <td><span class="badge b-{{ u.plan }}">{{ u.plan_label }}</span></td>
+                <td><span class="badge {% if u.is_active %}b-active{% else %}b-suspended{% endif %}">{% if u.is_active %}Active{% else %}Suspended{% endif %}</span></td>
+                <td><span class="badge {% if u.is_verified %}b-verified{% else %}b-pending{% endif %}">{% if u.is_verified %}Verified{% else %}Pending{% endif %}</span></td>
+                <td style="color:var(--g500)">{{ u.created_at.strftime('%d %b %Y') }}</td>
+                <td>
+                  <div class="action-btns">
+                    {% if not u.is_verified %}
+                    <form method="POST" action="{{ url_for('admin_verify_user', user_id=u.id) }}" style="display:inline">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <button type="submit" class="ab ab-verify" title="Mark as verified">Verify</button>
+                    </form>
+                    {% endif %}
+                    <form method="POST" action="{{ url_for('admin_toggle_user', user_id=u.id) }}" style="display:inline">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <button type="submit" class="ab {% if u.is_active %}ab-suspend{% else %}ab-activate{% endif %}">{% if u.is_active %}Suspend{% else %}Activate{% endif %}</button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+              {% else %}
+              <tr><td colspan="7" style="text-align:center;padding:36px;color:var(--g400)">
+                <i class="fas fa-users" style="font-size:2rem;margin-bottom:10px;display:block;color:var(--g200)"></i>
+                No users found{% if q %} for "{{ q }}"{% endif %}.
+              </td></tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+        {% if users_page %}
+        <div class="pagination">
+          <span class="pg-info">Showing {{ ((users_page.page-1)*users_page.per_page)+1 }}–{{ [users_page.page*users_page.per_page, users_page.total]|min }} of {{ users_page.total }} users</span>
+          <div class="pg-btns">
+            {% if users_page.has_prev %}
+            <a href="{{ url_for('admin_dashboard', page=users_page.prev_num, q=q) }}" class="pg-btn"><i class="fas fa-chevron-left"></i></a>
+            {% endif %}
+            {% for p in users_page.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+              {% if p %}<a href="{{ url_for('admin_dashboard', page=p, q=q) }}" class="pg-btn {% if p == users_page.page %}active{% endif %}">{{ p }}</a>
+              {% else %}<span class="pg-btn">…</span>{% endif %}
+            {% endfor %}
+            {% if users_page.has_next %}
+            <a href="{{ url_for('admin_dashboard', page=users_page.next_num, q=q) }}" class="pg-btn"><i class="fas fa-chevron-right"></i></a>
+            {% endif %}
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const d=new Date();
+const days=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const mos=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+document.getElementById('tb-date').textContent=`${days[d.getDay()]}, ${d.getDate()} ${mos[d.getMonth()]} ${d.getFullYear()}`;
+</script>
+{% endblock %}

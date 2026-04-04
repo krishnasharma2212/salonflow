@@ -1,0 +1,218 @@
+{% extends "layout.html" %}
+{% block title %}Profile – SalonFlow{% endblock %}
+{% block page_title %}My Profile{% endblock %}
+{% block page_sub %}Manage your account details and settings{% endblock %}
+
+{% block extra_css %}
+<style>
+.pg{display:grid;grid-template-columns:300px 1fr;gap:22px}
+.card{background:var(--w);border-radius:18px;border:1px solid var(--g100);overflow:hidden}
+.card-hd{padding:18px 22px;border-bottom:1px solid var(--g100);display:flex;align-items:center;justify-content:space-between}
+.card-hd h3{font-size:1rem;font-weight:700;color:var(--g900)}
+.card-hd p{font-size:.76rem;color:var(--g400);margin-top:2px}
+.card-bd{padding:22px}
+.avatar-area{text-align:center;padding:28px 22px;border-bottom:1px solid var(--g100)}
+.avatar{width:88px;height:88px;background:linear-gradient(135deg,var(--t700),var(--t400));border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--df);font-size:2.2rem;font-weight:700;color:#fff;margin:0 auto 14px;position:relative}
+.avatar-edit{position:absolute;bottom:0;right:0;width:28px;height:28px;background:var(--t600);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.65rem;color:#fff;cursor:pointer;border:2px solid #fff}
+.av-name{font-family:var(--df);font-size:1.3rem;font-weight:700;color:var(--g900);margin-bottom:3px}
+.av-email{font-size:.8rem;color:var(--g500);margin-bottom:12px}
+.plan-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:100px;font-size:.72rem;font-weight:700}
+.plan-starter{background:var(--g100);color:var(--g600)}
+.plan-pro{background:var(--t100);color:var(--t800)}
+.plan-business{background:#fef3c7;color:#92400e}
+.info-list{display:flex;flex-direction:column;gap:0}
+.info-item{display:flex;align-items:center;gap:10px;padding:12px 22px;border-bottom:1px solid var(--g50);font-size:.83rem}
+.info-item:last-child{border-bottom:none}
+.info-item i{width:16px;color:var(--t500);font-size:.82rem}
+.info-item .il{color:var(--g500)}
+.info-item .iv{color:var(--g800);font-weight:500;margin-left:auto;text-align:right;max-width:160px;word-break:break-all}
+.verified-badge{display:inline-flex;align-items:center;gap:4px;font-size:.68rem;font-weight:700;color:#16a34a;background:#dcfce7;padding:2px 8px;border-radius:100px}
+.unverified-badge{display:inline-flex;align-items:center;gap:4px;font-size:.68rem;font-weight:700;color:#b45309;background:#fef9c3;padding:2px 8px;border-radius:100px}
+/* Form */
+.field{margin-bottom:18px}
+.field label{display:block;font-size:.79rem;font-weight:600;color:var(--g700);margin-bottom:6px}
+.inp{width:100%;padding:11px 15px;background:var(--g50);border:1.5px solid var(--g200);border-radius:10px;font-size:.9rem;color:var(--g900);transition:var(--ease);outline:none}
+.inp:focus{border-color:var(--t500);background:#fff;box-shadow:0 0 0 3px rgba(13,148,136,.1)}
+.inp:disabled{opacity:.55;cursor:not-allowed}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.btn-save{padding:11px 26px;background:var(--t600);color:#fff;border:none;border-radius:10px;font-size:.9rem;font-weight:700;cursor:pointer;transition:var(--ease);display:inline-flex;align-items:center;gap:7px}
+.btn-save:hover{background:var(--t700);transform:translateY(-1px)}
+.btn-danger{padding:11px 26px;background:#fff;color:#ef4444;border:1.5px solid #fecaca;border-radius:10px;font-size:.9rem;font-weight:700;cursor:pointer;transition:var(--ease)}
+.btn-danger:hover{background:#fee2e2}
+.section-note{font-size:.8rem;color:var(--g500);margin-bottom:20px;line-height:1.6;background:var(--t50);padding:12px 14px;border-radius:9px;border-left:3px solid var(--t400)}
+@media(max-width:900px){.pg{grid-template-columns:1fr}}
+/* Google Places dropdown */
+.pac-container{border-radius:11px;border:1.5px solid var(--t200)!important;box-shadow:0 8px 24px rgba(0,0,0,.1)!important;font-family:var(--bf);margin-top:4px;overflow:hidden}
+.pac-item{padding:9px 13px;font-size:.86rem;color:var(--g800);cursor:pointer;border-top:1px solid var(--g50)}
+.pac-item:hover,.pac-item-selected{background:var(--t50)!important}
+.pac-item-query{font-weight:600;color:var(--g900);font-size:.88rem}
+.pac-matched{color:var(--t600)}
+</style>
+{% if google_places_key %}
+<script>
+function initPlacesProfile() {
+  const input = document.getElementById('prof-address');
+  if (!input || !window.google) return;
+  const ac = new google.maps.places.Autocomplete(input, {
+    types: ['establishment','geocode'],
+    componentRestrictions: { country: 'in' },
+    fields: ['formatted_address','address_components'],
+  });
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') e.preventDefault(); });
+  ac.addListener('place_changed', () => {
+    const p = ac.getPlace();
+    if (!p || !p.formatted_address) return;
+    input.value = p.formatted_address;
+    for (const c of (p.address_components || [])) {
+      if (c.types.includes('locality')) {
+        const ci = document.querySelector('input[name="city"]');
+        if (ci) ci.value = c.long_name;
+        break;
+      }
+    }
+  });
+}
+</script>
+<script src="https://maps.googleapis.com/maps/api/js?key={{ google_places_key }}&libraries=places&callback=initPlacesProfile" async defer></script>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="pg">
+  <!-- LEFT: Account card -->
+  <div>
+    <div class="card" style="margin-bottom:18px">
+      <div class="avatar-area">
+        <div class="avatar">
+          {{ user.initials }}
+          <div class="avatar-edit"><i class="fas fa-camera"></i></div>
+        </div>
+        <div class="av-name">{{ user.salon_name }}</div>
+        <div class="av-email">{{ user.email }}</div>
+        <span class="plan-badge plan-{{ user.plan }}">
+          <i class="fas fa-{% if user.plan == 'pro' %}star{% elif user.plan == 'business' %}building{% else %}seedling{% endif %}"></i>
+          {{ user.plan_label }} Plan
+        </span>
+      </div>
+      <div class="info-list">
+        <div class="info-item">
+          <i class="fas fa-envelope"></i>
+          <span class="il">Email</span>
+          <span class="iv">
+            {% if user.is_verified %}
+              <span class="verified-badge"><i class="fas fa-check"></i>Verified</span>
+            {% else %}
+              <span class="unverified-badge"><i class="fas fa-clock"></i>Unverified</span>
+            {% endif %}
+          </span>
+        </div>
+        <div class="info-item">
+          <i class="fas fa-calendar-alt"></i>
+          <span class="il">Member since</span>
+          <span class="iv">{{ user.created_at.strftime('%b %Y') }}</span>
+        </div>
+        <div class="info-item">
+          <i class="fab fa-whatsapp"></i>
+          <span class="il">WhatsApp</span>
+          <span class="iv">
+            {% if user.whatsapp_connected %}
+              <span class="verified-badge"><i class="fas fa-check"></i>Connected</span>
+            {% else %}
+              <span class="unverified-badge">Not connected</span>
+            {% endif %}
+          </span>
+        </div>
+        <div class="info-item">
+          <i class="fas fa-sign-in-alt"></i>
+          <span class="il">Last login</span>
+          <span class="iv">{{ user.last_login.strftime('%d %b %Y') if user.last_login else 'N/A' }}</span>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><div><h3>Danger Zone</h3></div></div>
+      <div class="card-bd">
+        <p style="font-size:.83rem;color:var(--g500);margin-bottom:14px">Permanently delete your account and all data. This cannot be undone.</p>
+        <button class="btn-danger" onclick="if(confirm('Are you sure? This cannot be undone.'))location.href='/account/delete'"><i class="fas fa-trash"></i> Delete Account</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Edit forms -->
+  <div style="display:flex;flex-direction:column;gap:18px">
+
+    <!-- Profile info -->
+    <div class="card">
+      <div class="card-hd"><div><h3>Salon Information</h3><p>Update your salon's public profile</p></div></div>
+      <div class="card-bd">
+        <form method="POST" action="{{ url_for('profile') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="action" value="update_profile">
+          <div class="row2">
+            <div class="field">
+              <label>Salon Name *</label>
+              <input type="text" name="salon_name" class="inp" value="{{ user.salon_name }}" required placeholder="e.g. Styles Hub Salon">
+            </div>
+            <div class="field">
+              <label>Owner / Manager Name</label>
+              <input type="text" name="owner_name" class="inp" value="{{ user.owner_name or '' }}" placeholder="Your full name">
+            </div>
+          </div>
+          <div class="row2">
+            <div class="field">
+              <label>Phone Number</label>
+              <input type="tel" name="phone" class="inp" value="{{ user.phone or '' }}" placeholder="+91 98765 43210">
+            </div>
+            <div class="field">
+              <label>City</label>
+              <input type="text" name="city" class="inp" value="{{ user.city or '' }}" placeholder="e.g. Delhi">
+            </div>
+          </div>
+          <div class="field">
+            <label>Email Address</label>
+            <input type="email" class="inp" value="{{ user.email }}" disabled>
+          </div>
+          <div class="field">
+            <label>Salon Address</label>
+            <div style="position:relative">
+              <i class="fas fa-map-marker-alt" style="position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--g400);font-size:.85rem;pointer-events:none;z-index:1"></i>
+              <input type="text" name="address" id="prof-address" class="inp" style="padding-left:36px"
+                     value="{{ user.address or '' }}" autocomplete="off"
+                     placeholder="Start typing your salon address…">
+            </div>
+          </div>
+          <button type="submit" class="btn-save"><i class="fas fa-save"></i> Save Changes</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Change password -->
+    <div class="card">
+      <div class="card-hd"><div><h3>Change Password</h3><p>Update your account password</p></div></div>
+      <div class="card-bd">
+        <p class="section-note"><i class="fas fa-info-circle" style="color:var(--t500);margin-right:6px"></i>Choose a strong password with at least 8 characters.</p>
+        <form method="POST" action="{{ url_for('profile') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="action" value="change_password">
+          <div class="field">
+            <label>Current Password</label>
+            <input type="password" name="old_password" class="inp" placeholder="Enter current password" required>
+          </div>
+          <div class="row2">
+            <div class="field">
+              <label>New Password</label>
+              <input type="password" name="new_password" class="inp" placeholder="Min. 8 characters" required minlength="8">
+            </div>
+            <div class="field">
+              <label>Confirm New Password</label>
+              <input type="password" name="confirm_new_password" class="inp" placeholder="Repeat new password" required>
+            </div>
+          </div>
+          <button type="submit" class="btn-save"><i class="fas fa-lock"></i> Update Password</button>
+        </form>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

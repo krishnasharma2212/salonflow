@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Admin Login – SalonFlow{% endblock %}
+{% block extra_css %}
+<style>
+body{background:var(--dark);display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px}
+.wrap{width:100%;max-width:420px}
+.logo{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:28px}
+.logo-icon{width:38px;height:38px;background:linear-gradient(135deg,var(--t600),var(--t400));border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:1rem}
+.logo-txt{font-family:var(--df);font-size:1.5rem;font-weight:700;color:#fff}
+.card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:40px 36px;backdrop-filter:blur(12px)}
+.admin-tag{display:inline-flex;align-items:center;gap:7px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.7);padding:5px 14px;border-radius:100px;font-size:.75rem;font-weight:700;letter-spacing:.08em;margin-bottom:20px}
+h1{font-family:var(--df);font-size:1.9rem;font-weight:700;color:#fff;margin-bottom:6px}
+.sub{font-size:.87rem;color:rgba(255,255,255,.5);margin-bottom:28px;line-height:1.6}
+.field{margin-bottom:16px}
+.field label{display:block;font-size:.78rem;font-weight:600;color:rgba(255,255,255,.6);margin-bottom:6px}
+.inp{width:100%;padding:12px 15px;background:rgba(255,255,255,.07);border:1.5px solid rgba(255,255,255,.12);border-radius:10px;font-size:.9rem;color:#fff;transition:var(--ease);outline:none}
+.inp::placeholder{color:rgba(255,255,255,.3)}
+.inp:focus{border-color:var(--t400);background:rgba(255,255,255,.1);box-shadow:0 0 0 3px rgba(13,148,136,.25)}
+.pw-wrap{position:relative}
+.pw-wrap .inp{padding-right:44px}
+.pw-tog{position:absolute;right:13px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:rgba(255,255,255,.4);font-size:.88rem;transition:color .2s}
+.pw-tog:hover{color:rgba(255,255,255,.8)}
+.btn-login{width:100%;padding:13px;background:var(--t600);color:#fff;border:none;border-radius:11px;font-size:.95rem;font-weight:700;cursor:pointer;transition:var(--ease);display:flex;align-items:center;justify-content:center;gap:8px;margin-top:4px}
+.btn-login:hover{background:var(--t500);transform:translateY(-1px);box-shadow:0 8px 24px rgba(13,148,136,.4)}
+.error-box{display:flex;align-items:center;gap:9px;background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);border-radius:10px;padding:11px 14px;font-size:.84rem;color:#fca5a5;margin-bottom:18px}
+.back-link{text-align:center;margin-top:18px;font-size:.8rem;color:rgba(255,255,255,.3)}
+.back-link a{color:rgba(255,255,255,.5);font-weight:600;transition:color .2s}
+.back-link a:hover{color:var(--t400)}
+</style>
+{% endblock %}
+{% block body %}
+<div class="wrap">
+  <div class="logo">
+    <div class="logo-icon"><i class="fas fa-scissors"></i></div>
+    <span class="logo-txt">SalonFlow</span>
+  </div>
+  <div class="card">
+    <div class="admin-tag"><i class="fas fa-shield-alt"></i> ADMIN PANEL</div>
+    <h1>Admin Sign In</h1>
+    <p class="sub">Restricted access. Authorized personnel only.</p>
+
+    {% if error %}
+    <div class="error-box"><i class="fas fa-exclamation-circle"></i>{{ error }}</div>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('admin_login') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="field">
+        <label>Admin Email</label>
+        <input type="email" name="email" class="inp" placeholder="admin@salonflow.in" required autofocus>
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <div class="pw-wrap">
+          <input type="password" name="password" id="pw" class="inp" placeholder="Admin password" required>
+          <button type="button" class="pw-tog" onclick="togPw()"><i class="fas fa-eye" id="pw-icon"></i></button>
+        </div>
+      </div>
+      <button type="submit" class="btn-login"><i class="fas fa-sign-in-alt"></i> Sign In to Admin</button>
+    </form>
+  </div>
+  <p class="back-link"><a href="{{ url_for('index') }}">← Back to main site</a></p>
+</div>
+<script>
+function togPw(){const i=document.getElementById('pw');const s=i.type==='password';i.type=s?'text':'password';document.getElementById('pw-icon').className='fas fa-eye'+(s?'-slash':'');}
+</script>
+{% endblock %}

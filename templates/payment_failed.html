@@ -1,0 +1,75 @@
+{% extends "layout.html" %}
+{% block title %}Payment Failed – SalonFlow{% endblock %}
+{% block page_title %}Payment Failed{% endblock %}
+{% block page_sub %}Something went wrong — your account has not been charged{% endblock %}
+
+{% block extra_css %}
+<style>
+.fail-wrap{max-width:560px;margin:0 auto;padding:20px 0}
+.fail-hero{background:#fff;border:1px solid var(--g100);border-radius:20px;padding:36px;text-align:center;margin-bottom:20px}
+.fail-icon{width:72px;height:72px;background:#fee2e2;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 18px;font-size:1.8rem;color:#ef4444}
+.fail-title{font-family:var(--df);font-size:1.9rem;font-weight:700;color:var(--g900);margin-bottom:8px}
+.fail-msg{font-size:.9rem;color:var(--g500);line-height:1.65;margin-bottom:6px}
+.fail-reason{font-size:.82rem;background:#fee2e2;color:#991b1b;border-radius:9px;padding:10px 14px;margin-top:14px;text-align:left;display:flex;gap:8px;align-items:flex-start}
+.fail-reason i{flex-shrink:0;margin-top:2px}
+.tips{background:#fff;border:1px solid var(--g100);border-radius:16px;padding:20px;margin-bottom:20px}
+.tips h3{font-size:.9rem;font-weight:700;color:var(--g900);margin-bottom:14px;display:flex;align-items:center;gap:7px}
+.tips h3 i{color:var(--t500)}
+.tip-item{display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid var(--g50);font-size:.84rem;color:var(--g600)}
+.tip-item:last-child{border-bottom:none}
+.tip-ic{width:28px;height:28px;background:var(--t50);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.75rem;color:var(--t600);flex-shrink:0}
+.actions{display:flex;gap:12px;flex-wrap:wrap}
+.act{flex:1;min-width:120px;padding:12px 20px;border-radius:12px;font-family:var(--bf);font-size:.88rem;font-weight:700;cursor:pointer;text-align:center;text-decoration:none;transition:all .22s;display:flex;align-items:center;justify-content:center;gap:8px;border:none}
+.act-p{background:var(--t600);color:#fff}
+.act-p:hover{background:var(--t700)}
+.act-g{background:#fff;color:var(--g700);border:1.5px solid var(--g200)}
+.act-g:hover{border-color:var(--g300);background:var(--g50)}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="fail-wrap">
+
+  <div class="fail-hero">
+    <div class="fail-icon"><i class="fas fa-times"></i></div>
+    <div class="fail-title">Payment Not Completed</div>
+    <div class="fail-msg">
+      Don't worry — <strong>your account has not been charged</strong>.<br>
+      You can try again with the same or a different payment method.
+    </div>
+    {% if reason %}
+    <div class="fail-reason">
+      <i class="fas fa-info-circle"></i>
+      <span><strong>Reason:</strong> {{ reason }}</span>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="tips">
+    <h3><i class="fas fa-lightbulb"></i> Common fixes</h3>
+    <div class="tip-item">
+      <div class="tip-ic"><i class="fas fa-credit-card"></i></div>
+      <span>Check your card has sufficient balance and is enabled for online payments</span>
+    </div>
+    <div class="tip-item">
+      <div class="tip-ic"><i class="fas fa-shield-alt"></i></div>
+      <span>Your bank may have declined for security reasons — approve the transaction in your banking app</span>
+    </div>
+    <div class="tip-ic" style="display:none"></div>
+    <div class="tip-item">
+      <div class="tip-ic"><i class="fab fa-google-pay"></i></div>
+      <span>Try a different method — UPI, Google Pay, PhonePe, or net banking usually work reliably</span>
+    </div>
+    <div class="tip-item">
+      <div class="tip-ic"><i class="fas fa-redo"></i></div>
+      <span>Wait 5 minutes and try again — temporary network issues sometimes cause failures</span>
+    </div>
+  </div>
+
+  <div class="actions">
+    <a href="{{ url_for('billing') }}" class="act act-p"><i class="fas fa-redo"></i> Try Again</a>
+    <a href="mailto:support@salonflow.in?subject=Payment%20failed&body=Hi%2C%20my%20payment%20failed.%20Email%3A%20{{ user.email }}" class="act act-g"><i class="fas fa-envelope"></i> Contact Support</a>
+  </div>
+
+</div>
+{% endblock %}

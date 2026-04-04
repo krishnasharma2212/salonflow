@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% block title %}Verify Your Email – SalonFlow{% endblock %}
+{% block extra_css %}
+<style>
+:root{
+  --t50:#f0fdfa;--t100:#ccfbf1;--t200:#99f6e4;--t300:#5eead4;
+  --t400:#2dd4bf;--t500:#14b8a6;--t600:#0d9488;--t700:#0f766e;--t800:#115e59;--t900:#134e4a;
+  --amber:#f59e0b;
+  --g50:#f9fafb;--g100:#f3f4f6;--g200:#e5e7eb;
+  --g400:#9ca3af;--g500:#6b7280;--g600:#4b5563;--g700:#374151;--g800:#1f2937;--g900:#111827;
+  --df:'Cormorant Garamond',Georgia,serif;--bf:'Outfit',sans-serif;
+  --ease:all .28s cubic-bezier(.4,0,.2,1);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:var(--bf);color:var(--g800);line-height:1.6}
+
+.page{display:grid;grid-template-columns:1fr 1fr;min-height:100vh}
+
+/* LEFT */
+.panel-l{
+  background:linear-gradient(145deg,var(--t900),var(--t700));
+  display:flex;flex-direction:column;justify-content:space-between;
+  padding:44px 48px;position:relative;overflow:hidden;
+}
+.panel-l::before{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(circle at 18% 78%,rgba(255,255,255,.07) 0%,transparent 45%),
+             radial-gradient(circle at 82% 18%,rgba(45,212,191,.14) 0%,transparent 45%);
+}
+.brand{display:flex;align-items:center;gap:10px;position:relative;z-index:1}
+.brand-icon{width:38px;height:38px;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.25);border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:.95rem}
+.brand-name{font-family:var(--df);font-size:1.55rem;font-weight:700;color:#fff}
+.l-body{position:relative;z-index:1;flex:1;display:flex;flex-direction:column;justify-content:center;padding:40px 0}
+.l-body h2{font-family:var(--df);font-size:2.4rem;font-weight:600;color:#fff;line-height:1.18;margin-bottom:14px}
+.l-body h2 em{font-style:italic;color:var(--t200)}
+.l-body p{color:rgba(255,255,255,.7);font-size:.95rem;line-height:1.75;margin-bottom:36px}
+.feat-rows{display:flex;flex-direction:column;gap:13px}
+.feat-row{display:flex;align-items:flex-start;gap:12px}
+.feat-ic{width:30px;height:30px;flex-shrink:0;background:rgba(255,255,255,.12);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:.78rem;color:var(--t200)}
+.feat-row span{font-size:.86rem;color:rgba(255,255,255,.82);line-height:1.55;padding-top:5px}
+.l-foot{position:relative;z-index:1}
+.progress-card{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:18px}
+.progress-card p{font-size:.8rem;color:rgba(255,255,255,.68);margin-bottom:10px}
+.pbar{height:5px;background:rgba(255,255,255,.15);border-radius:3px;overflow:hidden}
+.pfill{height:100%;width:33%;background:var(--t300);border-radius:3px}
+.plabels{display:flex;justify-content:space-between;margin-top:6px;font-size:.68rem;color:rgba(255,255,255,.42)}
+
+/* RIGHT */
+.panel-r{background:#fff;display:flex;align-items:center;justify-content:center;padding:48px 52px;position:relative}
+.back-lnk{position:absolute;top:22px;right:22px;display:flex;align-items:center;gap:6px;font-size:.8rem;color:var(--g500);font-weight:500;transition:color .2s;text-decoration:none}
+.back-lnk:hover{color:var(--t600)}
+.fbox{width:100%;max-width:400px}
+.icon-ring{width:76px;height:76px;margin:0 auto 22px;background:linear-gradient(135deg,var(--t50),var(--t100));border:2px solid var(--t200);border-radius:50%;display:flex;align-items:center;justify-content:center;position:relative}
+.icon-ring i{font-size:1.9rem;color:var(--t600)}
+.badge-dot{position:absolute;top:2px;right:2px;width:22px;height:22px;background:var(--amber);border-radius:50%;border:2.5px solid #fff;display:flex;align-items:center;justify-content:center;font-size:.58rem;color:#fff;font-weight:800}
+.fbox h1{font-family:var(--df);font-size:2rem;font-weight:700;color:var(--g900);text-align:center;margin-bottom:8px}
+.tagline{font-size:.88rem;color:var(--g500);text-align:center;line-height:1.7;margin-bottom:28px}
+.steps-list{display:flex;flex-direction:column;gap:9px;margin-bottom:28px}
+.step-item{display:flex;align-items:flex-start;gap:11px;padding:11px 13px;background:var(--t50);border-radius:10px;border:1px solid var(--t100)}
+.step-n{width:22px;height:22px;flex-shrink:0;background:var(--t600);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.67rem;font-weight:700;color:#fff;margin-top:2px}
+.step-item p{font-size:.82rem;color:var(--g700);line-height:1.5;margin:0}
+.resend-lbl{font-size:.78rem;font-weight:600;color:var(--g600);margin-bottom:7px}
+.email-fld{width:100%;padding:11px 14px;background:var(--g50);border:1.5px solid var(--g200);border-radius:10px;font-family:var(--bf);font-size:.88rem;color:var(--g900);outline:none;transition:var(--ease);margin-bottom:10px}
+.email-fld:focus{border-color:var(--t500);background:#fff;box-shadow:0 0 0 3px rgba(13,148,136,.1)}
+.btn-resend{width:100%;padding:12px;background:var(--t600);color:#fff;border:none;border-radius:10px;font-family:var(--bf);font-size:.9rem;font-weight:700;cursor:pointer;transition:var(--ease);display:flex;align-items:center;justify-content:center;gap:8px}
+.btn-resend:hover{background:var(--t700);transform:translateY(-1px)}
+.btn-resend:disabled{opacity:.6;cursor:not-allowed;transform:none}
+.flinks{text-align:center;margin-top:16px}
+.flinks a{font-size:.8rem;color:var(--g400);transition:color .2s}
+.flinks a:hover{color:var(--t600)}
+.flinks a.hi{color:var(--t600);font-weight:600}
+.flinks .sep{color:var(--g300);margin:0 8px}
+
+@media(max-width:900px){
+  .page{grid-template-columns:1fr}
+  .panel-l{display:none}
+  .panel-r{padding:40px 28px;align-items:flex-start;padding-top:60px}
+  .fbox{max-width:100%}
+}
+@media(max-width:480px){
+  .panel-r{padding:32px 20px}
+  .fbox h1{font-size:1.7rem}
+}
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="page">
+  <!-- LEFT -->
+  <div class="panel-l">
+    <a href="{{ url_for('index') }}" class="brand">
+      <div class="brand-icon"><i class="fas fa-scissors"></i></div>
+      <span class="brand-name">SalonFlow</span>
+    </a>
+    <div class="l-body">
+      <h2>Almost there —<br><em>just one step left.</em></h2>
+      <p>Verifying your email keeps your account secure and ensures you get booking notifications.</p>
+      <div class="feat-rows">
+        <div class="feat-row"><div class="feat-ic"><i class="fab fa-whatsapp"></i></div><span>WhatsApp booking bot — live in 2 minutes</span></div>
+        <div class="feat-row"><div class="feat-ic"><i class="fas fa-calendar-check"></i></div><span>Automated appointment scheduling</span></div>
+        <div class="feat-row"><div class="feat-ic"><i class="fas fa-bell"></i></div><span>Real-time reminders for you and your clients</span></div>
+        <div class="feat-row"><div class="feat-ic"><i class="fas fa-chart-line"></i></div><span>Revenue analytics dashboard</span></div>
+      </div>
+    </div>
+    <div class="l-foot">
+      <div class="progress-card">
+        <p>Account setup progress</p>
+        <div class="pbar"><div class="pfill"></div></div>
+        <div class="plabels"><span>Account created ✓</span><span>Step 1 of 3</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT -->
+  <div class="panel-r">
+    <a href="{{ url_for('auth_login') }}" class="back-lnk"><i class="fas fa-arrow-left"></i> Back to Sign In</a>
+    <div class="fbox">
+      <div class="icon-ring">
+        <i class="fas fa-envelope"></i>
+        <div class="badge-dot">!</div>
+      </div>
+      <h1>Check Your Inbox</h1>
+      <p class="tagline">We sent a verification link to your email.<br><strong style="color:var(--g800)">Click it to activate your account.</strong></p>
+      <div class="steps-list">
+        <div class="step-item"><div class="step-n">1</div><p>Open the email from <strong>SalonFlow</strong> (support@salonflow.in)</p></div>
+        <div class="step-item"><div class="step-n">2</div><p>Click the <strong>"Verify Email"</strong> button in the email</p></div>
+        <div class="step-item"><div class="step-n">3</div><p>You'll be redirected to your salon setup automatically</p></div>
+      </div>
+      <p class="resend-lbl">Didn't receive it? Resend below:</p>
+      <input type="email" id="resend-email" class="email-fld" placeholder="your@email.com">
+      <button class="btn-resend" id="resend-btn" onclick="resendEmail()">
+        <i class="fas fa-redo"></i><span id="resend-txt">Resend Verification Email</span>
+      </button>
+      <div class="flinks">
+        <a href="mailto:support@salonflow.in" class="hi">Need help?</a>
+        <span class="sep">·</span>
+        <a href="{{ url_for('auth_login') }}">Back to Sign In</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let cd=0;
+async function resendEmail(){
+  const el=document.getElementById('resend-email');
+  const email=el.value.trim();
+  if(!email||!email.includes('@')){el.style.borderColor='#ef4444';el.focus();return;}
+  el.style.borderColor='';
+  const btn=document.getElementById('resend-btn');btn.disabled=true;
+  document.getElementById('resend-txt').innerHTML='<i class="fas fa-spinner fa-spin"></i> Sending…';
+  try{
+    await fetch('/api/resend-verification',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
+    document.getElementById('resend-txt').innerHTML='<i class="fas fa-check"></i> Sent! Check your inbox.';
+    cd=60;const iv=setInterval(()=>{
+      document.getElementById('resend-txt').textContent='Resend again in '+cd+'s';
+      cd--;if(cd<0){clearInterval(iv);btn.disabled=false;document.getElementById('resend-txt').textContent='Resend Verification Email';}
+    },1000);
+  }catch{btn.disabled=false;document.getElementById('resend-txt').textContent='Resend Verification Email';}
+}
+</script>
+{% endblock %}

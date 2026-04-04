@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+{% block title %}Refund Policy – SalonFlow{% endblock %}
+{% block extra_css %}
+<style>
+:root{
+  --t50:#f0fdfa;--t100:#ccfbf1;--t200:#99f6e4;--t400:#2dd4bf;
+  --t500:#14b8a6;--t600:#0d9488;--t700:#0f766e;--t800:#115e59;--t900:#134e4a;
+  --g50:#f9fafb;--g100:#f3f4f6;--g200:#e5e7eb;--g400:#9ca3af;
+  --g500:#6b7280;--g600:#4b5563;--g700:#374151;--g800:#1f2937;--g900:#111827;
+  --df:'Cormorant Garamond',Georgia,serif;--bf:'Outfit',sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:var(--bf);background:var(--g50);color:var(--g800);line-height:1.7}
+.topnav{background:#fff;border-bottom:1px solid var(--g100);padding:14px 0;position:sticky;top:0;z-index:100}
+.tnin{max-width:860px;margin:0 auto;padding:0 24px;display:flex;align-items:center;justify-content:space-between}
+.logo{display:flex;align-items:center;gap:9px;text-decoration:none}
+.logo-ic{width:32px;height:32px;background:linear-gradient(135deg,var(--t800),var(--t500));border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:.82rem}
+.logo-txt{font-family:var(--df);font-size:1.35rem;font-weight:700;color:var(--t800)}
+.nav-back{display:flex;align-items:center;gap:6px;font-size:.84rem;color:var(--g500);text-decoration:none;transition:color .2s}
+.nav-back:hover{color:var(--t600)}
+.nav-pills{display:flex;gap:6px}
+.nav-pill{font-size:.78rem;font-weight:600;padding:6px 14px;border-radius:100px;text-decoration:none;color:var(--g600);border:1px solid var(--g200);transition:all .2s}
+.nav-pill:hover{border-color:var(--t300);color:var(--t700);background:var(--t50)}
+.nav-pill.active{background:var(--t600);color:#fff;border-color:var(--t600)}
+.pol-hero{background:linear-gradient(135deg,var(--t900),var(--t700));padding:48px 24px 40px}
+.pol-hero-in{max-width:860px;margin:0 auto}
+.pol-badge{display:inline-flex;align-items:center;gap:7px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.85);padding:4px 13px;border-radius:100px;font-size:.72rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px}
+.pol-hero h1{font-family:var(--df);font-size:clamp(2rem,4vw,2.8rem);font-weight:700;color:#fff;margin-bottom:8px}
+.pol-hero-meta{font-size:.82rem;color:rgba(255,255,255,.6)}
+.pol-hero-meta strong{color:rgba(255,255,255,.85)}
+.pol-body{max-width:860px;margin:0 auto;padding:40px 24px 80px;display:grid;grid-template-columns:200px 1fr;gap:40px;align-items:start}
+.pol-toc{position:sticky;top:72px}
+.pol-toc h4{font-size:.7rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--g400);margin-bottom:10px}
+.pol-toc ol{list-style:none;display:flex;flex-direction:column;gap:2px}
+.pol-toc li a{font-size:.8rem;color:var(--g500);text-decoration:none;padding:5px 10px;border-radius:7px;display:block;transition:all .2s;border-left:2px solid transparent}
+.pol-toc li a:hover{color:var(--t600);background:var(--t50);border-left-color:var(--t400)}
+.pol-toc li a.toc-active{color:var(--t700);font-weight:600;background:var(--t50);border-left-color:var(--t600)}
+.pol-section{background:#fff;border-radius:16px;border:1px solid var(--g100);padding:28px 32px;margin-bottom:16px;scroll-margin-top:80px}
+.pol-section h2{font-family:var(--df);font-size:1.25rem;font-weight:700;color:var(--g900);margin-bottom:14px;display:flex;align-items:center;gap:10px}
+.pol-section h2 .sec-num{width:26px;height:26px;background:var(--t600);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:800;color:#fff;flex-shrink:0;font-family:var(--bf)}
+.pol-section p{font-size:.9rem;color:var(--g600);margin-bottom:10px;line-height:1.78}
+.pol-section p:last-child{margin-bottom:0}
+.pol-section ul{padding-left:18px;display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
+.pol-section li{font-size:.9rem;color:var(--g600);line-height:1.65}
+.pol-section strong{color:var(--g800);font-weight:600}
+.pol-link{color:var(--t600);font-weight:500}
+.pol-link:hover{color:var(--t800)}
+/* Highlight box for key guarantee */
+.guarantee-box{background:var(--t50);border:1.5px solid var(--t200);border-radius:12px;padding:18px 22px;margin-bottom:16px;display:flex;align-items:flex-start;gap:14px}
+.guarantee-box i{color:var(--t600);font-size:1.4rem;flex-shrink:0;margin-top:2px}
+.guarantee-box strong{display:block;font-size:.95rem;color:var(--t800);margin-bottom:3px}
+.guarantee-box p{font-size:.86rem;color:var(--t700);margin:0;line-height:1.6}
+.pol-footer{background:var(--g900);padding:22px 24px;text-align:center}
+.pol-footer p{font-size:.8rem;color:rgba(255,255,255,.35)}
+.pol-footer a{color:rgba(255,255,255,.45);text-decoration:none;transition:color .2s}
+.pol-footer a:hover{color:var(--t400)}
+@media(max-width:720px){.pol-body{grid-template-columns:1fr}.pol-toc{display:none}.pol-section{padding:20px}}
+</style>
+{% endblock %}
+
+{% block body %}
+<nav class="topnav">
+  <div class="tnin">
+    <a href="{{ url_for('index') }}" class="logo">
+      <div class="logo-ic"><i class="fas fa-scissors"></i></div>
+      <span class="logo-txt">SalonFlow</span>
+    </a>
+    <div class="nav-pills">
+      <a href="{{ url_for('privacy') }}" class="nav-pill">Privacy Policy</a>
+      <a href="{{ url_for('terms') }}" class="nav-pill">Terms of Service</a>
+      <a href="{{ url_for('refund') }}" class="nav-pill active">Refund Policy</a>
+    </div>
+    <a href="{{ url_for('index') }}" class="nav-back"><i class="fas fa-arrow-left"></i> Back to site</a>
+  </div>
+</nav>
+
+<div class="pol-hero">
+  <div class="pol-hero-in">
+    <div class="pol-badge"><i class="fas fa-undo-alt"></i> Legal</div>
+    <h1>Refund &amp; Cancellation Policy</h1>
+    <p class="pol-hero-meta"><strong>Last updated:</strong> 1 June 2025 &nbsp;·&nbsp; <strong>Effective:</strong> 1 June 2025</p>
+  </div>
+</div>
+
+<div class="pol-body">
+  <nav class="pol-toc">
+    <h4>Contents</h4>
+    <ol>
+      <li><a href="#s1">Overview</a></li>
+      <li><a href="#s2">Plans</a></li>
+      <li><a href="#s3">7-Day Refund</a></li>
+      <li><a href="#s4">Non-Refundable</a></li>
+      <li><a href="#s5">Cancellation</a></li>
+      <li><a href="#s6">How to Request</a></li>
+      <li><a href="#s7">Processing</a></li>
+      <li><a href="#s8">Disputes</a></li>
+      <li><a href="#s9">Policy Changes</a></li>
+      <li><a href="#s10">Contact</a></li>
+    </ol>
+  </nav>
+
+  <div class="pol-content">
+
+    <!-- Key guarantee callout -->
+    <div class="guarantee-box">
+      <i class="fas fa-shield-alt"></i>
+      <div>
+        <strong>7-Day Money-Back Guarantee</strong>
+        <p>Not satisfied after your first payment? Email us within 7 days and we'll issue a full refund — no questions asked. See Section 3 for eligibility conditions.</p>
+      </div>
+    </div>
+
+    <div class="pol-section" id="s1">
+      <h2><span class="sec-num">1</span> Overview</h2>
+      <p>This Refund &amp; Cancellation Policy applies to all paid subscription plans on the SalonFlow platform, operated by SalonFlow Technologies, India. Payments are processed by <strong>Razorpay Software Pvt. Ltd.</strong> Please read this policy carefully before purchasing a plan.</p>
+    </div>
+
+    <div class="pol-section" id="s2">
+      <h2><span class="sec-num">2</span> Subscription Plans</h2>
+      <p>SalonFlow offers the following plans:</p>
+      <ul>
+        <li><strong>Starter</strong> — Free, no payment required</li>
+        <li><strong>Pro</strong> — ₹999/month (billed monthly via Razorpay)</li>
+        <li><strong>Business</strong> — ₹2,499/month (billed monthly via Razorpay, coming soon)</li>
+      </ul>
+      <p>All paid plans are billed in advance in Indian Rupees (₹) inclusive of applicable GST.</p>
+    </div>
+
+    <div class="pol-section" id="s3">
+      <h2><span class="sec-num">3</span> 7-Day Refund Window</h2>
+      <p>If you are not satisfied with your first paid subscription, you may request a <strong>full refund within 7 (seven) days</strong> of the initial payment date. Refunds under this clause are issued at our sole discretion following a review of account activity for abuse.</p>
+      <p><strong>Eligibility conditions — all must be met:</strong></p>
+      <ul>
+        <li>Refund request is submitted within <strong>7 days of the first payment date</strong></li>
+        <li>Applies only to the <strong>first subscription purchase</strong> — not to renewal charges</li>
+        <li>The account has not been used to send spam or violate our <a href="{{ url_for('terms') }}" class="pol-link">Terms of Service</a></li>
+        <li>The subscription was not purchased using a promotional offer that explicitly excluded refunds</li>
+      </ul>
+    </div>
+
+    <div class="pol-section" id="s4">
+      <h2><span class="sec-num">4</span> Non-Refundable Situations</h2>
+      <p>The following are explicitly <strong>not eligible for refund</strong>:</p>
+      <ul>
+        <li>Renewal charges after the first billing cycle</li>
+        <li>Partial months — we do not prorate unused subscription time</li>
+        <li>Accounts terminated for violating our Terms of Service</li>
+        <li>Payments made after the 7-day refund window has closed</li>
+        <li>Promotional or discounted subscriptions where refund exclusion was stated at purchase</li>
+        <li>Requests citing service unavailability during scheduled or emergency maintenance windows</li>
+      </ul>
+    </div>
+
+    <div class="pol-section" id="s5">
+      <h2><span class="sec-num">5</span> Cancellation</h2>
+      <p>You may cancel your subscription at any time from the <strong>Billing</strong> section of your dashboard. Cancellation stops future auto-renewals but does not trigger a refund for the current billing period. You retain full access to paid features until the end of the period you have paid for.</p>
+    </div>
+
+    <div class="pol-section" id="s6">
+      <h2><span class="sec-num">6</span> How to Request a Refund</h2>
+      <p>To request a refund, email <a href="mailto:support@salonflow.in" class="pol-link">support@salonflow.in</a> with the subject line <strong>"Refund Request"</strong> and include:</p>
+      <ul>
+        <li>Your registered email address</li>
+        <li>Your Razorpay payment ID or transaction reference number</li>
+        <li>Reason for the request (optional, but helps us improve)</li>
+      </ul>
+      <p>We will acknowledge your request within <strong>2 business days</strong> and process eligible refunds within <strong>5–7 business days</strong> of approval.</p>
+    </div>
+
+    <div class="pol-section" id="s7">
+      <h2><span class="sec-num">7</span> Refund Processing</h2>
+      <p>Approved refunds are processed through Razorpay back to the original payment source (bank account, UPI, or card). The time for the refund to appear in your account depends on your bank or payment provider and is typically <strong>5–10 business days</strong> after we initiate the transfer. SalonFlow is not responsible for delays caused by the banking or payment system.</p>
+    </div>
+
+    <div class="pol-section" id="s8">
+      <h2><span class="sec-num">8</span> Disputes &amp; Chargebacks</h2>
+      <p>We encourage you to contact our support team before raising a payment dispute with your bank or card issuer. Chargebacks initiated without prior contact may result in <strong>temporary account suspension</strong> pending investigation. We cooperate fully with Razorpay's dispute resolution process and will respond to all chargeback requests promptly.</p>
+    </div>
+
+    <div class="pol-section" id="s9">
+      <h2><span class="sec-num">9</span> Changes to This Policy</h2>
+      <p>SalonFlow reserves the right to modify this policy at any time. Changes will be published on this page with an updated effective date. The policy in effect at the time of your purchase governs that specific transaction.</p>
+    </div>
+
+    <div class="pol-section" id="s10">
+      <h2><span class="sec-num">10</span> Contact</h2>
+      <p>For all billing and refund queries: <a href="mailto:support@salonflow.in" class="pol-link">support@salonflow.in</a><br>
+      Response within <strong>2 business days</strong>.</p>
+    </div>
+
+  </div>
+</div>
+
+<div class="pol-footer">
+  <p>© 2025 SalonFlow Technologies &nbsp;·&nbsp;
+    <a href="{{ url_for('privacy') }}">Privacy</a> &nbsp;·&nbsp;
+    <a href="{{ url_for('terms') }}">Terms</a> &nbsp;·&nbsp;
+    <a href="{{ url_for('refund') }}">Refund Policy</a> &nbsp;·&nbsp;
+    <a href="mailto:support@salonflow.in">support@salonflow.in</a>
+  </p>
+</div>
+
+<script>
+const sections = document.querySelectorAll('.pol-section');
+const tocLinks = document.querySelectorAll('.pol-toc a');
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      tocLinks.forEach(a => a.classList.remove('toc-active'));
+      const active = document.querySelector(`.pol-toc a[href="#${e.target.id}"]`);
+      if (active) active.classList.add('toc-active');
+    }
+  });
+}, { rootMargin: '-30% 0px -60% 0px' });
+sections.forEach(s => obs.observe(s));
+</script>
+{% endblock %}

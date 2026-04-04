@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block title %}Email Verified – SalonFlow{% endblock %}
+{% block extra_css %}
+<style>
+:root{
+  --t50:#f0fdfa;--t100:#ccfbf1;--t200:#99f6e4;--t300:#5eead4;
+  --t400:#2dd4bf;--t500:#14b8a6;--t600:#0d9488;--t700:#0f766e;--t800:#115e59;--t900:#134e4a;
+  --g400:#9ca3af;--g500:#6b7280;--g800:#1f2937;--g900:#111827;
+  --df:'Cormorant Garamond',Georgia,serif;--bf:'Outfit',sans-serif;
+  --ease:all .28s cubic-bezier(.4,0,.2,1);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:var(--bf);color:var(--g800);line-height:1.6}
+
+.page{display:grid;grid-template-columns:1fr 1fr;min-height:100vh}
+
+/* LEFT – celebration panel */
+.panel-l{
+  background:linear-gradient(145deg,var(--t900),var(--t600));
+  display:flex;flex-direction:column;justify-content:center;align-items:center;
+  padding:60px 48px;position:relative;overflow:hidden;text-align:center;
+}
+.panel-l::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 30% 70%,rgba(255,255,255,.08) 0%,transparent 50%),radial-gradient(circle at 70% 20%,rgba(45,212,191,.18) 0%,transparent 50%)}
+.confetti{font-size:3.5rem;display:block;margin-bottom:10px;animation:bounce .9s ease-in-out infinite alternate;position:relative;z-index:1}
+@keyframes bounce{from{transform:translateY(0)}to{transform:translateY(-12px)}}
+.l-title{font-family:var(--df);font-size:2.6rem;font-weight:600;color:#fff;line-height:1.18;margin-bottom:12px;position:relative;z-index:1}
+.l-title em{font-style:italic;color:var(--t200)}
+.l-sub{font-size:.95rem;color:rgba(255,255,255,.72);line-height:1.75;margin-bottom:40px;position:relative;z-index:1;max-width:340px}
+.feature-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;position:relative;z-index:1;width:100%;max-width:340px}
+.feat-tile{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);border-radius:14px;padding:16px;text-align:center}
+.feat-tile i{font-size:1.3rem;color:var(--t200);margin-bottom:7px;display:block}
+.feat-tile span{font-size:.76rem;font-weight:600;color:rgba(255,255,255,.85)}
+
+/* RIGHT */
+.panel-r{
+  background:#fff;
+  display:flex;align-items:center;justify-content:center;
+  padding:60px 52px;
+}
+.fbox{width:100%;max-width:380px;text-align:center}
+.check-ring{
+  width:90px;height:90px;margin:0 auto 22px;
+  background:linear-gradient(135deg,var(--t100),var(--t200));
+  border-radius:50%;display:flex;align-items:center;justify-content:center;
+  position:relative;
+}
+.check-ring::after{content:'';position:absolute;inset:-4px;border:3px solid var(--t300);border-radius:50%;animation:spin 1s ease forwards}
+@keyframes spin{from{transform:rotate(0);opacity:0}60%{opacity:1}to{transform:rotate(360deg)}}
+.check-ring i{font-size:2.2rem;color:var(--t700);animation:pop .5s .3s ease both}
+@keyframes pop{from{transform:scale(0)}70%{transform:scale(1.2)}to{transform:scale(1)}}
+.fbox h1{font-family:var(--df);font-size:2.1rem;font-weight:700;color:var(--g900);margin-bottom:10px}
+.fbox p{font-size:.9rem;color:var(--g500);line-height:1.72;margin-bottom:32px}
+.btn-go{
+  display:flex;align-items:center;justify-content:center;gap:9px;
+  width:100%;padding:14px;
+  background:linear-gradient(135deg,var(--t700),var(--t500));
+  color:#fff;border:none;border-radius:13px;font-family:var(--bf);
+  font-size:.96rem;font-weight:700;cursor:pointer;
+  transition:var(--ease);text-decoration:none;margin-bottom:16px;
+}
+.btn-go:hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(13,148,136,.38)}
+.what-next{background:var(--t50);border:1px solid var(--t100);border-radius:14px;padding:18px;text-align:left;margin-bottom:16px}
+.what-next h4{font-size:.82rem;font-weight:700;color:var(--t800);margin-bottom:10px;display:flex;align-items:center;gap:7px}
+.next-items{display:flex;flex-direction:column;gap:8px}
+.next-item{display:flex;align-items:center;gap:9px;font-size:.8rem;color:var(--t700)}
+.next-item i{font-size:.72rem;color:var(--t500);flex-shrink:0;width:14px}
+.foot{font-size:.78rem;color:var(--g400)}
+.foot a{color:var(--t600);font-weight:600}
+
+@media(max-width:900px){
+  .page{grid-template-columns:1fr}
+  .panel-l{padding:48px 28px;min-height:220px}
+  .l-title{font-size:2rem}
+  .feature-grid{display:none}
+  .panel-r{padding:40px 28px;align-items:flex-start}
+}
+@media(max-width:480px){
+  .panel-r{padding:32px 20px}
+  .fbox{max-width:100%}
+  .fbox h1{font-size:1.8rem}
+}
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="page">
+
+  <!-- LEFT – celebration -->
+  <div class="panel-l">
+    <span class="confetti">🎉</span>
+    <h2 class="l-title">You're in!<br><em>Let's set up your salon.</em></h2>
+    <p class="l-sub">Your email is verified. Now let's get your salon ready to take WhatsApp bookings in minutes.</p>
+    <div class="feature-grid">
+      <div class="feat-tile"><i class="fas fa-calendar-check"></i><span>Appointments</span></div>
+      <div class="feat-tile"><i class="fab fa-whatsapp"></i><span>WhatsApp Bot</span></div>
+      <div class="feat-tile"><i class="fas fa-users"></i><span>Client CRM</span></div>
+      <div class="feat-tile"><i class="fas fa-chart-line"></i><span>Analytics</span></div>
+    </div>
+  </div>
+
+  <!-- RIGHT – action -->
+  <div class="panel-r">
+    <div class="fbox">
+      <div class="check-ring"><i class="fas fa-check"></i></div>
+      <h1>You're Verified!</h1>
+      <p>Your SalonFlow account is now fully active. Complete a quick setup to start receiving WhatsApp bookings.</p>
+
+      <div class="what-next">
+        <h4><i class="fas fa-route" style="color:var(--t500)"></i> What happens next</h4>
+        <div class="next-items">
+          <div class="next-item"><i class="fas fa-store"></i> Add your salon details &amp; services</div>
+          <div class="next-item"><i class="fas fa-toggle-on"></i> Configure booking &amp; payment settings</div>
+          <div class="next-item"><i class="fab fa-whatsapp"></i> Connect WhatsApp in 30 seconds</div>
+          <div class="next-item"><i class="fas fa-rocket"></i> Go live and start taking bookings!</div>
+        </div>
+      </div>
+
+      <a href="{{ url_for('dashboard') }}" class="btn-go">
+        <i class="fas fa-arrow-right"></i> Set Up My Salon
+      </a>
+      <p class="foot">Need help? <a href="mailto:support@salonflow.in">support@salonflow.in</a></p>
+    </div>
+  </div>
+</div>
+{% endblock %}

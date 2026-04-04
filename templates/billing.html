@@ -1,0 +1,403 @@
+{% extends "layout.html" %}
+{% block title %}Billing – SalonFlow{% endblock %}
+{% block page_title %}Billing & Subscription{% endblock %}
+{% block page_sub %}{{ user.salon_name }} · {{ user.plan_label }} Plan{% endblock %}
+
+{% block extra_css %}
+<style>
+.bg{display:grid;grid-template-columns:1fr 360px;gap:22px;align-items:start}
+.bc{background:#fff;border-radius:18px;border:1px solid var(--g100);overflow:hidden;margin-bottom:18px}
+.bc:last-child{margin-bottom:0}
+.bc-hd{padding:15px 20px;border-bottom:1px solid var(--g100);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.bc-hd h3{font-size:.95rem;font-weight:700;color:var(--g900)}
+.bc-hd p{font-size:.74rem;color:var(--g400);margin-top:2px}
+.bc-bd{padding:20px}
+/* Hero */
+.plan-hero{background:linear-gradient(135deg,var(--t900),var(--t700));border-radius:18px;padding:24px;position:relative;overflow:hidden;margin-bottom:18px}
+.plan-hero::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 80% 0,rgba(255,255,255,.08),transparent 50%)}
+.ph-top{display:flex;align-items:flex-start;justify-content:space-between;position:relative;margin-bottom:18px}
+.ph-name{font-size:.68rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--t200);margin-bottom:4px}
+.ph-plan{font-family:var(--df);font-size:2.2rem;font-weight:700;color:#fff;line-height:1}
+.ph-badge{display:flex;align-items:center;gap:6px;padding:5px 13px;border-radius:100px;font-size:.74rem;font-weight:700}
+.phb-on{background:rgba(74,222,128,.2);border:1px solid rgba(74,222,128,.3);color:#4ade80}
+.phb-off{background:rgba(239,68,68,.2);border:1px solid rgba(239,68,68,.3);color:#fca5a5}
+.phb-free{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);color:rgba(255,255,255,.8)}
+.ph-meta{display:flex;gap:20px;flex-wrap:wrap;position:relative}
+.ph-mi{font-size:.82rem;color:rgba(255,255,255,.7);display:flex;align-items:center;gap:6px}
+.ph-mi strong{color:#fff;font-weight:600}
+/* Plans grid */
+.plans-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.pcard{border:2px solid var(--g200);border-radius:14px;padding:22px 18px;transition:all .22s;position:relative;background:#fff}
+.pcard:hover:not(.locked){border-color:var(--t300);box-shadow:0 4px 20px rgba(13,148,136,.1)}
+.pcard.cur{border-color:var(--t500);background:var(--t50)}
+.pcard.cur::before{content:'Current';position:absolute;top:-1px;right:16px;background:var(--t600);color:#fff;font-size:.6rem;font-weight:700;padding:3px 10px;border-radius:0 0 8px 8px;letter-spacing:.06em}
+.pcard.hot{border-color:var(--t600);background:linear-gradient(148deg,var(--t800),var(--t600))}
+.pop-tag{position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:#f59e0b;color:var(--g900);font-size:.65rem;font-weight:700;padding:3px 12px;border-radius:100px;white-space:nowrap}
+.pcard.locked{opacity:.65;pointer-events:none;border-style:dashed}
+.pcs-tag{position:absolute;top:-1px;right:16px;background:var(--g600);color:#fff;font-size:.6rem;font-weight:700;padding:3px 10px;border-radius:0 0 8px 8px}
+.pname{font-size:.68rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--t600);margin-bottom:8px}
+.pcard.hot .pname{color:var(--t200)}
+.pprice{font-family:var(--df);font-size:2rem;font-weight:700;color:var(--g900);line-height:1;margin-bottom:2px}
+.pcard.hot .pprice{color:#fff}
+.pper{font-size:.74rem;color:var(--g500);margin-bottom:14px}
+.pcard.hot .pper{color:rgba(255,255,255,.65)}
+.pfeats{list-style:none;display:flex;flex-direction:column;gap:8px;margin-bottom:18px}
+.pfeats li{display:flex;align-items:flex-start;gap:7px;font-size:.8rem;color:var(--g700)}
+.pcard.hot .pfeats li{color:rgba(255,255,255,.88)}
+.pfeats li i{font-size:.66rem;color:var(--t500);margin-top:3px;flex-shrink:0}
+.pcard.hot .pfeats li i{color:var(--t200)}
+.pbtn{width:100%;padding:11px;border-radius:10px;font-size:.86rem;font-weight:700;cursor:pointer;transition:all .22s;font-family:var(--bf);border:1.5px solid var(--t300);background:#fff;color:var(--t700);display:flex;align-items:center;justify-content:center;gap:7px}
+.pbtn:hover:not(:disabled){background:var(--t50);border-color:var(--t500);transform:translateY(-1px)}
+.pbtn:disabled{opacity:.55;cursor:default;transform:none}
+.pcard.hot .pbtn{background:#fff;color:var(--t700);border-color:transparent}
+.pcard.hot .pbtn:hover:not(:disabled){background:var(--t50)}
+/* Billing toggle */
+.cycle-toggle{display:flex;gap:0;background:var(--g100);border-radius:9px;padding:3px}
+.ct-btn{padding:5px 14px;font-size:.76rem;font-weight:600;cursor:pointer;border-radius:7px;border:none;font-family:var(--bf);transition:all .2s;color:var(--g500);background:none}
+.ct-btn.active{background:#fff;color:var(--t700);box-shadow:0 1px 4px rgba(0,0,0,.1)}
+/* Trust badges */
+.trust-row{display:flex;align-items:center;justify-content:center;gap:16px;padding-top:14px;border-top:1px solid var(--g100);flex-wrap:wrap;margin-top:14px}
+.trust-item{font-size:.74rem;color:var(--g400);display:flex;align-items:center;gap:5px}
+.trust-item i{color:var(--t500)}
+/* Invoice */
+.inv-row{display:flex;align-items:center;gap:13px;padding:12px 20px;border-bottom:1px solid var(--g50);transition:background .15s}
+.inv-row:last-child{border-bottom:none}
+.inv-row:hover{background:var(--g50)}
+.inv-ic{width:36px;height:36px;background:var(--t50);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:.82rem;color:var(--t600);flex-shrink:0}
+.inv-info{flex:1}
+.inv-name{font-size:.85rem;font-weight:600;color:var(--g900)}
+.inv-date{font-size:.71rem;color:var(--g400);margin-top:1px}
+.inv-pill{font-size:.66rem;font-weight:700;padding:3px 9px;border-radius:100px}
+.ip-ok{background:#dcfce7;color:#166534}.ip-fail{background:#fee2e2;color:#dc2626}
+/* Right col */
+.ic-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--g50)}
+.ic-row:last-child{border-bottom:none}
+.ic-label{font-size:.8rem;color:var(--g500)}
+.ic-val{font-size:.84rem;font-weight:600;color:var(--g900)}
+.cancel-btn{width:100%;padding:11px;background:#fff;color:#ef4444;border:1.5px solid #fecaca;border-radius:10px;font-size:.86rem;font-weight:700;cursor:pointer;transition:all .22s;font-family:var(--bf)}
+.cancel-btn:hover{background:#fee2e2}
+/* Loading overlay */
+.pay-overlay{display:none;position:fixed;inset:0;background:rgba(255,255,255,.96);z-index:9999;flex-direction:column;align-items:center;justify-content:center;gap:18px}
+.pay-overlay.show{display:flex}
+.pay-spinner-ring{width:52px;height:52px}
+.pay-spinner-ring circle{stroke:var(--t600);stroke-dasharray:120;stroke-dashoffset:80;stroke-linecap:round;transform-origin:center;animation:spin .9s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.pay-overlay-msg{font-size:.95rem;font-weight:600;color:var(--g700)}
+.pay-overlay-sub{font-size:.8rem;color:var(--g400)}
+@media(max-width:1050px){.bg{grid-template-columns:1fr}}
+@media(max-width:600px){.plans-grid{grid-template-columns:1fr}.ph-plan{font-size:1.7rem}}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Payment loading overlay -->
+<div class="pay-overlay" id="pay-overlay">
+  <svg class="pay-spinner-ring" viewBox="0 0 52 52" xmlns="http://www.w3.org/2000/svg" fill="none">
+    <circle cx="26" cy="26" r="22" stroke-width="4"/>
+  </svg>
+  <div class="pay-overlay-msg" id="pay-overlay-msg">Preparing your payment…</div>
+  <div class="pay-overlay-sub">Please do not close this window</div>
+</div>
+
+<div class="bg">
+  <!-- ═══ LEFT ═══ -->
+  <div>
+
+    <!-- Current plan -->
+    <div class="plan-hero">
+      <div class="ph-top">
+        <div>
+          <div class="ph-name">Current Plan</div>
+          <div class="ph-plan">{{ user.plan_label }}</div>
+        </div>
+        {% if user.plan == 'starter' %}
+          <span class="ph-badge phb-free"><i class="fas fa-seedling"></i> Free</span>
+        {% elif sub and sub.status == 'cancelled' %}
+          <span class="ph-badge phb-off"><i class="fas fa-times-circle"></i> Cancelled</span>
+        {% else %}
+          <span class="ph-badge phb-on"><i class="fas fa-check-circle"></i> Active</span>
+        {% endif %}
+      </div>
+      <div class="ph-meta">
+        <div class="ph-mi"><i class="fas fa-rupee-sign"></i><span>₹<strong>{{ user.plan_price }}</strong>/month</span></div>
+        {% if sub and sub.current_period_end and user.plan != 'starter' %}
+        <div class="ph-mi"><i class="fas fa-calendar-alt"></i><span>Renews <strong>{{ sub.current_period_end.strftime('%d %b %Y') }}</strong></span></div>
+        {% endif %}
+        {% if sub and sub.last_payment_id %}
+        <div class="ph-mi"><i class="fas fa-receipt"></i><span>Last payment: <strong>{{ sub.last_payment_id }}</strong></span></div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Upgrade plans -->
+    <div class="bc">
+      <div class="bc-hd">
+        <div><h3>Choose a Plan</h3><p>Upgrade anytime · cancel anytime</p></div>
+        <div class="cycle-toggle">
+          <button class="ct-btn active" id="ct-monthly" onclick="setCycle('monthly')">Monthly</button>
+          <button class="ct-btn" id="ct-annual" onclick="setCycle('annual')">Annual <span style="font-size:.62rem;background:var(--t100);color:var(--t700);padding:1px 5px;border-radius:100px">–20%</span></button>
+        </div>
+      </div>
+      <div class="bc-bd">
+        <div class="plans-grid">
+
+          <!-- PRO -->
+          <div class="pcard hot {% if user.plan == 'pro' %}cur{% endif %}" id="card-pro">
+            <div class="pop-tag">⭐ Recommended</div>
+            <div class="pname">Pro</div>
+            <div class="pprice">₹<span id="price-pro">999</span></div>
+            <div class="pper" id="period-pro">per month · billed monthly</div>
+            <ul class="pfeats">
+              <li><i class="fas fa-check"></i> Unlimited appointments</li>
+              <li><i class="fas fa-check"></i> Advanced WhatsApp bot</li>
+              <li><i class="fas fa-check"></i> Analytics &amp; reports</li>
+              <li><i class="fas fa-check"></i> Automated reminders</li>
+              <li><i class="fas fa-check"></i> Staff management</li>
+              <li><i class="fas fa-check"></i> Priority support</li>
+            </ul>
+            {% if user.plan == 'pro' %}
+            <button class="pbtn" disabled><i class="fas fa-check-circle"></i> Current Plan</button>
+            {% else %}
+            <button class="pbtn" id="btn-pro" onclick="startPayment('pro')"><i class="fas fa-bolt"></i> Upgrade to Pro</button>
+            {% endif %}
+          </div>
+
+          <!-- BUSINESS (Coming Soon) -->
+          <div class="pcard locked" id="card-business">
+            <div class="pcs-tag">Coming Soon</div>
+            <div class="pname">Business</div>
+            <div class="pprice">₹<span id="price-business">2499</span></div>
+            <div class="pper" id="period-business">per month · billed monthly</div>
+            <ul class="pfeats">
+              <li><i class="fas fa-check"></i> Everything in Pro</li>
+              <li><i class="fas fa-check"></i> Multiple branches</li>
+              <li><i class="fas fa-check"></i> Multiple WhatsApp #s</li>
+              <li><i class="fas fa-check"></i> Custom bot responses</li>
+              <li><i class="fas fa-check"></i> Dedicated account manager</li>
+              <li><i class="fas fa-check"></i> Custom onboarding session</li>
+            </ul>
+            <button class="pbtn" disabled><i class="fas fa-lock"></i> Coming Soon</button>
+          </div>
+
+        </div>
+
+        <div class="trust-row">
+          <span class="trust-item"><i class="fas fa-shield-alt"></i> Secured by Razorpay</span>
+          <span class="trust-item"><i class="fas fa-lock"></i> 256-bit SSL</span>
+          <span class="trust-item"><i class="fas fa-undo-alt"></i> 7-day refund</span>
+          <span class="trust-item"><i class="fas fa-university"></i> All UPI &amp; cards accepted</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Invoice history -->
+    <div class="bc">
+      <div class="bc-hd"><div><h3>Invoice History</h3></div></div>
+      {% set paid_list = current_user.payments.filter_by(status='captured').all() %}
+      {% if paid_list %}
+        {% for p in paid_list | sort(attribute='created_at', reverse=True) %}
+        <div class="inv-row">
+          <div class="inv-ic"><i class="fas fa-file-invoice-dollar"></i></div>
+          <div class="inv-info">
+            <div class="inv-name">{{ p.plan | title }} Plan – {{ p.billing_cycle | title }}</div>
+            <div class="inv-date">{{ p.created_at.strftime('%d %b %Y, %I:%M %p') }} · <span style="font-family:monospace;font-size:.68rem">{{ p.razorpay_payment_id or p.razorpay_order_id }}</span></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font-weight:700;font-size:.86rem;color:var(--g900)">₹{{ p.amount_rupees }}</span>
+            <span class="inv-pill ip-ok">Paid</span>
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div style="padding:36px 20px;text-align:center;color:var(--g400)">
+          <i class="fas fa-receipt" style="font-size:2rem;display:block;margin-bottom:10px;color:var(--g200)"></i>
+          <p style="font-size:.86rem">No invoices yet. Upgrade to a paid plan to see billing history here.</p>
+        </div>
+      {% endif %}
+    </div>
+
+  </div>
+
+  <!-- ═══ RIGHT ═══ -->
+  <div>
+
+    <div class="bc" style="margin-bottom:16px">
+      <div class="bc-hd"><div><h3>Subscription Details</h3></div></div>
+      <div class="bc-bd">
+        <div class="ic-row"><span class="ic-label">Plan</span><span class="ic-val">{{ user.plan_label }}</span></div>
+        <div class="ic-row"><span class="ic-label">Status</span>
+          <span class="ic-val" style="color:{% if sub and sub.is_active %}#16a34a{% else %}#ef4444{% endif %}">
+            {{ sub.status.title() if sub else 'N/A' }}
+          </span>
+        </div>
+        <div class="ic-row"><span class="ic-label">Billing cycle</span><span class="ic-val">{{ (sub.billing_cycle|title) if sub else '—' }}</span></div>
+        <div class="ic-row"><span class="ic-label">Amount</span><span class="ic-val">₹{{ user.plan_price }}/month</span></div>
+        {% if sub and sub.current_period_end and user.plan != 'starter' %}
+        <div class="ic-row"><span class="ic-label">Next renewal</span><span class="ic-val">{{ sub.current_period_end.strftime('%d %b %Y') }}</span></div>
+        {% endif %}
+        <div class="ic-row"><span class="ic-label">Member since</span><span class="ic-val">{{ user.created_at.strftime('%d %b %Y') }}</span></div>
+      </div>
+    </div>
+
+    {% if sub and sub.is_active and user.plan != 'starter' %}
+    <div class="bc" style="margin-bottom:16px">
+      <div class="bc-hd"><div><h3>Cancel Subscription</h3></div></div>
+      <div class="bc-bd">
+        <div style="background:#fef9c3;border:1px solid #fde68a;border-radius:10px;padding:12px;font-size:.8rem;color:#92400e;margin-bottom:14px;display:flex;gap:8px;align-items:flex-start">
+          <i class="fas fa-exclamation-triangle" style="flex-shrink:0;margin-top:2px"></i>
+          <span>Your plan stays active until <strong>{{ sub.current_period_end.strftime('%d %b %Y') if sub.current_period_end else 'end of period' }}</strong>. No refund for remaining days.</span>
+        </div>
+        <form method="POST" action="{{ url_for('billing_cancel') }}" onsubmit="return confirm('Cancel your subscription? You keep access until the billing period ends.')">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="cancel-btn"><i class="fas fa-times-circle"></i> Cancel Subscription</button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="bc">
+      <div class="bc-hd"><div><h3>Need Help?</h3></div></div>
+      <div class="bc-bd" style="display:flex;flex-direction:column;gap:10px">
+        <a href="mailto:support@salonflow.in" style="display:flex;align-items:center;gap:8px;font-size:.85rem;color:var(--t600);font-weight:600;text-decoration:none"><i class="fas fa-envelope"></i>support@salonflow.in</a>
+        <div style="font-size:.78rem;color:var(--g400)">Refund requests: <a href="{{ url_for('refund') }}" style="color:var(--t600)">Refund Policy</a> · Response within 2 business days.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Razorpay SDK -->
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script>
+let cycle = 'monthly';
+const PRICES = { monthly:{pro:999,business:2499}, annual:{pro:799,business:1999} };
+
+function setCycle(c) {
+  cycle = c;
+  ['monthly','annual'].forEach(x => {
+    const btn = document.getElementById('ct-'+x);
+    btn.classList.toggle('active', x===c);
+  });
+  document.getElementById('price-pro').textContent      = PRICES[c].pro;
+  document.getElementById('price-business').textContent = PRICES[c].business;
+  const sfx = c==='annual' ? 'per month · billed annually' : 'per month · billed monthly';
+  document.getElementById('period-pro').textContent      = sfx;
+  document.getElementById('period-business').textContent = sfx;
+}
+
+function showOverlay(msg) {
+  document.getElementById('pay-overlay-msg').textContent = msg;
+  document.getElementById('pay-overlay').classList.add('show');
+}
+function hideOverlay() {
+  document.getElementById('pay-overlay').classList.remove('show');
+}
+
+async function startPayment(plan) {
+  // Disable button to prevent double-click
+  const btn = document.getElementById('btn-' + plan);
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Opening…'; }
+
+  showOverlay('Creating secure payment session…');
+
+  try {
+    // Step 1: create order on server
+    const res = await fetch('/billing/create-order', {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ plan, billing_cycle: cycle }),
+    });
+    const order = await res.json();
+
+    if (!res.ok || !order.order_id) {
+      hideOverlay();
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-bolt"></i> Upgrade to ' + (plan==='pro'?'Pro':'Business'); }
+      alert(order.error || 'Could not start payment. Please try again.');
+      return;
+    }
+
+    hideOverlay();
+
+    // Step 2: open Razorpay checkout
+    const options = {
+      key:         order.key_id,
+      amount:      order.amount,
+      currency:    order.currency,
+      name:        'SalonFlow',
+      description: `${order.plan_label} Plan – ${cycle === 'annual' ? 'Annual' : 'Monthly'}`,
+      image:       'https://salonflow.in/static/icons/favicon.svg',
+      order_id:    order.order_id,
+      prefill: {
+        name:    order.user_name,
+        email:   order.user_email,
+        contact: order.user_phone || '',
+      },
+      notes: {
+        plan:  plan,
+        cycle: cycle,
+      },
+      theme:  { color: '#0d9488' },
+      modal: {
+        backdropclose: false,
+        escape: true,
+        animation: true,
+        ondismiss: function() {
+          hideOverlay();
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-bolt"></i> Upgrade to ' + (plan==='pro'?'Pro':'Business');
+          }
+        },
+      },
+      handler: async function(response) {
+        // Step 3: verify signature on server
+        showOverlay('Verifying payment… almost done');
+        try {
+          const vres = await fetch('/billing/verify-payment', {
+            method: 'POST', credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              razorpay_order_id:   response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature:  response.razorpay_signature,
+            }),
+          });
+          const vd = await vres.json();
+          if (vres.ok && vd.ok) {
+            showOverlay('🎉 Payment confirmed! Setting up your plan…');
+            setTimeout(() => { window.location.href = vd.redirect || '/billing/success'; }, 900);
+          } else {
+            hideOverlay();
+            alert('Payment verification failed: ' + (vd.error || 'Unknown error') + '\nIf money was deducted, contact support@salonflow.in with payment ID: ' + response.razorpay_payment_id);
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-bolt"></i> Upgrade to ' + (plan==='pro'?'Pro':'Business'); }
+          }
+        } catch (netErr) {
+          hideOverlay();
+          alert('Network error during verification. If money was deducted, contact support@salonflow.in with payment ID: ' + response.razorpay_payment_id);
+          if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-bolt"></i> Upgrade'; }
+        }
+      },
+    };
+
+    const rzp = new Razorpay(options);
+
+    rzp.on('payment.failed', function(resp) {
+      hideOverlay();
+      const desc = resp.error?.description || 'Payment could not be processed.';
+      const code = resp.error?.code || '';
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-bolt"></i> Try Again'; }
+      alert(`Payment failed: ${desc}\n\nError code: ${code}\n\nPlease try a different payment method.`);
+    });
+
+    rzp.open();
+
+  } catch (err) {
+    hideOverlay();
+    console.error('[Payment]', err);
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-bolt"></i> Upgrade'; }
+    alert('Could not connect to the payment gateway. Please check your internet connection and try again.');
+  }
+}
+</script>
+{% endblock %}

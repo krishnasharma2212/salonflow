@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+{% block title %}Terms of Service – SalonFlow{% endblock %}
+{% block extra_css %}
+<style>
+:root{
+  --t50:#f0fdfa;--t100:#ccfbf1;--t200:#99f6e4;--t400:#2dd4bf;
+  --t500:#14b8a6;--t600:#0d9488;--t700:#0f766e;--t800:#115e59;--t900:#134e4a;
+  --g50:#f9fafb;--g100:#f3f4f6;--g200:#e5e7eb;--g400:#9ca3af;
+  --g500:#6b7280;--g600:#4b5563;--g700:#374151;--g800:#1f2937;--g900:#111827;
+  --df:'Cormorant Garamond',Georgia,serif;--bf:'Outfit',sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:var(--bf);background:var(--g50);color:var(--g800);line-height:1.7}
+.topnav{background:#fff;border-bottom:1px solid var(--g100);padding:14px 0;position:sticky;top:0;z-index:100}
+.tnin{max-width:860px;margin:0 auto;padding:0 24px;display:flex;align-items:center;justify-content:space-between}
+.logo{display:flex;align-items:center;gap:9px;text-decoration:none}
+.logo-ic{width:32px;height:32px;background:linear-gradient(135deg,var(--t800),var(--t500));border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:.82rem}
+.logo-txt{font-family:var(--df);font-size:1.35rem;font-weight:700;color:var(--t800)}
+.nav-back{display:flex;align-items:center;gap:6px;font-size:.84rem;color:var(--g500);text-decoration:none;transition:color .2s}
+.nav-back:hover{color:var(--t600)}
+.nav-pills{display:flex;gap:6px}
+.nav-pill{font-size:.78rem;font-weight:600;padding:6px 14px;border-radius:100px;text-decoration:none;color:var(--g600);border:1px solid var(--g200);transition:all .2s}
+.nav-pill:hover{border-color:var(--t300);color:var(--t700);background:var(--t50)}
+.nav-pill.active{background:var(--t600);color:#fff;border-color:var(--t600)}
+.pol-hero{background:linear-gradient(135deg,var(--t900),var(--t700));padding:48px 24px 40px}
+.pol-hero-in{max-width:860px;margin:0 auto}
+.pol-badge{display:inline-flex;align-items:center;gap:7px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.85);padding:4px 13px;border-radius:100px;font-size:.72rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px}
+.pol-hero h1{font-family:var(--df);font-size:clamp(2rem,4vw,2.8rem);font-weight:700;color:#fff;margin-bottom:8px}
+.pol-hero-meta{font-size:.82rem;color:rgba(255,255,255,.6)}
+.pol-hero-meta strong{color:rgba(255,255,255,.85)}
+.pol-body{max-width:860px;margin:0 auto;padding:40px 24px 80px;display:grid;grid-template-columns:200px 1fr;gap:40px;align-items:start}
+.pol-toc{position:sticky;top:72px}
+.pol-toc h4{font-size:.7rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--g400);margin-bottom:10px}
+.pol-toc ol{list-style:none;display:flex;flex-direction:column;gap:2px}
+.pol-toc li a{font-size:.8rem;color:var(--g500);text-decoration:none;padding:5px 10px;border-radius:7px;display:block;transition:all .2s;border-left:2px solid transparent}
+.pol-toc li a:hover{color:var(--t600);background:var(--t50);border-left-color:var(--t400)}
+.pol-toc li a.toc-active{color:var(--t700);font-weight:600;background:var(--t50);border-left-color:var(--t600)}
+.pol-section{background:#fff;border-radius:16px;border:1px solid var(--g100);padding:28px 32px;margin-bottom:16px;scroll-margin-top:80px}
+.pol-section h2{font-family:var(--df);font-size:1.25rem;font-weight:700;color:var(--g900);margin-bottom:14px;display:flex;align-items:center;gap:10px}
+.pol-section h2 .sec-num{width:26px;height:26px;background:var(--t600);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:800;color:#fff;flex-shrink:0;font-family:var(--bf)}
+.pol-section p{font-size:.9rem;color:var(--g600);margin-bottom:10px;line-height:1.78}
+.pol-section p:last-child{margin-bottom:0}
+.pol-section ul,.pol-section ol{padding-left:18px;display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
+.pol-section li{font-size:.9rem;color:var(--g600);line-height:1.65}
+.pol-section strong{color:var(--g800);font-weight:600}
+.pol-link{color:var(--t600);font-weight:500}
+.pol-link:hover{color:var(--t800)}
+.pol-footer{background:var(--g900);padding:22px 24px;text-align:center}
+.pol-footer p{font-size:.8rem;color:rgba(255,255,255,.35)}
+.pol-footer a{color:rgba(255,255,255,.45);text-decoration:none;transition:color .2s}
+.pol-footer a:hover{color:var(--t400)}
+@media(max-width:720px){.pol-body{grid-template-columns:1fr}.pol-toc{display:none}.pol-section{padding:20px}}
+</style>
+{% endblock %}
+
+{% block body %}
+<nav class="topnav">
+  <div class="tnin">
+    <a href="{{ url_for('index') }}" class="logo">
+      <div class="logo-ic"><i class="fas fa-scissors"></i></div>
+      <span class="logo-txt">SalonFlow</span>
+    </a>
+    <div class="nav-pills">
+      <a href="{{ url_for('privacy') }}" class="nav-pill">Privacy Policy</a>
+      <a href="{{ url_for('terms') }}" class="nav-pill active">Terms of Service</a>
+      <a href="{{ url_for('refund') }}" class="nav-pill">Refund Policy</a>
+    </div>
+    <a href="{{ url_for('index') }}" class="nav-back"><i class="fas fa-arrow-left"></i> Back to site</a>
+  </div>
+</nav>
+
+<div class="pol-hero">
+  <div class="pol-hero-in">
+    <div class="pol-badge"><i class="fas fa-file-contract"></i> Legal</div>
+    <h1>Terms of Service</h1>
+    <p class="pol-hero-meta"><strong>Last updated:</strong> 1 June 2025 &nbsp;·&nbsp; <strong>Effective:</strong> 1 June 2025</p>
+  </div>
+</div>
+
+<div class="pol-body">
+  <nav class="pol-toc">
+    <h4>Contents</h4>
+    <ol>
+      <li><a href="#s1">Acceptance</a></li>
+      <li><a href="#s2">Description</a></li>
+      <li><a href="#s3">Eligibility</a></li>
+      <li><a href="#s4">WhatsApp Bot</a></li>
+      <li><a href="#s5">Subscriptions</a></li>
+      <li><a href="#s6">Cancellation</a></li>
+      <li><a href="#s7">Payments</a></li>
+      <li><a href="#s8">Acceptable Use</a></li>
+      <li><a href="#s9">Intellectual Property</a></li>
+      <li><a href="#s10">Privacy</a></li>
+      <li><a href="#s11">Liability Limit</a></li>
+      <li><a href="#s12">Warranties</a></li>
+      <li><a href="#s13">Indemnification</a></li>
+      <li><a href="#s14">Termination</a></li>
+      <li><a href="#s15">Governing Law</a></li>
+      <li><a href="#s16">Changes</a></li>
+      <li><a href="#s17">Contact</a></li>
+    </ol>
+  </nav>
+
+  <div class="pol-content">
+
+    <div class="pol-section" id="s1">
+      <h2><span class="sec-num">1</span> Acceptance of Terms</h2>
+      <p>By registering for or using SalonFlow ("Service", "Platform"), you ("User", "you") agree to be bound by these Terms of Service and our <a href="{{ url_for('privacy') }}" class="pol-link">Privacy Policy</a>. If you do not agree, you must not use the Service. These Terms constitute a legally binding agreement under the Information Technology Act, 2000 and applicable Indian law.</p>
+    </div>
+
+    <div class="pol-section" id="s2">
+      <h2><span class="sec-num">2</span> Description of Service</h2>
+      <p>SalonFlow provides salon management software including appointment booking, WhatsApp-based booking automation, client management, analytics, and payment facilitation. Features may be added, modified, or discontinued at any time with reasonable notice to users.</p>
+    </div>
+
+    <div class="pol-section" id="s3">
+      <h2><span class="sec-num">3</span> Eligibility &amp; Registration</h2>
+      <p>You must be at least <strong>18 years of age</strong> and a legal resident of India to use the Service. You agree to provide accurate, current, and complete registration information and to update it promptly if it changes. You are responsible for all activity that occurs under your account credentials.</p>
+    </div>
+
+    <div class="pol-section" id="s4">
+      <h2><span class="sec-num">4</span> WhatsApp Bot Usage</h2>
+      <p>By linking your WhatsApp number via QR scan, you confirm that: (a) you are the authorised account holder of that number; (b) you will use the bot only for legitimate salon booking communications with clients who have consented to receive them; (c) you will not use the bot to send spam, unsolicited marketing, or any content prohibited by WhatsApp's Terms of Service.</p>
+      <p>Violations may result in immediate account suspension without refund. SalonFlow bears no liability for WhatsApp account restrictions arising from User misuse of the bot feature.</p>
+    </div>
+
+    <div class="pol-section" id="s5">
+      <h2><span class="sec-num">5</span> Subscriptions &amp; Billing</h2>
+      <p>Paid plans are billed monthly in advance in Indian Rupees (₹) via Razorpay. Subscriptions <strong>auto-renew</strong> unless cancelled before the next billing date. All prices are inclusive of applicable GST unless stated otherwise.</p>
+      <p>SalonFlow reserves the right to change prices with <strong>30 days' advance notice</strong>. Continued use of the Service after a price change constitutes acceptance of the new pricing.</p>
+    </div>
+
+    <div class="pol-section" id="s6">
+      <h2><span class="sec-num">6</span> Cancellation</h2>
+      <p>You may cancel your subscription at any time from your Billing settings page. Cancellation takes effect at the end of the current billing period — access to paid features continues until that date. No refund is issued for the remaining period except as described in our <a href="{{ url_for('refund') }}" class="pol-link">Refund Policy</a>.</p>
+    </div>
+
+    <div class="pol-section" id="s7">
+      <h2><span class="sec-num">7</span> Payments via Razorpay</h2>
+      <p>Payment processing is provided by <strong>Razorpay Software Pvt. Ltd.</strong> By making a payment you also agree to Razorpay's Terms of Service and Privacy Policy. SalonFlow does not store card numbers or other sensitive payment credentials. In case of payment disputes, please contact us before initiating a chargeback.</p>
+    </div>
+
+    <div class="pol-section" id="s8">
+      <h2><span class="sec-num">8</span> Acceptable Use</h2>
+      <p>You agree not to:</p>
+      <ul>
+        <li>Use the Service for any unlawful purpose or in violation of applicable Indian law</li>
+        <li>Attempt to gain unauthorised access to any part of the Service or its infrastructure</li>
+        <li>Transmit viruses, malware, or other harmful code</li>
+        <li>Reverse-engineer, decompile, or create derivative works from the Service</li>
+        <li>Resell or sublicense the Service without written permission from SalonFlow</li>
+        <li>Use automated scraping or data extraction tools against the platform</li>
+        <li>Send spam or unsolicited commercial messages via any Service feature</li>
+      </ul>
+    </div>
+
+    <div class="pol-section" id="s9">
+      <h2><span class="sec-num">9</span> Intellectual Property</h2>
+      <p>All software, designs, trademarks, and content on the Platform are owned by SalonFlow Technologies and protected by applicable intellectual property laws. <strong>You retain full ownership of the data you input.</strong> You grant SalonFlow a limited, non-exclusive licence to process your data solely to provide the Service.</p>
+    </div>
+
+    <div class="pol-section" id="s10">
+      <h2><span class="sec-num">10</span> Data &amp; Privacy</h2>
+      <p>Use of the Service is subject to our <a href="{{ url_for('privacy') }}" class="pol-link">Privacy Policy</a>. You are responsible for obtaining any necessary consents from your salon clients before collecting or processing their personal data through the platform.</p>
+    </div>
+
+    <div class="pol-section" id="s11">
+      <h2><span class="sec-num">11</span> Limitation of Liability</h2>
+      <p>To the maximum extent permitted by applicable law, SalonFlow Technologies shall not be liable for any indirect, incidental, special, consequential, or punitive damages — including loss of revenue, loss of data, or business interruption — arising from your use of or inability to use the Service.</p>
+      <p>Our total aggregate liability for any claim shall not exceed the <strong>amount paid by you in the 3 months preceding the claim</strong>.</p>
+    </div>
+
+    <div class="pol-section" id="s12">
+      <h2><span class="sec-num">12</span> Disclaimer of Warranties</h2>
+      <p>The Service is provided <strong>"as is"</strong> and <strong>"as available"</strong> without warranties of any kind, express or implied, including fitness for a particular purpose, merchantability, or uninterrupted availability. We do not warrant that the Service will be error-free or that defects will be corrected within any specific timeframe.</p>
+    </div>
+
+    <div class="pol-section" id="s13">
+      <h2><span class="sec-num">13</span> Indemnification</h2>
+      <p>You agree to indemnify and hold harmless SalonFlow Technologies, its officers, employees, and partners from any claims, losses, damages, or expenses (including reasonable legal fees) arising from: (a) your use of the Service in violation of these Terms; (b) your violation of any third-party rights; or (c) your content or data input into the Service.</p>
+    </div>
+
+    <div class="pol-section" id="s14">
+      <h2><span class="sec-num">14</span> Termination</h2>
+      <p>SalonFlow may suspend or terminate your account immediately, without prior notice or liability, if you breach these Terms, engage in fraudulent activity, or if required by law. Upon termination, your right to use the Service ceases immediately. You may request a data export within 30 days of termination.</p>
+    </div>
+
+    <div class="pol-section" id="s15">
+      <h2><span class="sec-num">15</span> Governing Law &amp; Dispute Resolution</h2>
+      <p>These Terms are governed by the laws of <strong>India</strong>. Any disputes shall be subject to the exclusive jurisdiction of the courts of India. Before initiating legal proceedings, both parties agree to attempt resolution through good-faith negotiation or mediation for a period of at least 30 days.</p>
+    </div>
+
+    <div class="pol-section" id="s16">
+      <h2><span class="sec-num">16</span> Changes to Terms</h2>
+      <p>We may update these Terms at any time. For material changes, we will provide at least <strong>14 days' advance notice</strong> via email or in-app notification. Continued use of the Service after the effective date constitutes acceptance of the revised Terms.</p>
+    </div>
+
+    <div class="pol-section" id="s17">
+      <h2><span class="sec-num">17</span> Contact</h2>
+      <p>For questions or concerns about these Terms: <a href="mailto:support@salonflow.in" class="pol-link">support@salonflow.in</a></p>
+    </div>
+
+  </div>
+</div>
+
+<div class="pol-footer">
+  <p>© 2025 SalonFlow Technologies &nbsp;·&nbsp;
+    <a href="{{ url_for('privacy') }}">Privacy</a> &nbsp;·&nbsp;
+    <a href="{{ url_for('terms') }}">Terms</a> &nbsp;·&nbsp;
+    <a href="{{ url_for('refund') }}">Refund Policy</a> &nbsp;·&nbsp;
+    <a href="mailto:support@salonflow.in">support@salonflow.in</a>
+  </p>
+</div>
+
+<script>
+const sections = document.querySelectorAll('.pol-section');
+const tocLinks = document.querySelectorAll('.pol-toc a');
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      tocLinks.forEach(a => a.classList.remove('toc-active'));
+      const active = document.querySelector(`.pol-toc a[href="#${e.target.id}"]`);
+      if (active) active.classList.add('toc-active');
+    }
+  });
+}, { rootMargin: '-30% 0px -60% 0px' });
+sections.forEach(s => obs.observe(s));
+</script>
+{% endblock %}

@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Forgot Password – SalonFlow{% endblock %}
+{% block extra_css %}
+<style>
+body{background:var(--g50);display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px;box-sizing:border-box}
+.card{background:var(--w);border-radius:24px;box-shadow:0 20px 60px rgba(13,148,136,.12),0 4px 16px rgba(0,0,0,.07);padding:48px 44px;width:100%;max-width:440px;text-align:center;margin:auto}
+.icon-ring{width:72px;height:72px;background:var(--t50);border:2px solid var(--t200);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 24px;font-size:1.7rem;color:var(--t600)}
+.card h1{font-family:var(--df);font-size:2rem;font-weight:700;color:var(--g900);margin-bottom:8px}
+.card>p{font-size:.9rem;color:var(--g500);line-height:1.7;margin-bottom:28px}
+.field{text-align:left;margin-bottom:18px}
+.field label{display:block;font-size:.8rem;font-weight:600;color:var(--g700);margin-bottom:6px}
+.inp{width:100%;padding:12px 16px;background:var(--g50);border:1.5px solid var(--g200);border-radius:10px;font-size:.92rem;color:var(--g900);transition:var(--ease);outline:none}
+.inp:focus{border-color:var(--t500);background:#fff;box-shadow:0 0 0 3px rgba(13,148,136,.1)}
+.btn-full{width:100%;padding:13px;background:var(--t600);color:#fff;border:none;border-radius:11px;font-size:.95rem;font-weight:700;cursor:pointer;transition:var(--ease);display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:18px}
+.btn-full:hover{background:var(--t700);transform:translateY(-1px);box-shadow:0 6px 20px rgba(13,148,136,.3)}
+.back-link{font-size:.84rem;color:var(--g400)}
+.back-link a{color:var(--t600);font-weight:600}
+.logo{display:flex;align-items:center;justify-content:center;gap:9px;margin-bottom:32px}
+.logo-icon{width:34px;height:34px;background:linear-gradient(135deg,var(--t700),var(--t500));border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:.9rem}
+.logo-txt{font-family:var(--df);font-size:1.4rem;font-weight:700;color:var(--t800)}
+</style>
+{% endblock %}
+{% block body %}
+<div class="card">
+  <a href="/" class="logo">
+    <div class="logo-icon"><i class="fas fa-scissors"></i></div>
+    <span class="logo-txt">SalonFlow</span>
+  </a>
+  <div class="icon-ring"><i class="fas fa-lock"></i></div>
+  <h1>Forgot Password?</h1>
+  <p>Enter the email address associated with your account and we'll send you a password reset link.</p>
+
+  <form method="POST" action="{{ url_for('forgot_password') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="field">
+      <label>Email Address</label>
+      <input type="email" name="email" class="inp" placeholder="you@example.com" required autofocus>
+    </div>
+    <button type="submit" class="btn-full"><i class="fas fa-paper-plane"></i> Send Reset Link</button>
+  </form>
+
+  <p class="back-link"><a href="{{ url_for('auth_login') }}"><i class="fas fa-arrow-left"></i> Back to Sign In</a></p>
+</div>
+{% endblock %}

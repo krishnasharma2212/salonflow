@@ -1,0 +1,2274 @@
+{% extends "base.html" %}
+{% block title %}Set Up Your Salon – SalonFlow{% endblock %}
+{% block extra_css %}
+<style>
+:root{
+  --t50:#f0fdfa;--t100:#ccfbf1;--t200:#99f6e4;--t300:#5eead4;
+  --t400:#2dd4bf;--t500:#14b8a6;--t600:#0d9488;--t700:#0f766e;--t800:#115e59;--t900:#134e4a;
+  --amber:#f59e0b;--amber2:#fbbf24;
+  --red:#ef4444;--red-bg:#fee2e2;--red-border:#fecaca;
+  --g50:#f9fafb;--g100:#f3f4f6;--g200:#e5e7eb;--g300:#d1d5db;
+  --g400:#9ca3af;--g500:#6b7280;--g600:#4b5563;--g700:#374151;--g800:#1f2937;--g900:#111827;
+  --df:'Cormorant Garamond',Georgia,serif;--bf:'Outfit',sans-serif;
+  --ease:all .28s cubic-bezier(.4,0,.2,1);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:var(--bf);color:var(--g800);line-height:1.6}
+
+/* ── LAYOUT ── */
+.ob-page{display:flex;min-height:100vh;background:var(--g50)}
+
+/* ── SIDEBAR ── */
+.ob-sidebar{
+  width:268px;flex-shrink:0;
+  background:linear-gradient(160deg,var(--t900),var(--t700));
+  display:flex;flex-direction:column;padding:32px 22px;
+  position:fixed;top:0;left:0;bottom:0;z-index:100;overflow-y:auto;
+}
+.ob-logo{display:flex;align-items:center;gap:10px;margin-bottom:36px;text-decoration:none}
+.ob-logo-ic{width:34px;height:34px;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.22);border-radius:9px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:.88rem;flex-shrink:0}
+.ob-logo-txt{font-family:var(--df);font-size:1.35rem;font-weight:700;color:#fff}
+.ob-steps-nav{flex:1;display:flex;flex-direction:column;gap:3px}
+.ob-step-nav{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:10px;cursor:pointer;transition:var(--ease)}
+.ob-step-nav.done{cursor:pointer}
+.ob-step-nav.done:hover{background:rgba(255,255,255,.07)}
+.ob-step-nav.active{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.18)}
+.ob-step-nav.locked{opacity:.35;cursor:not-allowed;pointer-events:none}
+.ob-step-ic{width:32px;height:32px;flex-shrink:0;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;color:rgba(255,255,255,.6);border:2px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);transition:var(--ease)}
+.ob-step-nav.done .ob-step-ic{background:rgba(45,212,191,.25);border-color:var(--t300);color:var(--t200)}
+.ob-step-nav.active .ob-step-ic{background:var(--t500);border-color:var(--t300);color:#fff}
+.ob-step-label{font-size:.65rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.38)}
+.ob-step-nav.active .ob-step-label{color:var(--t300)}
+.ob-step-name{font-size:.84rem;font-weight:600;color:rgba(255,255,255,.65);margin-top:1px}
+.ob-step-nav.active .ob-step-name{color:#fff}
+.ob-step-nav.done .ob-step-name{color:rgba(255,255,255,.55)}
+.ob-foot{margin-top:28px;padding-top:18px;border-top:1px solid rgba(255,255,255,.08)}
+.ob-prog-label{font-size:.68rem;color:rgba(255,255,255,.4);display:flex;justify-content:space-between;margin-bottom:7px}
+.ob-pbar{height:4px;background:rgba(255,255,255,.12);border-radius:2px;overflow:hidden}
+.ob-pfill{height:100%;background:linear-gradient(90deg,var(--t400),var(--t200));border-radius:2px;transition:width .5s ease}
+.ob-user-row{display:flex;align-items:center;gap:8px;margin-top:14px;padding:9px 10px;background:rgba(255,255,255,.06);border-radius:9px}
+.ob-av{width:28px;height:28px;background:var(--t700);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.68rem;font-weight:700;color:#fff;flex-shrink:0}
+.ob-uname{font-size:.78rem;font-weight:600;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ob-uemail{font-size:.65rem;color:rgba(255,255,255,.38);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ob-logout{
+  display:flex;align-items:center;gap:8px;margin-top:10px;
+  padding:9px 12px;border-radius:9px;cursor:pointer;
+  color:rgba(255,255,255,.45);font-size:.8rem;font-weight:500;
+  border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);
+  width:100%;transition:var(--ease);text-decoration:none;
+}
+.ob-logout:hover{background:rgba(239,68,68,.18);border-color:rgba(239,68,68,.35);color:#fca5a5}
+.ob-logout i{font-size:.78rem}
+
+/* ── MAIN ── */
+.ob-main{margin-left:268px;flex:1;display:flex;flex-direction:column;min-height:100vh}
+.ob-topbar{background:#fff;border-bottom:1px solid var(--g100);padding:12px 36px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:50}
+.ob-topbar h2{font-family:var(--df);font-size:1.4rem;font-weight:700;color:var(--g900)}
+.ob-topbar-sub{font-size:.76rem;color:var(--g500);margin-top:1px}
+.ob-save-badge{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:.76rem;font-weight:500;padding:5px 12px;border-radius:100px;transition:var(--ease);background:var(--g50);color:var(--g400);border:1px solid var(--g100)}
+.ob-save-badge.saving{background:#fef9c3;color:#b45309;border-color:#fde68a}
+.ob-save-badge.saved{background:#dcfce7;color:#166534;border-color:#bbf7d0}
+.ob-save-badge.error{background:var(--red-bg);color:var(--red);border-color:var(--red-border)}
+.ob-save-badge i{font-size:.78rem}
+
+/* ── CONTENT ── */
+.ob-content{padding:36px 40px;flex:1;display:flex;justify-content:center}
+.step-panel{display:none;width:100%;max-width:660px;animation:stepIn .3s ease}
+.step-panel.active{display:block}
+@keyframes stepIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.step-hd{margin-bottom:28px}
+.step-tag{font-size:.68rem;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--t600);margin-bottom:7px}
+.step-title{font-family:var(--df);font-size:1.9rem;font-weight:700;color:var(--g900);line-height:1.18;margin-bottom:6px}
+.step-desc{font-size:.88rem;color:var(--g500);line-height:1.7}
+
+/* ── FORM CARD ── */
+.fc{background:#fff;border-radius:16px;border:1px solid var(--g100);padding:26px;margin-bottom:18px}
+.fc-title{font-size:.86rem;font-weight:700;color:var(--g900);display:flex;align-items:center;gap:8px;margin-bottom:20px}
+.fc-title i{font-size:.82rem;color:var(--t500)}
+
+/* ── FIELDS ── */
+.field{margin-bottom:16px;position:relative}
+.field:last-child{margin-bottom:0}
+.field label{display:block;font-size:.76rem;font-weight:600;color:var(--g700);margin-bottom:5px}
+.field label .opt{color:var(--g400);font-weight:400;font-size:.7rem}
+.inp{width:100%;padding:11px 14px;background:var(--g50);border:1.5px solid var(--g200);border-radius:10px;font-family:var(--bf);font-size:.9rem;color:var(--g900);outline:none;transition:var(--ease)}
+.inp:focus{border-color:var(--t500);background:#fff;box-shadow:0 0 0 3px rgba(13,148,136,.1)}
+.inp.invalid{border-color:var(--red);background:#fff}
+.inp.invalid:focus{box-shadow:0 0 0 3px rgba(239,68,68,.1)}
+textarea.inp{resize:vertical;min-height:72px}
+select.inp{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%239ca3af' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:36px}
+.field-err{font-size:.73rem;color:var(--red);margin-top:4px;display:none;align-items:center;gap:4px}
+.field-err.show{display:flex}
+.field-hint{font-size:.72rem;color:var(--g400);margin-top:4px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+
+/* ── ADDRESS — Google Places styles ── */
+.pac-container{border-radius:12px;border:1.5px solid var(--t200) !important;box-shadow:0 8px 24px rgba(0,0,0,.1) !important;font-family:var(--bf);margin-top:4px;overflow:hidden}
+.pac-item{padding:10px 14px;font-size:.86rem;color:var(--g800);cursor:pointer;border-top:1px solid var(--g50)}
+.pac-item:hover,.pac-item-selected{background:var(--t50) !important}
+.pac-item-query{font-weight:600;color:var(--g900);font-size:.88rem}
+.pac-icon{margin-top:2px}
+.pac-matched{color:var(--t600)}
+
+/* ── TOGGLES ── */
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:var(--g50);border-radius:11px;border:1.5px solid var(--g200);margin-bottom:10px;transition:var(--ease)}
+.toggle-row.on{background:var(--t50);border-color:var(--t200)}
+.toggle-info h4{font-size:.9rem;font-weight:600;color:var(--g900)}
+.toggle-info p{font-size:.74rem;color:var(--g500);margin-top:2px}
+.toggle-row.on .toggle-info p{color:var(--t700)}
+.toggle-sw{position:relative;width:58px;height:30px;flex-shrink:0}
+.toggle-sw input{opacity:0;width:0;height:0;position:absolute}
+.toggle-knob{
+  position:absolute;inset:0;
+  background:var(--g300);
+  border-radius:100px;
+  cursor:pointer;
+  transition:background .25s,box-shadow .25s;
+  border:2px solid var(--g400);          /* visible border in OFF state */
+}
+.toggle-knob::before{
+  content:'';position:absolute;
+  width:22px;height:22px;
+  background:#fff;border-radius:50%;
+  top:2px;left:2px;
+  transition:transform .25s cubic-bezier(.4,0,.2,1);
+  box-shadow:0 2px 6px rgba(0,0,0,.3);  /* stronger shadow so thumb pops */
+}
+/* OFF state label inside track */
+.toggle-knob::after{
+  content:'OFF';
+  position:absolute;right:5px;top:50%;transform:translateY(-50%);
+  font-size:.52rem;font-weight:800;letter-spacing:.04em;
+  color:var(--g500);font-family:var(--bf);
+  transition:opacity .2s;
+}
+input:checked+.toggle-knob{
+  background:var(--t600);
+  border-color:var(--t700);
+  box-shadow:0 0 0 3px rgba(13,148,136,.2);
+}
+input:checked+.toggle-knob::before{transform:translateX(28px)}
+input:checked+.toggle-knob::after{
+  content:'ON';left:5px;right:auto;
+  color:rgba(255,255,255,.9);
+}
+.pay-toggle-card{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:20px 22px;border-radius:16px;border:2.5px solid var(--g200);
+  background:#fff;cursor:pointer;transition:var(--ease);margin-bottom:14px;
+  gap:16px;box-shadow:0 2px 8px rgba(0,0,0,.04);
+}
+.pay-toggle-card:hover{border-color:var(--t400);background:var(--t50);box-shadow:0 4px 16px rgba(13,148,136,.1)}
+.pay-toggle-card.on{
+  border-color:var(--t500);
+  background:linear-gradient(135deg,#e6faf8,#f0fdfa);
+  box-shadow:0 4px 20px rgba(13,148,136,.15);
+}
+.pay-toggle-left{display:flex;align-items:center;gap:16px;flex:1;min-width:0}
+.pay-toggle-icon{
+  width:50px;height:50px;border-radius:14px;flex-shrink:0;
+  background:var(--g100);display:flex;align-items:center;justify-content:center;
+  font-size:1.2rem;color:var(--g400);transition:var(--ease);
+  border:2px solid var(--g200);
+}
+.pay-toggle-card.on .pay-toggle-icon{
+  background:linear-gradient(135deg,var(--t700),var(--t500));
+  color:#fff;border-color:var(--t400);
+  box-shadow:0 4px 12px rgba(13,148,136,.3);
+}
+.pay-toggle-title{font-size:.95rem;font-weight:700;color:var(--g900);transition:color .2s}
+.pay-toggle-card.on .pay-toggle-title{color:var(--t800)}
+.pay-toggle-sub{font-size:.8rem;color:var(--g500);margin-top:3px;transition:color .2s}
+.pay-toggle-card.on .pay-toggle-sub{color:var(--t600)}
+.cond-sec{display:none;padding:16px;background:var(--t50);border-radius:10px;border:1px solid var(--t100);margin-bottom:10px}
+.cond-sec.show{display:block;animation:fadeIn .22s ease}
+.cond-sec .field{margin-bottom:12px}
+.cond-sec .field:last-child{margin-bottom:0}
+
+/* ── CONCURRENT BOOKINGS PICKER ── */
+.concur-label{font-size:.78rem;font-weight:600;color:var(--g700);margin-bottom:8px;display:block}
+.concur-hint{font-size:.72rem;color:var(--g400);margin-top:6px;line-height:1.5}
+.concur-grid{display:flex;gap:8px;flex-wrap:wrap}
+.concur-btn{
+  width:48px;height:48px;border-radius:11px;
+  border:2px solid var(--g200);background:#fff;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  cursor:pointer;transition:all .2s;font-family:var(--bf);
+  gap:1px;
+}
+.concur-btn:hover{border-color:var(--t400);background:var(--t50)}
+.concur-btn.active{
+  border-color:var(--t600);background:var(--t50);
+  box-shadow:0 0 0 3px rgba(13,148,136,.12);
+}
+.concur-btn .cn{font-size:1.1rem;font-weight:800;color:var(--g800);line-height:1}
+.concur-btn .cl{font-size:.5rem;font-weight:600;color:var(--g500);text-transform:uppercase;letter-spacing:.04em}
+.concur-btn.active .cn{color:var(--t700)}
+.concur-btn.active .cl{color:var(--t600)}
+/* Visual: show staff icon dots */
+.concur-dots{display:flex;gap:2px;flex-wrap:wrap;width:28px;justify-content:center;margin-bottom:2px}
+.concur-dot{width:7px;height:7px;border-radius:50%;background:var(--g300);transition:background .2s}
+.concur-btn.active .concur-dot{background:var(--t500)}
+
+/* ── SERVICES ── */
+.svc-list{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+.svc-item{display:flex;align-items:center;gap:10px;padding:11px 14px;background:var(--g50);border-radius:10px;border:1.5px solid var(--g200);transition:var(--ease)}
+.svc-item:hover{border-color:var(--t200);background:var(--t50)}
+.svc-item.invalid-row{border-color:var(--red)}
+.svc-name{flex:1;background:none;border:none;outline:none;font-family:var(--bf);font-size:.88rem;color:var(--g900)}
+.svc-name::placeholder{color:var(--g400)}
+.svc-divider{color:var(--g300);font-size:1rem}
+.svc-price-wrap{display:flex;align-items:center;gap:3px}
+.svc-price-wrap span{font-size:.86rem;color:var(--g600);font-weight:600}
+.svc-price{width:78px;background:none;border:none;outline:none;font-family:var(--bf);font-size:.88rem;color:var(--g900);text-align:right}
+.svc-price::placeholder{color:var(--g400)}
+.svc-del{width:26px;height:26px;background:none;border:none;border-radius:6px;cursor:pointer;color:var(--g300);display:flex;align-items:center;justify-content:center;font-size:.8rem;transition:var(--ease)}
+.svc-del:hover{background:var(--red-bg);color:var(--red)}
+.btn-add-svc{display:flex;align-items:center;gap:7px;padding:10px 15px;background:#fff;border:1.5px dashed var(--t300);border-radius:10px;color:var(--t600);font-family:var(--bf);font-size:.85rem;font-weight:600;cursor:pointer;transition:var(--ease);width:100%;justify-content:center}
+.btn-add-svc:hover{background:var(--t50);border-color:var(--t500)}
+
+/* ── PLAN CARDS ── */
+.plan-wrapper{display:flex;flex-direction:column;gap:14px;margin-bottom:20px}
+/* Billing toggle */
+.billing-toggle{display:flex;align-items:center;gap:0;background:var(--g100);border-radius:100px;padding:3px;margin-bottom:20px;width:fit-content}
+.bt-opt{padding:7px 20px;border-radius:100px;font-size:.82rem;font-weight:600;cursor:pointer;color:var(--g500);transition:var(--ease);white-space:nowrap}
+.bt-opt.active{background:#fff;color:var(--t700);box-shadow:0 1px 4px rgba(0,0,0,.1)}
+.bt-save{font-size:.7rem;font-weight:700;background:var(--t100);color:var(--t700);padding:2px 8px;border-radius:100px;margin-left:4px}
+/* Plan row */
+.plan-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.plan-card{position:relative;border:2px solid var(--g200);border-radius:16px;padding:22px 18px;cursor:pointer;transition:var(--ease);background:#fff;overflow:hidden}
+.plan-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:transparent;transition:var(--ease)}
+.plan-card:hover{border-color:var(--t300);transform:translateY(-2px);box-shadow:0 8px 24px rgba(13,148,136,.1)}
+.plan-card.selected{border-color:var(--t600);box-shadow:0 0 0 3px rgba(13,148,136,.12)}
+.plan-card.selected::before{background:linear-gradient(90deg,var(--t400),var(--t600))}
+.plan-card.plan-popular{border-color:var(--t500)}
+.plan-card.plan-popular::before{background:linear-gradient(90deg,var(--t400),var(--t600))}
+.plan-pop-tag{position:absolute;top:-1px;right:16px;background:linear-gradient(90deg,var(--t500),var(--t600));color:#fff;font-size:.62rem;font-weight:700;padding:4px 10px;border-radius:0 0 8px 8px;letter-spacing:.06em}
+.plan-select-ic{position:absolute;top:14px;left:14px;width:20px;height:20px;border-radius:50%;border:2px solid var(--g300);background:#fff;display:flex;align-items:center;justify-content:center;transition:var(--ease)}
+.plan-card.selected .plan-select-ic{border-color:var(--t600);background:var(--t600)}
+.plan-card.selected .plan-select-ic::after{content:'';width:8px;height:8px;border-radius:50%;background:#fff}
+.plan-body{padding-top:8px}
+.plan-tier{font-size:.68rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--g500);margin-bottom:6px}
+.plan-card.selected .plan-tier{color:var(--t600)}
+.plan-price-row{display:flex;align-items:baseline;gap:3px;margin-bottom:2px}
+.plan-price-sym{font-size:1rem;font-weight:700;color:var(--g900);margin-top:2px}
+.plan-price-val{font-family:var(--df);font-size:2rem;font-weight:700;color:var(--g900);line-height:1}
+.plan-price-period{font-size:.72rem;color:var(--g500);margin-bottom:12px}
+.plan-divider{height:1px;background:var(--g100);margin-bottom:12px}
+.plan-features{list-style:none;display:flex;flex-direction:column;gap:7px}
+.plan-features li{display:flex;align-items:flex-start;gap:7px;font-size:.77rem;color:var(--g600)}
+.plan-features li i{font-size:.65rem;color:var(--t500);margin-top:3px;flex-shrink:0}
+.plan-features li.muted{color:var(--g400)}
+.plan-features li.muted i{color:var(--g300)}
+.plan-coming{margin-top:12px;font-size:.7rem;font-weight:600;color:var(--amber);background:#fef9c3;padding:4px 10px;border-radius:100px;display:inline-block}
+/* New plan card styles */
+.plan-card.plan-locked{opacity:.72;cursor:not-allowed;pointer-events:none;border-style:dashed}
+.plan-cs-tag{position:absolute;top:-1px;right:16px;background:var(--g700);color:#fff;font-size:.62rem;font-weight:700;padding:4px 10px;border-radius:0 0 8px 8px;letter-spacing:.06em}
+.plan-cs-footer{margin-top:12px;font-size:.74rem;color:var(--g400);display:flex;align-items:center;gap:6px}
+.plan-activate-note{margin-top:12px;font-size:.74rem;color:var(--t600);font-weight:600;background:var(--t50);border:1px solid var(--t100);border-radius:8px;padding:6px 10px;display:flex;align-items:center;gap:6px}
+/* plan-row 2-col when only 2 plans */
+.plan-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+/* Selected plan summary */
+.plan-selected-bar{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--t50);border:1.5px solid var(--t200);border-radius:12px;margin-bottom:14px}
+.psb-left{display:flex;align-items:center;gap:10px}
+.psb-ic{width:32px;height:32px;background:var(--t600);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:.82rem}
+.psb-name{font-size:.88rem;font-weight:700;color:var(--t800)}
+.psb-price{font-size:.78rem;color:var(--t600)}
+/* Coupon */
+.coupon-wrap{background:var(--g50);border-radius:11px;padding:14px;border:1px solid var(--g100)}
+.coupon-label{font-size:.76rem;font-weight:600;color:var(--g700);margin-bottom:8px}
+.coupon-row{display:flex;gap:8px}
+.coupon-inp{flex:1;padding:10px 13px;background:#fff;border:1.5px solid var(--g200);border-radius:9px;font-family:var(--bf);font-size:.86rem;color:var(--g900);outline:none;transition:var(--ease);text-transform:uppercase}
+.coupon-inp:focus{border-color:var(--t500);box-shadow:0 0 0 3px rgba(13,148,136,.1)}
+.coupon-btn{padding:10px 16px;background:var(--t600);color:#fff;border:none;border-radius:9px;font-family:var(--bf);font-size:.84rem;font-weight:600;cursor:pointer;transition:var(--ease);white-space:nowrap}
+.coupon-btn:hover{background:var(--t700)}
+.coupon-result{font-size:.76rem;margin-top:8px;padding:7px 11px;border-radius:8px;display:none;align-items:center;gap:6px}
+.coupon-result.ok{background:#dcfce7;color:#166534;display:flex}
+.coupon-result.bad{background:var(--red-bg);color:var(--red);display:flex}
+
+/* ── WHATSAPP ── */
+.wa-layout{display:grid;grid-template-columns:auto 1fr;gap:24px;align-items:start}
+.wa-qr-panel{text-align:center}
+.wa-qr-box{width:120px;height:120px;background:#fff;border:1px solid var(--g200);border-radius:12px;padding:7px;display:flex;align-items:center;justify-content:center;margin:0 auto 12px}
+.wa-mini-steps{display:flex;flex-direction:column;gap:7px}
+.wa-mini-step{display:flex;align-items:center;gap:8px;font-size:.78rem;color:var(--g600)}
+.wa-mini-ic{width:20px;height:20px;background:var(--t50);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.6rem;color:var(--t600);flex-shrink:0;font-weight:700}
+.skip-note{background:var(--t50);border:1px solid var(--t100);border-radius:10px;padding:12px 14px;font-size:.8rem;color:var(--t800);display:flex;align-items:center;gap:8px;margin-top:14px}
+.skip-note i{color:var(--t500);flex-shrink:0}
+
+/* ── NAV BUTTONS ── */
+.ob-nav{display:flex;align-items:center;justify-content:space-between;margin-top:28px;padding-top:22px;border-top:1px solid var(--g100)}
+.btn-prev{display:flex;align-items:center;gap:7px;padding:10px 20px;background:#fff;border:1.5px solid var(--g200);border-radius:10px;font-family:var(--bf);font-size:.88rem;font-weight:600;color:var(--g600);cursor:pointer;transition:var(--ease)}
+.btn-prev:hover{border-color:var(--g300);color:var(--g800);background:var(--g50)}
+.btn-prev:disabled{opacity:.35;cursor:not-allowed}
+.btn-next{display:flex;align-items:center;gap:7px;padding:11px 26px;background:var(--t600);color:#fff;border:none;border-radius:10px;font-family:var(--bf);font-size:.9rem;font-weight:700;cursor:pointer;transition:var(--ease);box-shadow:0 4px 14px rgba(13,148,136,.28)}
+.btn-next:hover{background:var(--t700);transform:translateY(-1px);box-shadow:0 8px 22px rgba(13,148,136,.38)}
+.btn-next:disabled{opacity:.55;cursor:not-allowed;transform:none;box-shadow:none}
+.saving-dot{display:none;align-items:center;gap:6px;font-size:.78rem;color:var(--g500)}
+.saving-dot.show{display:flex}
+
+/* ── COMPLETE ── */
+.complete-screen{display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-height:68vh;padding:60px 40px}
+.complete-screen.active{display:flex;animation:stepIn .5s ease}
+.complete-icon{width:96px;height:96px;background:linear-gradient(135deg,var(--t100),var(--t200));border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;position:relative}
+.complete-icon::after{content:'';position:absolute;inset:-5px;border:3px solid var(--t300);border-radius:50%;animation:cspin 1s ease forwards}
+@keyframes cspin{from{transform:rotate(0);opacity:0}60%{opacity:1}to{transform:rotate(360deg)}}
+.complete-icon i{font-size:2.2rem;color:var(--t700);animation:cpop .5s .3s ease both}
+@keyframes cpop{from{transform:scale(0)}70%{transform:scale(1.18)}to{transform:scale(1)}}
+.complete-screen h1{font-family:var(--df);font-size:2.4rem;font-weight:700;color:var(--g900);margin-bottom:8px}
+.complete-screen>p{font-size:.95rem;color:var(--g500);max-width:440px;line-height:1.75;margin-bottom:28px}
+.check-list{display:flex;flex-direction:column;gap:8px;margin-bottom:28px;text-align:left;width:100%;max-width:320px}
+.check-item{display:flex;align-items:center;gap:10px;font-size:.84rem;color:var(--g700);background:#fff;border:1px solid var(--g100);border-radius:10px;padding:10px 14px}
+.check-item i{color:var(--t500);font-size:.8rem;flex-shrink:0}
+.btn-go-dash{display:flex;align-items:center;justify-content:center;gap:9px;padding:14px 34px;background:linear-gradient(135deg,var(--t700),var(--t500));color:#fff;border:none;border-radius:12px;font-family:var(--bf);font-size:.97rem;font-weight:700;cursor:pointer;text-decoration:none;box-shadow:0 6px 20px rgba(13,148,136,.32);transition:var(--ease)}
+.btn-go-dash:hover{transform:translateY(-2px);box-shadow:0 12px 32px rgba(13,148,136,.4)}
+
+/* ── SCROLL FLOAT BUTTON ── */
+.scroll-float{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+  z-index:800;display:none;
+  background:linear-gradient(135deg,var(--t700),var(--t500));
+  color:#fff;border:none;border-radius:100px;
+  padding:10px 20px;font-family:var(--bf);font-size:.82rem;font-weight:700;
+  cursor:pointer;box-shadow:0 6px 20px rgba(13,148,136,.4);
+  align-items:center;gap:7px;white-space:nowrap;
+  animation:floatPulse 2.5s ease-in-out infinite;
+}
+.scroll-float.visible{display:flex}
+@keyframes floatPulse{0%,100%{box-shadow:0 6px 20px rgba(13,148,136,.4)}50%{box-shadow:0 8px 28px rgba(13,148,136,.65)}}
+
+/* ── SERVICES (step 2) mobile-first ── */
+.svc-item{
+  display:grid;
+  grid-template-columns:1fr auto auto;
+  align-items:center;
+  gap:8px;padding:12px 14px;
+  background:var(--g50);border-radius:12px;
+  border:1.5px solid var(--g200);transition:var(--ease);
+}
+.svc-item:hover{border-color:var(--t200);background:var(--t50)}
+.svc-item.invalid-row{border-color:var(--red)}
+.svc-row-top{grid-column:1/-1;display:flex;align-items:center;gap:8px}
+.svc-name{
+  flex:1;background:none;border:none;outline:none;
+  font-family:var(--bf);font-size:.9rem;color:var(--g900);
+  min-width:0;
+}
+.svc-name::placeholder{color:var(--g400)}
+.svc-price-wrap{display:flex;align-items:center;gap:4px;
+  background:#fff;border:1.5px solid var(--g200);
+  border-radius:8px;padding:6px 10px;min-width:90px;
+}
+.svc-price-wrap span{font-size:.84rem;color:var(--g500);font-weight:600;flex-shrink:0}
+.svc-price{
+  width:52px;background:none;border:none;outline:none;
+  font-family:var(--bf);font-size:.88rem;color:var(--g900);
+}
+.svc-price::placeholder{color:var(--g400)}
+.svc-del{
+  width:30px;height:30px;background:none;border:none;
+  border-radius:8px;cursor:pointer;color:var(--g300);
+  display:flex;align-items:center;justify-content:center;
+  font-size:.82rem;transition:var(--ease);flex-shrink:0;
+}
+.svc-del:hover{background:#fee2e2;color:#ef4444}
+
+/* ── PAYMENT MODAL responsive ── */
+#payment-modal{
+  display:none;position:fixed;inset:0;z-index:10000;
+  background:rgba(15,23,42,.65);backdrop-filter:blur(4px);
+  align-items:flex-end;justify-content:center;padding:0;
+}
+@media(min-width:600px){
+  #payment-modal{align-items:center;padding:20px}
+}
+.pm-sheet{
+  background:#fff;width:100%;max-width:460px;
+  border-radius:22px 22px 0 0;padding:24px 20px 32px;
+  box-shadow:0 -8px 40px rgba(0,0,0,.18);
+  animation:slideUp .3s ease;position:relative;
+  max-height:92vh;overflow-y:auto;
+}
+@media(min-width:600px){
+  .pm-sheet{border-radius:22px;padding:32px;animation:stepIn .3s ease}
+}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.pm-drag{width:40px;height:4px;background:var(--g200);border-radius:2px;margin:0 auto 18px;display:block}
+@media(min-width:600px){.pm-drag{display:none}}
+
+/* ── QR step 6 ── */
+/* ── STEP 6: WhatsApp connection redesign ── */
+@keyframes waRadar{to{stroke-dashoffset:-100;transform:rotate(360deg)}}
+@keyframes waDot{0%,80%,100%{opacity:.25;transform:scale(.8)}40%{opacity:1;transform:scale(1)}}
+@keyframes scanLine{0%{top:6%}100%{top:90%}}
+@keyframes scanPulse{0%,100%{opacity:.6}50%{opacity:1}}
+@keyframes cornerPulse{0%,100%{opacity:.5;transform:scale(1)}50%{opacity:1;transform:scale(1.04)}}
+@keyframes statusPop{0%{transform:scale(.92);opacity:0}100%{transform:scale(1);opacity:1}}
+@keyframes connectedBounce{0%{transform:scale(1)}30%{transform:scale(1.18)}60%{transform:scale(.95)}100%{transform:scale(1)}}
+
+/* Status pill at top */
+.s6-status-pill{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 16px;border-radius:100px;
+  font-size:.84rem;font-weight:700;
+  animation:statusPop .35s ease forwards;
+  margin:0 auto 20px;
+  width:fit-content;
+}
+.s6-status-waiting{background:rgba(16,185,129,.12);border:1.5px solid rgba(16,185,129,.3);color:#065f46}
+.s6-status-connected{background:rgba(22,163,74,.15);border:1.5px solid #4ade80;color:#15803d;animation:connectedBounce .5s ease}
+.s6-pulse-dot{width:9px;height:9px;border-radius:50%;background:#10b981;flex-shrink:0}
+.s6-pulse-dot.waiting{animation:waDot 1.2s ease-in-out infinite}
+.s6-pulse-dot.connected{background:#16a34a;animation:none}
+
+/* QR wrapper */
+.s6-qr-wrap{
+  position:relative;
+  width:min(220px,62vw);
+  height:min(220px,62vw);
+  margin:0 auto 22px;
+}
+/* Animated corner brackets */
+.s6-qr-wrap::before,.s6-qr-wrap::after{
+  content:'';position:absolute;z-index:2;
+  width:26px;height:26px;
+  border-color:var(--t500);border-style:solid;
+  animation:cornerPulse 2s ease-in-out infinite;
+  border-radius:3px;
+}
+.s6-qr-wrap::before{top:-3px;left:-3px;border-width:3px 0 0 3px}
+.s6-qr-wrap::after {bottom:-3px;right:-3px;border-width:0 3px 3px 0}
+.s6-qr-corner-tr,.s6-qr-corner-bl{
+  position:absolute;z-index:2;
+  width:26px;height:26px;
+  border-color:var(--t500);border-style:solid;
+  animation:cornerPulse 2s ease-in-out infinite .6s;
+  border-radius:3px;
+}
+.s6-qr-corner-tr{top:-3px;right:-3px;border-width:3px 3px 0 0}
+.s6-qr-corner-bl{bottom:-3px;left:-3px;border-width:0 0 3px 3px}
+
+/* QR box */
+.s6-qr-box{
+  width:100%;height:100%;
+  background:#fff;border-radius:14px;
+  padding:9px;
+  border:1.5px solid var(--g200);
+  box-shadow:0 6px 28px rgba(0,0,0,.1);
+  display:flex;align-items:center;justify-content:center;
+  overflow:hidden;position:relative;
+}
+.s6-qr-box svg{width:100%;height:100%;display:block}
+
+/* Scan beam */
+.s6-scan-beam{
+  position:absolute;left:5%;right:5%;height:2px;
+  background:linear-gradient(90deg,transparent,var(--t400),var(--t300),var(--t400),transparent);
+  box-shadow:0 0 8px 2px rgba(13,148,136,.35);
+  animation:scanLine 2s ease-in-out infinite alternate, scanPulse 2s ease-in-out infinite;
+  border-radius:1px;z-index:3;
+  pointer-events:none;
+}
+
+/* Connected overlay */
+.s6-qr-connected-overlay{
+  position:absolute;inset:0;border-radius:14px;
+  background:rgba(220,252,231,.94);
+  display:none;flex-direction:column;
+  align-items:center;justify-content:center;gap:8px;z-index:10;
+}
+.s6-qr-connected-overlay.show{display:flex}
+
+/* 3 compact steps */
+.s6-steps{display:flex;flex-direction:column;gap:9px;margin-bottom:18px}
+.s6-step{display:flex;align-items:center;gap:12px;
+  padding:11px 14px;background:#fff;border-radius:11px;
+  border:1px solid var(--g100);transition:all .2s;
+}
+.s6-step:hover{border-color:var(--t200);background:var(--t50)}
+.s6-step-n{
+  width:26px;height:26px;border-radius:50%;
+  background:linear-gradient(135deg,var(--t700),var(--t500));
+  display:flex;align-items:center;justify-content:center;
+  font-size:.72rem;font-weight:800;color:#fff;flex-shrink:0;
+}
+.s6-step-txt{font-size:.84rem;font-weight:600;color:var(--g800);line-height:1.35}
+.s6-step-txt small{font-size:.73rem;font-weight:400;color:var(--g500);display:block;margin-top:1px}
+
+/* Bottom actions */
+.s6-actions{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.s6-check-btn{
+  display:inline-flex;align-items:center;gap:7px;
+  padding:10px 18px;background:var(--t600);color:#fff;
+  border:none;border-radius:11px;font-family:var(--bf);
+  font-size:.85rem;font-weight:700;cursor:pointer;
+  transition:all .22s;box-shadow:0 4px 14px rgba(13,148,136,.3);
+}
+.s6-check-btn:hover{background:var(--t700);transform:translateY(-1px)}
+.s6-check-btn:disabled{opacity:.6;cursor:not-allowed;transform:none}
+.s6-skip{
+  background:none;border:none;font-family:var(--bf);
+  font-size:.76rem;color:var(--g400);cursor:pointer;
+  text-decoration:underline;text-underline-offset:3px;
+  transition:color .2s;
+}
+.s6-skip:hover{color:var(--g600)}
+
+/* Success info row */
+.s6-connected-info{
+  display:none;background:linear-gradient(135deg,#dcfce7,#ecfdf5);
+  border:1.5px solid #4ade80;border-radius:13px;
+  padding:14px 16px;margin-bottom:16px;
+  flex-direction:column;gap:6px;
+  animation:statusPop .4s ease;
+}
+.s6-connected-info.show{display:flex}
+
+/* ── RESPONSIVE ── */
+@media(max-width:900px){
+  .ob-sidebar{display:none}.ob-main{margin-left:0}
+  .ob-content{padding:20px 16px}
+  .row2{grid-template-columns:1fr}
+  .wa-layout{grid-template-columns:1fr}
+}
+@media(max-width:600px){
+  .ob-topbar{padding:11px 16px}
+  .ob-topbar h2{font-size:1.1rem}
+  .step-title{font-size:1.5rem}
+  .ob-content{padding:16px 14px}
+  .fc{padding:16px}
+  .step-hd{margin-bottom:18px}
+  .ob-nav{padding:14px 0 0;gap:8px}
+  .btn-prev,.btn-next{padding:11px 16px;font-size:.84rem}
+  /* plan cards single col on mobile */
+  .plan-row{grid-template-columns:1fr !important}
+  /* concur grid tighter */
+  .concur-btn{width:42px;height:42px}
+}
+</style>
+{% if google_places_key %}
+<script>
+// Loaded after Google Places API callback fires
+function initGooglePlaces() {
+  const input = document.getElementById('s1-address');
+  if (!input) return;
+
+  const autocomplete = new google.maps.places.Autocomplete(input, {
+    types:            ['establishment', 'geocode'],
+    componentRestrictions: { country: 'in' },
+    fields:           ['formatted_address', 'address_components', 'geometry', 'name'],
+  });
+
+  // Prevent form submit on Enter inside the field
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') e.preventDefault();
+  });
+
+  autocomplete.addListener('place_changed', () => {
+    const place = autocomplete.getPlace();
+    if (!place || !place.formatted_address) return;
+
+    // Fill address field with formatted address
+    input.value = place.formatted_address;
+    document.getElementById('addr-clear').style.display = 'block';
+
+    // Extract city from address_components
+    let city = '';
+    for (const comp of (place.address_components || [])) {
+      if (comp.types.includes('locality')) { city = comp.long_name; break; }
+      if (comp.types.includes('administrative_area_level_2')) city = city || comp.long_name;
+    }
+    if (city) {
+      const cityEl = document.getElementById('s1-city');
+      if (cityEl) cityEl.value = city;
+    }
+
+    // Clear validation error
+    const errEl = document.getElementById('err-address');
+    const inpEl = document.getElementById('s1-address');
+    if (errEl) errEl.classList.remove('show');
+    if (inpEl) inpEl.classList.remove('invalid');
+  });
+
+  // Show/hide clear button on input
+  input.addEventListener('input', () => {
+    document.getElementById('addr-clear').style.display =
+      input.value.length > 0 ? 'block' : 'none';
+  });
+}
+</script>
+<script
+  src="https://maps.googleapis.com/maps/api/js?key={{ google_places_key }}&libraries=places&callback=initGooglePlaces"
+  async defer></script>
+{% endif %}
+{% endblock %}
+
+{% block body %}
+<div class="ob-page">
+
+  <!-- ═══ SIDEBAR ═══ -->
+  <aside class="ob-sidebar">
+    <a href="{{ url_for('index') }}" class="ob-logo">
+      <div class="ob-logo-ic"><i class="fas fa-scissors"></i></div>
+      <span class="ob-logo-txt">SalonFlow</span>
+    </a>
+    <nav class="ob-steps-nav">
+      {% set step_meta = [
+        (1,'fas fa-store',         'Basic Details',     'Address & hours'),
+        (2,'fas fa-cut',           'Services',          'Menu & pricing'),
+        (3,'fas fa-calendar-check','Booking Settings',  'Slots & availability'),
+        (4,'fas fa-credit-card',   'Payment Setup',     'UPI & advance'),
+        (5,'fas fa-tag',           'Choose a Plan',     'Free, Pro, Business'),
+        (6,'fab fa-whatsapp',      'WhatsApp Setup',    'Connect your number'),
+      ] %}
+      {% for n, ic, name, hint in step_meta %}
+      <div class="ob-step-nav {% if loop.index < current_step %}done{% elif loop.index == current_step %}active{% else %}locked{% endif %}"
+           data-step="{{ n }}" onclick="jumpToStep({{ n }})">
+        <div class="ob-step-ic">
+          {% if loop.index < current_step %}<i class="fas fa-check"></i>
+          {% else %}<i class="{{ ic }}"></i>{% endif %}
+        </div>
+        <div>
+          <div class="ob-step-label">Step {{ n }}</div>
+          <div class="ob-step-name">{{ name }}</div>
+        </div>
+      </div>
+      {% endfor %}
+    </nav>
+    <div class="ob-foot">
+      <div class="ob-prog-label"><span>Setup progress</span><span id="prog-pct">0%</span></div>
+      <div class="ob-pbar"><div class="ob-pfill" id="ob-pfill" style="width:0%"></div></div>
+      <div class="ob-user-row">
+        <div class="ob-av">{{ current_user.initials }}</div>
+        <div style="min-width:0;flex:1">
+          <div class="ob-uname">{{ current_user.salon_name }}</div>
+          <div class="ob-uemail">{{ current_user.email }}</div>
+        </div>
+      </div>
+      <a href="{{ url_for('logout') }}" class="ob-logout"
+         onclick="return confirm('Sign out of setup? Your progress is saved.')">
+        <i class="fas fa-sign-out-alt"></i> Sign Out
+      </a>
+    </div>
+  </aside>
+
+  <!-- ═══ MAIN ═══ -->
+  <div class="ob-main">
+    <div class="ob-topbar">
+      <div>
+        <h2 id="tb-title">Salon Setup</h2>
+        <div class="ob-topbar-sub" id="tb-sub">Let's get your salon ready</div>
+      </div>
+      <div class="ob-save-badge" id="save-badge">
+        <i class="fas fa-cloud" id="save-ic"></i>
+        <span id="save-txt">Auto-save on</span>
+      </div>
+    </div>
+
+    <div class="ob-content">
+
+      <!-- ════ STEP 1: Basic Details ════ -->
+      <div class="step-panel" id="step-1">
+        <div class="step-hd">
+          <div class="step-tag">Step 1 of 6</div>
+          <h2 class="step-title">Tell us about your salon</h2>
+          <p class="step-desc">Help clients find you and set your operating hours so the booking bot knows your availability.</p>
+        </div>
+        <div class="fc">
+          <div class="fc-title"><i class="fas fa-store"></i> Salon Name &amp; Location</div>
+
+          <!-- Salon Name — editable, especially important for Google sign-in users -->
+          <div class="field">
+            <label>Salon Name <span style="color:var(--red)">*</span></label>
+            <input type="text" class="inp" id="s1-salon-name"
+                   placeholder="e.g. Styles Hub Salon"
+                   value="{{ current_user.salon_name or '' }}">
+            <div class="field-err" id="err-salon-name"><i class="fas fa-exclamation-circle"></i> Please enter your salon name</div>
+            {% if current_user.salon_name and '@' not in current_user.salon_name %}
+            {% else %}
+            <div class="field-hint" style="color:var(--t600);font-weight:500">
+              <i class="fas fa-info-circle"></i>
+              We used your Google name — please set your actual salon name.
+            </div>
+            {% endif %}
+          </div>
+
+          <!-- Address — Google Places autocomplete -->
+          <div class="field">
+            <label>Salon Address <span style="color:var(--red);margin-left:2px">*</span></label>
+            <div class="addr-wrap" style="position:relative">
+              <i class="fas fa-map-marker-alt" style="
+                position:absolute;left:13px;top:50%;transform:translateY(-50%);
+                color:var(--g400);font-size:.88rem;pointer-events:none;z-index:1"></i>
+              <input type="text" class="inp" id="s1-address" autocomplete="off"
+                     placeholder="Start typing your salon address…"
+                     style="padding-left:36px">
+              <button class="addr-clear" id="addr-clear"
+                      onclick="clearAddress()" title="Clear"
+                      style="position:absolute;right:10px;top:50%;transform:translateY(-50%);
+                             background:none;border:none;cursor:pointer;color:var(--g400);
+                             font-size:.82rem;display:none;z-index:2">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+            <div class="field-err" id="err-address"><i class="fas fa-exclamation-circle"></i> Please enter your salon address</div>
+          </div>
+
+          <div class="row2">
+            <div class="field">
+              <label>Opening Time <span style="color:var(--red)">*</span></label>
+              <input type="time" class="inp" id="s1-open" value="09:00">
+              <div class="field-err" id="err-open"><i class="fas fa-exclamation-circle"></i> Opening time is required</div>
+            </div>
+            <div class="field">
+              <label>Closing Time <span style="color:var(--red)">*</span></label>
+              <input type="time" class="inp" id="s1-close" value="20:00">
+              <div class="field-err" id="err-close"><i class="fas fa-exclamation-circle"></i> Closing time is required</div>
+            </div>
+          </div>
+          <div class="field">
+            <label>Days Open</label>
+            <select class="inp" id="s1-days">
+              <option value="mon-sat">Monday – Saturday</option>
+              <option value="mon-sun">Monday – Sunday (All Days)</option>
+              <option value="tue-sun">Tuesday – Sunday</option>
+              <option value="custom">Custom (configure later)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>City</label>
+            <input type="text" class="inp" id="s1-city" placeholder="e.g. Delhi">
+          </div>
+        </div>
+        <div class="ob-nav">
+          <button class="btn-prev" disabled><i class="fas fa-arrow-left"></i> Previous</button>
+          <div class="saving-dot" id="spin-1"><i class="fas fa-spinner fa-spin"></i> Saving…</div>
+          <button class="btn-next" id="next-1" onclick="saveAndNext(1)">Next <i class="fas fa-arrow-right"></i></button>
+        </div>
+      </div>
+
+      <!-- ════ STEP 2: Services ════ -->
+      <div class="step-panel" id="step-2">
+        <div class="step-hd">
+          <div class="step-tag">Step 2 of 6</div>
+          <h2 class="step-title">Add your services</h2>
+          <p class="step-desc">List the services you offer with pricing. Your WhatsApp bot shows these to clients when they book.</p>
+        </div>
+        <div class="fc">
+          <div class="fc-title"><i class="fas fa-list-ul"></i> Services Menu</div>
+          <div class="field-err" id="err-services" style="margin-bottom:10px"><i class="fas fa-exclamation-circle"></i> Add at least one service with a name</div>
+          <div class="svc-list" id="svc-list"><!-- populated by JS --></div>
+          <button class="btn-add-svc" onclick="addService()"><i class="fas fa-plus-circle"></i> Add Another Service</button>
+        </div>
+        <div class="fc" style="background:var(--t50);border-color:var(--t100)">
+          <p style="font-size:.82rem;color:var(--t700)"><i class="fas fa-lightbulb" style="margin-right:7px;color:var(--t500)"></i><strong>Tip:</strong> Start with your top 3–5 services. You can add more from your dashboard later.</p>
+        </div>
+        <div class="ob-nav">
+          <button class="btn-prev" onclick="goToStep(1)"><i class="fas fa-arrow-left"></i> Previous</button>
+          <div class="saving-dot" id="spin-2"><i class="fas fa-spinner fa-spin"></i> Saving…</div>
+          <button class="btn-next" id="next-2" onclick="saveAndNext(2)">Next <i class="fas fa-arrow-right"></i></button>
+        </div>
+      </div>
+
+      <!-- ════ STEP 3: Booking ════ -->
+      <div class="step-panel" id="step-3">
+        <div class="step-hd">
+          <div class="step-tag">Step 3 of 6</div>
+          <h2 class="step-title">Booking settings</h2>
+          <p class="step-desc">Control how clients book — slot duration, buffer time, and advance payment requirements.</p>
+        </div>
+        <div class="fc">
+          <div class="fc-title"><i class="fas fa-calendar-alt"></i> Booking Configuration</div>
+          <div class="toggle-row on" id="booking-tr">
+            <div class="toggle-info">
+              <h4>Enable Online Booking</h4>
+              <p>Clients can book via WhatsApp and your booking link</p>
+            </div>
+            <label class="toggle-sw">
+              <input type="checkbox" id="booking-on" checked onchange="onToggle('booking-on','booking-cond','booking-tr')">
+              <span class="toggle-knob"></span>
+            </label>
+          </div>
+          <div class="cond-sec show" id="booking-cond">
+            <div class="field">
+              <label>Appointment Slot Duration</label>
+              <select class="inp" id="s3-duration">
+                <option value="15">15 minutes</option>
+                <option value="30" selected>30 minutes</option>
+                <option value="45">45 minutes</option>
+                <option value="60">60 minutes (1 hour)</option>
+                <option value="90">90 minutes</option>
+                <option value="120">2 hours</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Advance Booking Amount <span class="opt">(optional)</span></label>
+              <div style="position:relative">
+                <span style="position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--g500);font-weight:600;font-size:.88rem">₹</span>
+                <input type="number" class="inp" id="s3-advance" placeholder="Leave blank to skip" min="0" style="padding-left:28px">
+              </div>
+              <div class="field-hint">Amount clients pay in advance to confirm. Leave blank to skip.</div>
+            </div>
+            <div class="field">
+              <label>Buffer Time Between Appointments</label>
+              <select class="inp" id="s3-buffer">
+                <option value="0">No buffer</option>
+                <option value="10">10 minutes</option>
+                <option value="15" selected>15 minutes</option>
+                <option value="30">30 minutes</option>
+              </select>
+            </div>
+
+            <!-- Concurrent bookings -->
+            <div class="field" style="margin-top:4px">
+              <span class="concur-label">Simultaneous Appointments <span class="opt">(how many clients at the same time?)</span></span>
+              <div class="concur-grid" id="concur-grid">
+                <!-- rendered by JS -->
+              </div>
+              <input type="hidden" id="s3-concurrent" value="1">
+              <div class="concur-hint">
+                <i class="fas fa-info-circle" style="color:var(--t500)"></i>
+                Set how many clients can be booked in the same time slot. <br>
+                <strong>1 chair?</strong> Choose 1. &nbsp;<strong>3 stylists working at once?</strong> Choose 3.
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="ob-nav">
+          <button class="btn-prev" onclick="goToStep(2)"><i class="fas fa-arrow-left"></i> Previous</button>
+          <div class="saving-dot" id="spin-3"><i class="fas fa-spinner fa-spin"></i> Saving…</div>
+          <button class="btn-next" id="next-3" onclick="saveAndNext(3)">Next <i class="fas fa-arrow-right"></i></button>
+        </div>
+      </div>
+
+      <!-- ════ STEP 4: Payment ════ -->
+      <div class="step-panel" id="step-4">
+        <div class="step-hd">
+          <div class="step-tag">Step 4 of 6</div>
+          <h2 class="step-title">Payment setup</h2>
+          <p class="step-desc">Add your UPI ID to collect advance payments from clients when they book appointments.</p>
+        </div>
+        <div class="fc">
+          <div class="fc-title"><i class="fas fa-rupee-sign"></i> Payment Collection</div>
+          <!-- Payment toggle — prominent card design -->
+          <div class="pay-toggle-card" id="payment-tr" onclick="document.getElementById('payment-on').click()">
+            <div class="pay-toggle-left">
+              <div class="pay-toggle-icon" id="pay-icon-wrap">
+                <i class="fas fa-rupee-sign"></i>
+              </div>
+              <div>
+                <div class="pay-toggle-title">Enable Online Payment</div>
+                <div class="pay-toggle-sub">Collect advance payment via UPI when clients book</div>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;flex-shrink:0">
+              <label class="toggle-sw" onclick="event.stopPropagation()">
+                <input type="checkbox" id="payment-on" onchange="onToggle('payment-on','payment-cond','payment-tr');syncAdvancePayment();updatePayToggleCard()">
+                <span class="toggle-knob"></span>
+              </label>
+            </div>
+          </div>
+          <div class="cond-sec" id="payment-cond">
+            <div class="field">
+              <label>Your UPI ID <span style="color:var(--red)">*</span></label>
+              <input type="text" class="inp" id="s4-upi" placeholder="e.g. yourname@upi or 9876543210@ybl">
+              <div class="field-err" id="err-upi"><i class="fas fa-exclamation-circle"></i> UPI ID is required when payment is enabled</div>
+              <div class="field-hint">Clients will send advance payments to this UPI address.</div>
+            </div>
+          </div>
+          <div id="advance-link-note" style="display:none;margin-top:8px;padding:12px 14px;background:#fef9c3;border-radius:10px;border:1.5px solid #fde68a;font-size:.8rem;color:#92400e">
+            <div style="font-weight:700;margin-bottom:3px"><i class="fas fa-exclamation-triangle" style="margin-right:6px"></i>Action required</div>
+            You entered an advance amount in Step 3 — you must enable online payment here and add your UPI ID to collect it. You cannot continue without doing this.
+          </div>
+        </div>
+        <div class="fc" style="background:var(--g50)">
+          <div class="fc-title" style="margin-bottom:8px"><i class="fas fa-shield-alt"></i> Secure &amp; Direct</div>
+          <p style="font-size:.82rem;color:var(--g500);line-height:1.65">No money flows through SalonFlow. Clients pay you directly on your UPI — safe, instant, and private.</p>
+        </div>
+        <div class="ob-nav">
+          <button class="btn-prev" onclick="goToStep(3)"><i class="fas fa-arrow-left"></i> Previous</button>
+          <div class="saving-dot" id="spin-4"><i class="fas fa-spinner fa-spin"></i> Saving…</div>
+          <button class="btn-next" id="next-4" onclick="saveAndNext(4)">Next <i class="fas fa-arrow-right"></i></button>
+        </div>
+      </div>
+
+      <!-- ════ STEP 5: Plan ════ -->
+      <div class="step-panel" id="step-5">
+
+        <!-- ══ STATE A: Payment already done ══ -->
+        <div id="s5-paid-state" style="display:none">
+          <div style="text-align:center;margin-bottom:28px">
+            <div style="width:80px;height:80px;background:linear-gradient(135deg,var(--t100),var(--t200));border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;position:relative">
+              <i class="fas fa-check" style="font-size:2rem;color:var(--t700)"></i>
+              <div style="position:absolute;inset:-4px;border:3px solid var(--t300);border-radius:50%;animation:cspin .8s ease forwards"></div>
+            </div>
+            <h2 class="step-title" style="margin-bottom:6px">Subscription Active 🎉</h2>
+            <p class="step-desc">Your <strong id="s5-plan-name">Pro</strong> plan is active and all features are unlocked.</p>
+          </div>
+
+          <!-- Active plan card -->
+          <div style="background:linear-gradient(135deg,var(--t900),var(--t700));border-radius:18px;padding:22px;margin-bottom:18px;position:relative;overflow:hidden">
+            <div style="position:absolute;inset:0;background:radial-gradient(circle at 80% 0,rgba(255,255,255,.07),transparent 50%)"></div>
+            <div style="position:relative;display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+              <div>
+                <div style="font-size:.68rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--t200);margin-bottom:3px">Active Subscription</div>
+                <div style="font-family:var(--df);font-size:1.9rem;font-weight:700;color:#fff" id="s5-plan-label">Pro</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px;padding:6px 13px;border-radius:100px;background:rgba(74,222,128,.2);border:1px solid rgba(74,222,128,.3)">
+                <span style="width:7px;height:7px;border-radius:50%;background:#4ade80;animation:pls 2s infinite;display:inline-block"></span>
+                <span style="font-size:.74rem;font-weight:700;color:#4ade80">Active</span>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;position:relative">
+              <div style="background:rgba(255,255,255,.1);border-radius:10px;padding:12px">
+                <div style="font-size:.68rem;color:rgba(255,255,255,.55);margin-bottom:3px">Amount</div>
+                <div style="font-family:var(--df);font-size:1.3rem;font-weight:700;color:#fff" id="s5-amount">₹999/mo</div>
+              </div>
+              <div style="background:rgba(255,255,255,.1);border-radius:10px;padding:12px">
+                <div style="font-size:.68rem;color:rgba(255,255,255,.55);margin-bottom:3px">Billing</div>
+                <div style="font-size:.88rem;font-weight:600;color:#fff" id="s5-cycle">Monthly · Auto-renews</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- WhatsApp CTA -->
+          <div style="background:linear-gradient(135deg,#ecfdf5,#f0fdf4);border:2px solid #6ee7b7;border-radius:16px;padding:20px;margin-bottom:18px">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+              <div style="width:44px;height:44px;background:#dcfce7;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;color:#16a34a;flex-shrink:0">
+                <i class="fab fa-whatsapp"></i>
+              </div>
+              <div>
+                <div style="font-size:.92rem;font-weight:700;color:#065f46">Connect WhatsApp Now</div>
+                <div style="font-size:.78rem;color:#047857;margin-top:2px">Your booking bot is ready — one scan away</div>
+              </div>
+            </div>
+            <p style="font-size:.84rem;color:#065f46;line-height:1.6;margin-bottom:0">
+              Click <strong>Next →</strong> to scan the WhatsApp QR code and activate your booking bot.
+              <br><span style="font-size:.76rem;color:#047857;display:inline-block;margin-top:4px">
+                <i class="fas fa-info-circle"></i>
+                You can customise your salon details, services and bot settings anytime from the <strong>Dashboard</strong> after setup.
+              </span>
+            </p>
+          </div>
+
+          <div class="ob-nav" style="border-top:none;padding-top:0">
+            <div></div><!-- spacer -->
+            <button class="btn-next" onclick="goToStep(6)" style="background:linear-gradient(135deg,var(--t700),var(--t500));box-shadow:0 6px 20px rgba(13,148,136,.35)">
+              <i class="fab fa-whatsapp"></i> Connect WhatsApp <i class="fas fa-arrow-right"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- ══ STATE B: Payment not done yet ══ -->
+        <div id="s5-unpaid-state">
+          <div class="step-hd">
+            <div class="step-tag">Step 5 of 6</div>
+            <h2 class="step-title">Choose your plan</h2>
+            <p class="step-desc">All plans include WhatsApp bot, appointment management, and analytics.</p>
+          </div>
+
+          <div class="fc">
+            <div class="fc-title" style="justify-content:space-between;flex-wrap:wrap;gap:10px">
+              <span><i class="fas fa-layer-group"></i> Select a Plan</span>
+              <div class="billing-toggle">
+                <div class="bt-opt active" id="bt-monthly" onclick="setBilling('monthly')">Monthly</div>
+                <div class="bt-opt" id="bt-annual" onclick="setBilling('annual')">Annual <span class="bt-save">Save 20%</span></div>
+              </div>
+            </div>
+
+            <div class="plan-row" id="plan-row">
+              <div class="plan-card plan-popular selected" data-plan="pro" onclick="selectPlan('pro')">
+                <div class="plan-pop-tag">⭐ Recommended</div>
+                <div class="plan-select-ic"></div>
+                <div class="plan-body">
+                  <div class="plan-tier">Pro</div>
+                  <div class="plan-price-row">
+                    <span class="plan-price-sym">₹</span>
+                    <span class="plan-price-val" data-monthly="999" data-annual="799">999</span>
+                  </div>
+                  <div class="plan-price-period" id="period-pro">per month · billed monthly</div>
+                  <div class="plan-divider"></div>
+                  <ul class="plan-features">
+                    <li><i class="fas fa-check"></i> Unlimited appointments</li>
+                    <li><i class="fas fa-check"></i> Advanced WhatsApp bot</li>
+                    <li><i class="fas fa-check"></i> Analytics &amp; revenue reports</li>
+                    <li><i class="fas fa-check"></i> Automated reminders</li>
+                    <li><i class="fas fa-check"></i> Staff management</li>
+                    <li><i class="fas fa-check"></i> Priority support</li>
+                  </ul>
+                  <div style="margin-top:10px;font-size:.74rem;color:var(--t600);font-weight:600;display:flex;align-items:center;gap:5px">
+                    <i class="fas fa-sync-alt"></i> Recurring subscription · cancel anytime
+                  </div>
+                </div>
+              </div>
+              <div class="plan-card plan-locked" data-plan="business">
+                <div class="plan-cs-tag">Coming Soon</div>
+                <div class="plan-body">
+                  <div class="plan-tier">Business</div>
+                  <div class="plan-price-row">
+                    <span class="plan-price-sym">₹</span>
+                    <span class="plan-price-val" data-monthly="2499" data-annual="1999">2499</span>
+                  </div>
+                  <div class="plan-price-period" id="period-business">per month · billed monthly</div>
+                  <div class="plan-divider"></div>
+                  <ul class="plan-features">
+                    <li><i class="fas fa-check"></i> Everything in Pro</li>
+                    <li><i class="fas fa-check"></i> Multiple branches</li>
+                    <li><i class="fas fa-check"></i> Multiple WhatsApp numbers</li>
+                    <li><i class="fas fa-check"></i> Custom bot responses</li>
+                    <li><i class="fas fa-check"></i> Dedicated account manager</li>
+                  </ul>
+                  <div class="plan-cs-footer"><i class="fas fa-lock"></i> Available soon</div>
+                </div>
+              </div>
+            </div>
+            <input type="hidden" id="selected-plan" value="pro">
+            <input type="hidden" id="billing-cycle" value="monthly">
+
+            <div class="coupon-wrap">
+              <div class="coupon-label">Have a coupon code? <span style="color:var(--g400);font-weight:400">Optional</span></div>
+              <div class="coupon-row">
+                <input type="text" class="coupon-inp" id="coupon-code" placeholder="e.g. LAUNCH50">
+                <button class="coupon-btn" onclick="applyCoupon()">Apply</button>
+              </div>
+              <div class="coupon-result" id="coupon-result"></div>
+            </div>
+          </div>
+
+          <div style="background:#fef9c3;border:1px solid #fde68a;border-radius:12px;padding:14px 16px;margin-bottom:0;display:flex;gap:10px;align-items:flex-start;font-size:.82rem;color:#92400e">
+            <i class="fas fa-lock" style="margin-top:2px;flex-shrink:0"></i>
+            <span><strong>WhatsApp setup (Step 6) is locked</strong> until payment is completed. Your subscription will auto-renew monthly via UPI / card — cancel anytime from Dashboard.</span>
+          </div>
+
+          <div class="ob-nav">
+            <button class="btn-prev" onclick="goToStep(4)"><i class="fas fa-arrow-left"></i> Previous</button>
+            <div class="saving-dot" id="spin-5"><i class="fas fa-spinner fa-spin"></i> Saving…</div>
+            <button class="btn-next" id="next-5" onclick="handleStep5Next()">
+              <i class="fas fa-lock"></i> Subscribe &amp; Continue
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ════ STEP 6: WhatsApp ════ -->
+      <div class="step-panel" id="step-6">
+
+        <!-- ① STATUS PILL — always visible at top -->
+        <div class="s6-status-pill s6-status-waiting" id="s6-status-pill">
+          <span class="s6-pulse-dot waiting" id="s6-pulse-dot"></span>
+          <span id="wa-poll-title">Waiting for scan…</span>
+          <div style="display:flex;gap:3px;margin-left:4px" id="wa-poll-dots">
+            <span style="width:5px;height:5px;border-radius:50%;background:currentColor;animation:waDot 1.3s ease-in-out infinite"></span>
+            <span style="width:5px;height:5px;border-radius:50%;background:currentColor;animation:waDot 1.3s ease-in-out infinite .2s"></span>
+            <span style="width:5px;height:5px;border-radius:50%;background:currentColor;animation:waDot 1.3s ease-in-out infinite .4s"></span>
+          </div>
+        </div>
+
+        <!-- ② HEADER -->
+        <div style="text-align:center;margin-bottom:20px">
+          <div style="display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,var(--t900),var(--t700));padding:8px 18px;border-radius:100px;margin-bottom:10px">
+            <i class="fab fa-whatsapp" style="color:#4ade80;font-size:1rem"></i>
+            <span style="font-size:.78rem;font-weight:700;color:rgba(255,255,255,.9);letter-spacing:.06em;text-transform:uppercase">Final Step · Bot Setup</span>
+          </div>
+          <h2 class="step-title" style="margin-bottom:6px">Scan to Activate Bot</h2>
+          <p class="step-desc">Point your WhatsApp camera at the QR code below. Your booking bot goes live instantly.</p>
+        </div>
+
+        <!-- ③ QR CODE with animated scan border + beam -->
+        <div class="s6-qr-wrap">
+          <div class="s6-qr-corner-tr"></div>
+          <div class="s6-qr-corner-bl"></div>
+          <div class="s6-qr-box" id="s6-qr-box">
+            <!-- scan beam -->
+            <!-- scan beam -->
+            <div class="s6-scan-beam" id="s6-scan-beam"></div>
+            <!-- spinner shown while bot starts / QR loading -->
+            <div id="s6-qr-spinner" style="text-align:center;padding:20px;color:var(--g400)">
+              <i class="fas fa-spinner fa-spin" style="font-size:1.8rem;margin-bottom:8px;display:block;color:var(--t500)"></i>
+              <div style="font-size:.78rem;font-weight:600;color:var(--t600)" id="s6-spinner-txt">Starting bot…</div>
+            </div>
+            <!-- real QR image — hidden until bot sends it -->
+            <img id="s6-qr-img" src="" alt="WhatsApp QR Code"
+              style="display:none;width:100%;height:100%;object-fit:contain">
+            <!-- Connected overlay (shown after scan) -->
+            <div class="s6-qr-connected-overlay" id="s6-qr-overlay">
+              <div style="width:56px;height:56px;background:#dcfce7;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:8px">
+                <i class="fas fa-check" style="color:#16a34a;font-size:1.4rem"></i>
+              </div>
+              <div style="font-size:.88rem;font-weight:700;color:#15803d">Connected!</div>
+              <div style="font-size:.74rem;color:#16a34a;margin-top:2px" id="s6-overlay-phone"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ④ 3 COMPACT STEPS — horizontal on desktop, vertical on mobile -->
+        <div class="s6-steps">
+          <div class="s6-step">
+            <div class="s6-step-n">1</div>
+            <div class="s6-step-txt">
+              Open WhatsApp on your phone
+              <small>The number your clients will message to book</small>
+            </div>
+          </div>
+          <div class="s6-step">
+            <div class="s6-step-n">2</div>
+            <div class="s6-step-txt">
+              Tap ⋮ → Settings → Linked Devices
+              <small>iPhone: tap the gear icon → Linked Devices</small>
+            </div>
+          </div>
+          <div class="s6-step">
+            <div class="s6-step-n">3</div>
+            <div class="s6-step-txt">
+              Tap "Link a Device" → scan the QR
+              <small>Bot activates instantly — no app download needed</small>
+            </div>
+          </div>
+        </div>
+
+        <!-- ⑤ BOTTOM ACTIONS — no skip, connection is mandatory -->
+        <div class="s6-actions">
+          <button class="s6-check-btn" id="wa-manual-check" onclick="checkWANow()">
+            <i class="fas fa-sync-alt" id="manual-check-icon"></i>
+            Check now
+          </button>
+          <div style="text-align:right">
+            <div style="font-size:.72rem;color:var(--g400);margin-bottom:3px" id="wa-poll-sub">Auto-checking every 5s</div>
+            <div style="font-size:.72rem;color:var(--g400)">You must connect WhatsApp to continue</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ════ COMPLETE ════ -->
+      <div class="complete-screen" id="complete-screen">
+        <span style="font-size:3.2rem;margin-bottom:8px;animation:bounce 1s ease-in-out infinite alternate;display:block">🎊</span>
+        <div class="complete-icon"><i class="fas fa-check"></i></div>
+        <h1>Your Salon is Ready!</h1>
+        <p>Your WhatsApp booking bot is live and your salon is set up to take appointments around the clock.</p>
+        <div class="check-list">
+          <div class="check-item"><i class="fas fa-check-circle"></i> Salon details &amp; hours saved</div>
+          <div class="check-item"><i class="fas fa-check-circle"></i> Services menu configured</div>
+          <div class="check-item"><i class="fas fa-check-circle"></i> Booking settings applied</div>
+          <div class="check-item" id="wa-final-item"><i class="fab fa-whatsapp"></i> WhatsApp bot ready</div>
+        </div>
+        <a href="{{ url_for('dashboard') }}" class="btn-go-dash">
+          <i class="fas fa-th-large"></i> Go to My Dashboard
+        </a>
+      </div>
+
+    </div><!-- /ob-content -->
+  </div><!-- /ob-main -->
+</div><!-- /ob-page -->
+
+<!-- Floating scroll-down button -->
+<button class="scroll-float" id="scroll-float-btn" onclick="window.scrollBy({top:window.innerHeight*0.7,behavior:'smooth'})">
+  <i class="fas fa-chevron-down"></i> Scroll down
+</button>
+
+<!-- ═══ PAYMENT MODAL ═══ -->
+<div id="payment-modal">
+  <div class="pm-sheet">
+    <!-- Drag handle (mobile) -->
+    <span class="pm-drag"></span>
+    <!-- Close -->
+    <button onclick="closePaymentModal()" style="position:absolute;top:14px;right:14px;background:var(--g100);border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.82rem;color:var(--g600)"><i class="fas fa-times"></i></button>
+
+    <!-- Header -->
+    <div style="text-align:center;margin-bottom:20px">
+      <div style="width:52px;height:52px;background:linear-gradient(135deg,var(--t700),var(--t500));border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;font-size:1.3rem;color:#fff">
+        <i class="fas fa-bolt"></i>
+      </div>
+      <h3 style="font-family:var(--df);font-size:1.45rem;font-weight:700;color:var(--g900);margin-bottom:4px" id="pm-title">Upgrade to Pro</h3>
+      <p style="font-size:.83rem;color:var(--g500);line-height:1.55">Complete payment to unlock all Pro features and WhatsApp setup.</p>
+    </div>
+
+    <!-- Plan summary -->
+    <div style="background:var(--t50);border:1.5px solid var(--t200);border-radius:13px;padding:14px 16px;margin-bottom:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px">
+        <span style="font-size:.78rem;font-weight:700;color:var(--t800);text-transform:uppercase;letter-spacing:.08em" id="pm-plan-label">Pro Plan</span>
+        <span style="font-size:.7rem;font-weight:700;background:var(--t100);color:var(--t700);padding:3px 9px;border-radius:100px" id="pm-cycle-badge">Monthly</span>
+      </div>
+      <div style="display:flex;align-items:baseline;gap:4px;margin-bottom:2px">
+        <span style="font-family:var(--df);font-size:2rem;font-weight:700;color:var(--t800)">₹<span id="pm-amount">999</span></span>
+        <span style="font-size:.74rem;color:var(--t600)" id="pm-period">/month</span>
+      </div>
+      <div style="font-size:.72rem;color:var(--t600);margin-bottom:10px">Auto-renews · cancel anytime</div>
+      <div style="display:flex;flex-direction:column;gap:5px" id="pm-features"></div>
+    </div>
+
+    <!-- Trust -->
+    <div style="display:flex;justify-content:center;gap:14px;margin-bottom:16px;flex-wrap:wrap">
+      <span style="font-size:.71rem;color:var(--g400);display:flex;align-items:center;gap:4px"><i class="fas fa-shield-alt" style="color:var(--t500)"></i>Razorpay</span>
+      <span style="font-size:.71rem;color:var(--g400);display:flex;align-items:center;gap:4px"><i class="fas fa-lock" style="color:var(--t500)"></i>256-bit SSL</span>
+      <span style="font-size:.71rem;color:var(--g400);display:flex;align-items:center;gap:4px"><i class="fas fa-undo" style="color:var(--t500)"></i>7-day refund</span>
+      <span style="font-size:.71rem;color:var(--g400);display:flex;align-items:center;gap:4px"><i class="fab fa-google-pay" style="color:var(--t500)"></i>UPI / Cards</span>
+    </div>
+
+    <!-- CTA -->
+    <button id="pm-pay-btn" onclick="launchRazorpay()" style="width:100%;padding:15px;background:linear-gradient(135deg,var(--t700),var(--t500));color:#fff;border:none;border-radius:13px;font-family:var(--bf);font-size:.95rem;font-weight:700;cursor:pointer;transition:all .22s;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 6px 20px rgba(13,148,136,.35)">
+      <i class="fas fa-bolt"></i> Subscribe &amp; Unlock Setup
+    </button>
+    <p style="text-align:center;font-size:.72rem;color:var(--g400);margin-top:10px">
+      <a href="{{ url_for('billing') }}" style="color:var(--t600)">Pay later from Billing</a> · skip for now
+    </p>
+  </div>
+</div>
+
+<!-- Razorpay SDK -->
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
+<script>
+// ═══════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════
+const TOTAL = 6;
+let currentStep = {{ current_step | default(1) }};
+let savedData   = {{ onboarding_data | tojson | safe }};
+let billingMode = 'monthly';
+let services    = [];
+
+const CSRF_TOKEN = document.cookie
+  .split(';').map(c => c.trim())
+  .find(c => c.startsWith('csrf_'))?.split('=')[1] || '';
+
+const STEP_META = {
+  1:{ title:'Basic Details',     sub:'Add your address and working hours' },
+  2:{ title:'Services Setup',    sub:'List the services you offer' },
+  3:{ title:'Booking Settings',  sub:'Configure your appointment slots' },
+  4:{ title:'Payment Setup',     sub:'Set up UPI and advance payments' },
+  5:{ title:'Choose a Plan',     sub:'Pick the right plan for your salon' },
+  6:{ title:'WhatsApp Setup',    sub:'Connect your WhatsApp number' },
+};
+
+// ═══════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  initServices();
+  restoreData();
+  goToStep(currentStep, false);
+});
+
+// ═══════════════════════════════════════════════════
+//  NAVIGATION
+// ═══════════════════════════════════════════════════
+function goToStep(n, animate = true) {
+  if (n < 1 || n > TOTAL) return;
+
+  const userPlan    = '{{ current_user.plan }}';
+  const alreadyPaid = userPlan === 'pro' || userPlan === 'business';
+  const sessionPaid = sessionStorage.getItem('payment_done') === '1';
+  const isPaid      = alreadyPaid || sessionPaid;
+
+  // After payment: lock navigation — only step 6 is allowed
+  if (isPaid && n !== 6) {
+    showToast('Subscription is active! Please connect WhatsApp to complete setup.', 'warn');
+    return;
+  }
+
+  // Before payment: block step 6
+  if (!isPaid && n === 6) {
+    const plan = document.getElementById('selected-plan')?.value || 'pro';
+    showToast('Complete payment to unlock the WhatsApp setup step.', 'warn');
+    openPaymentModal(plan);
+    return;
+  }
+
+  currentStep = n;
+  // Start WA poller when arriving at step 6
+  if (n === 6) { setTimeout(startWAPoller, 800); }
+  // Stop poller if navigating away from step 6
+  else { stopWAPoller(); }
+  document.querySelectorAll('.step-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('complete-screen').classList.remove('active');
+  const panel = document.getElementById('step-' + n);
+  if (panel) panel.classList.add('active');
+  updateSidebar(n);
+  updateTopbar(n);
+  updateProgress(n);
+  window.scrollTo({ top: 0, behavior: animate ? 'smooth' : 'instant' });
+}
+
+function jumpToStep(n) {
+  if (n <= currentStep) goToStep(n);
+}
+
+function updateSidebar(n) {
+  document.querySelectorAll('.ob-step-nav').forEach(el => {
+    const s = parseInt(el.dataset.step);
+    el.className = 'ob-step-nav ' + (s < n ? 'done' : s === n ? 'active' : 'locked');
+    const ic = el.querySelector('.ob-step-ic i');
+    ic.className = s < n ? 'fas fa-check' : getStepIcon(s);
+  });
+}
+
+function getStepIcon(n) {
+  return { 1:'fas fa-store', 2:'fas fa-cut', 3:'fas fa-calendar-check',
+           4:'fas fa-credit-card', 5:'fas fa-tag', 6:'fab fa-whatsapp' }[n] || 'fas fa-circle';
+}
+
+function updateTopbar(n) {
+  const m = STEP_META[n];
+  if (!m) return;
+  document.getElementById('tb-title').textContent = m.title;
+  document.getElementById('tb-sub').textContent = m.sub;
+}
+
+function updateProgress(n) {
+  const pct = Math.round(((n - 1) / TOTAL) * 100);
+  document.getElementById('ob-pfill').style.width = pct + '%';
+  document.getElementById('prog-pct').textContent = pct + '%';
+}
+
+// ═══════════════════════════════════════════════════
+//  ADDRESS — Google Places handles autocomplete
+//  (initGooglePlaces callback is in the <head> script)
+// ═══════════════════════════════════════════════════
+function clearAddress() {
+  const el = document.getElementById('s1-address');
+  if (el) el.value = '';
+  const clearBtn = document.getElementById('addr-clear');
+  if (clearBtn) clearBtn.style.display = 'none';
+}
+
+// ═══════════════════════════════════════════════════
+//  SERVICES
+// ═══════════════════════════════════════════════════
+function initServices() {
+  const saved = savedData?.step_2?.services;
+  services = (saved && saved.length) ? saved : [
+    { name: 'Haircut', price: '' },
+    { name: 'Blowdry', price: '' },
+  ];
+  renderServices();
+}
+
+function renderServices() {
+  const list = document.getElementById('svc-list');
+  list.innerHTML = services.map((s, i) => `
+    <div class="svc-item" id="svc-${i}">
+      <div class="svc-row-top">
+        <input class="svc-name" placeholder="Service name (e.g. Haircut, Blowdry…)" value="${escHtml(s.name)}"
+               oninput="services[${i}].name=this.value">
+        <div class="svc-price-wrap">
+          <span>₹</span>
+          <input class="svc-price" type="number" placeholder="0" min="0" value="${s.price||''}"
+                 oninput="services[${i}].price=this.value">
+        </div>
+        <button class="svc-del" onclick="removeService(${i})" title="Remove">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+    </div>`).join('');
+}
+
+function addService() {
+  services.push({ name: '', price: '' });
+  renderServices();
+  const items = document.querySelectorAll('.svc-item');
+  if (items.length) items[items.length-1].querySelector('.svc-name').focus();
+}
+
+function removeService(i) {
+  if (services.length <= 1) { showToast('Keep at least one service.', 'warn'); return; }
+  services.splice(i, 1);
+  renderServices();
+}
+
+function collectServices() {
+  // Pull latest values from DOM
+  document.querySelectorAll('.svc-item').forEach((el, i) => {
+    if (services[i]) {
+      services[i].name  = el.querySelector('.svc-name').value.trim();
+      services[i].price = el.querySelector('.svc-price').value.trim();
+    }
+  });
+  return services.filter(s => s.name);
+}
+
+// ═══════════════════════════════════════════════════
+//  CONCURRENT BOOKINGS PICKER
+// ═══════════════════════════════════════════════════
+function renderConcurrentPicker(selected) {
+  const grid = document.getElementById('concur-grid');
+  if (!grid) return;
+  const options = [
+    { val: 1, label: 'Chair' },
+    { val: 2, label: 'Chairs' },
+    { val: 3, label: 'Chairs' },
+    { val: 4, label: 'Chairs' },
+    { val: 5, label: 'Chairs' },
+    { val: 6, label: 'Chairs' },
+  ];
+  grid.innerHTML = options.map(o => {
+    // Build dot indicators (max 6 dots in 2 rows of 3)
+    const dots = Array.from({length: o.val}, () => '<div class="concur-dot"></div>').join('');
+    const isActive = parseInt(selected || 1) === o.val;
+    return `<button type="button" class="concur-btn${isActive ? ' active' : ''}" onclick="setConcurrent(${o.val})">
+      <div class="concur-dots">${dots}</div>
+      <div class="cn">${o.val}</div>
+      <div class="cl">${o.label}</div>
+    </button>`;
+  }).join('');
+}
+
+function setConcurrent(val) {
+  document.getElementById('s3-concurrent').value = val;
+  document.querySelectorAll('.concur-btn').forEach(b => b.classList.remove('active'));
+  const btns = document.querySelectorAll('.concur-btn');
+  if (btns[val - 1]) btns[val - 1].classList.add('active');
+}
+
+// Init picker on load
+document.addEventListener('DOMContentLoaded', () => renderConcurrentPicker(1));
+
+// ═══════════════════════════════════════════════════
+//  TOGGLES
+// ═══════════════════════════════════════════════════
+function onToggle(cbId, secId, rowId) {
+  const cb  = document.getElementById(cbId);
+  const sec = document.getElementById(secId);
+  const row = document.getElementById(rowId);
+  sec.classList.toggle('show', cb.checked);
+  row.classList.toggle('on', cb.checked);
+}
+
+function syncAdvancePayment() {
+  const adv = parseFloat(document.getElementById('s3-advance')?.value || '0');
+  const payOn = document.getElementById('payment-on')?.checked;
+  const note = document.getElementById('advance-link-note');
+  if (note) note.style.display = (adv > 0 && !payOn) ? 'block' : 'none';
+}
+
+// ═══════════════════════════════════════════════════
+//  PLAN SELECTION
+// ═══════════════════════════════════════════════════
+function setBilling(mode) {
+  billingMode = mode;
+  document.getElementById('bt-monthly').classList.toggle('active', mode === 'monthly');
+  document.getElementById('bt-annual').classList.toggle('active',  mode === 'annual');
+  document.getElementById('billing-cycle').value = mode;
+  document.querySelectorAll('.plan-price-val').forEach(el => {
+    el.textContent = mode === 'annual' ? el.dataset.annual : el.dataset.monthly;
+  });
+  const sfx = mode === 'annual' ? ' · billed annually' : ' · billed monthly';
+  const pp = document.getElementById('period-pro');
+  const pb = document.getElementById('period-business');
+  if (pp) pp.textContent = 'per month' + sfx;
+  if (pb) pb.textContent = 'per month' + sfx;
+}
+
+function selectPlan(plan) {
+  if (plan === 'business') return; // locked
+  document.querySelectorAll('.plan-card').forEach(c => c.classList.remove('selected'));
+  document.querySelector(`[data-plan="${plan}"]`)?.classList.add('selected');
+  document.getElementById('selected-plan').value = plan;
+}
+
+function refreshPlanSummary(plan) { /* no-op: summary bar removed */ }
+
+function updatePayToggleCard() {
+  const cb   = document.getElementById('payment-on');
+  const card = document.getElementById('payment-tr');
+  if (cb && card) card.classList.toggle('on', cb.checked);
+}
+
+async function applyCoupon() {
+  const code = document.getElementById('coupon-code').value.trim().toUpperCase();
+  const res  = document.getElementById('coupon-result');
+  if (!code) return;
+  try {
+    const r = await apiFetch('/api/coupon/validate', { code });
+    if (r.ok && r.data.valid) {
+      res.className = 'coupon-result ok';
+      res.innerHTML = `<i class="fas fa-tag"></i> ${r.data.discount}% discount applied!`;
+    } else {
+      res.className = 'coupon-result bad';
+      res.innerHTML = `<i class="fas fa-times-circle"></i> ${r.data.error || 'Invalid coupon'}`;
+    }
+  } catch {
+    res.className = 'coupon-result bad';
+    res.innerHTML = '<i class="fas fa-times-circle"></i> Could not validate coupon. Try again.';
+  }
+}
+
+// ═══════════════════════════════════════════════════
+//  VALIDATION
+// ═══════════════════════════════════════════════════
+function validateStep(step) {
+  let ok = true;
+
+  if (step === 1) {
+    const sname = document.getElementById('s1-salon-name').value.trim();
+    if (!sname) {
+      const errEl = document.getElementById('err-salon-name');
+      const inpEl = document.getElementById('s1-salon-name');
+      if (errEl) errEl.classList.add('show');
+      if (inpEl) inpEl.classList.add('invalid');
+      ok = false;
+    } else {
+      const errEl = document.getElementById('err-salon-name');
+      const inpEl = document.getElementById('s1-salon-name');
+      if (errEl) errEl.classList.remove('show');
+      if (inpEl) inpEl.classList.remove('invalid');
+    }
+
+    const addr = document.getElementById('s1-address').value.trim();
+    if (!addr) { showFieldError('address'); ok = false; }
+    else clearFieldError('address');
+
+    const openTime  = document.getElementById('s1-open').value;
+    const closeTime = document.getElementById('s1-close').value;
+    if (!openTime)  { showFieldError('open');  ok = false; } else clearFieldError('open');
+    if (!closeTime) { showFieldError('close'); ok = false; } else clearFieldError('close');
+    if (openTime && closeTime && closeTime <= openTime) {
+      showFieldError('close', 'Closing time must be after opening time');
+      ok = false;
+    }
+  }
+
+  if (step === 2) {
+    const svcs = collectServices();
+    if (!svcs.length) {
+      document.getElementById('err-services').classList.add('show');
+      ok = false;
+    } else {
+      document.getElementById('err-services').classList.remove('show');
+    }
+  }
+
+  if (step === 4) {
+    const payOn      = document.getElementById('payment-on').checked;
+    const upi        = document.getElementById('s4-upi').value.trim();
+    const advAmount  = parseFloat(document.getElementById('s3-advance')?.value || '0') || 0;
+
+    // If advance amount was set in step 3, payment MUST be enabled
+    if (advAmount > 0 && !payOn) {
+      // Flash the toggle card visually
+      const card = document.getElementById('payment-tr');
+      if (card) {
+        card.style.borderColor = '#ef4444';
+        card.style.boxShadow   = '0 0 0 3px rgba(239,68,68,.15)';
+        setTimeout(() => { card.style.borderColor = ''; card.style.boxShadow = ''; }, 2000);
+      }
+      showToast('You set an advance amount in Step 3. Please enable online payment to continue.', 'warn');
+      ok = false;
+    }
+    if (payOn && !upi) { showFieldError('upi'); ok = false; }
+    else clearFieldError('upi');
+  }
+
+  if (!ok) {
+    // Scroll to first visible error
+    const firstErr = document.querySelector('.field-err.show, .inp.invalid');
+    if (firstErr) firstErr.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+  return ok;
+}
+
+function showFieldError(id, msg) {
+  const errEl = document.getElementById('err-' + id);
+  const inpEl = document.getElementById('s1-' + id) || document.getElementById('s4-' + id);
+  if (errEl) { if (msg) errEl.querySelector('span') && (errEl.textContent = msg); errEl.classList.add('show'); }
+  if (inpEl) inpEl.classList.add('invalid');
+}
+
+function clearFieldError(id) {
+  const errEl = document.getElementById('err-' + id);
+  const inpEl = document.getElementById('s1-' + id) || document.getElementById('s4-' + id);
+  if (errEl) errEl.classList.remove('show');
+  if (inpEl) inpEl.classList.remove('invalid');
+}
+
+// ═══════════════════════════════════════════════════
+//  COLLECT DATA
+// ═══════════════════════════════════════════════════
+function collectStepData(step) {
+  switch (step) {
+    case 1: return {
+      salon_name:   document.getElementById('s1-salon-name').value.trim(),
+      address:      document.getElementById('s1-address').value.trim(),
+      opening_time: document.getElementById('s1-open').value,
+      closing_time: document.getElementById('s1-close').value,
+      days_open:    document.getElementById('s1-days').value,
+      city:         document.getElementById('s1-city').value.trim(),
+    };
+    case 2: return { services: collectServices() };
+    case 3: return {
+      booking_enabled:      document.getElementById('booking-on').checked,
+      slot_duration:        document.getElementById('s3-duration').value,
+      advance_amount:       document.getElementById('s3-advance').value || '0',
+      buffer_time:          document.getElementById('s3-buffer').value,
+      concurrent_bookings:  parseInt(document.getElementById('s3-concurrent')?.value || '1'),
+    };
+    case 4: return {
+      payment_enabled: document.getElementById('payment-on').checked,
+      upi_id:          document.getElementById('s4-upi').value.trim(),
+    };
+    case 5: return {
+      plan:         document.getElementById('selected-plan').value,
+      billing_cycle:document.getElementById('billing-cycle').value,
+      coupon:       document.getElementById('coupon-code').value.trim(),
+    };
+    case 6: return {
+      wa_connected: false,  // updated via dashboard after scan
+    };
+    default: return {};
+  }
+}
+
+// ═══════════════════════════════════════════════════
+//  RESTORE SAVED DATA
+// ═══════════════════════════════════════════════════
+function restoreData() {
+  if (!savedData) return;
+  const s1 = savedData.step_1 || {};
+  if (s1.salon_name) {
+    const el = document.getElementById('s1-salon-name');
+    if (el) el.value = s1.salon_name;
+  }
+  if (s1.address)      document.getElementById('s1-address').value     = s1.address;
+  if (s1.opening_time) document.getElementById('s1-open').value        = s1.opening_time;
+  if (s1.closing_time) document.getElementById('s1-close').value       = s1.closing_time;
+  if (s1.days_open)    document.getElementById('s1-days').value        = s1.days_open;
+  if (s1.city)         document.getElementById('s1-city').value        = s1.city;
+  if (s1.address)      document.getElementById('addr-clear').classList.add('show');
+
+  const s3 = savedData.step_3 || {};
+  if (s3.booking_enabled === false) {
+    document.getElementById('booking-on').checked = false;
+    onToggle('booking-on','booking-cond','booking-tr');
+  }
+  if (s3.slot_duration) document.getElementById('s3-duration').value = s3.slot_duration;
+  if (s3.advance_amount && s3.advance_amount !== '0') document.getElementById('s3-advance').value = s3.advance_amount;
+  if (s3.buffer_time)   document.getElementById('s3-buffer').value   = s3.buffer_time;
+  if (s3.concurrent_bookings) {
+    renderConcurrentPicker(s3.concurrent_bookings);
+    document.getElementById('s3-concurrent').value = s3.concurrent_bookings;
+  }
+
+  const s4 = savedData.step_4 || {};
+  if (s4.payment_enabled) {
+    document.getElementById('payment-on').checked = true;
+    onToggle('payment-on','payment-cond','payment-tr');
+    updatePayToggleCard();
+  }
+  if (s4.upi_id) document.getElementById('s4-upi').value = s4.upi_id;
+
+  const s5 = savedData.step_5 || {};
+  if (s5.plan && s5.plan !== 'starter') selectPlan(s5.plan);
+  if (s5.billing_cycle) setBilling(s5.billing_cycle);
+
+  const s6 = savedData.step_6 || {};
+  // WhatsApp number and bot instructions are managed from Dashboard
+}
+
+// ═══════════════════════════════════════════════════
+//  API FETCH HELPER  (real save with response check)
+// ═══════════════════════════════════════════════════
+async function apiFetch(url, body) {
+  const r = await fetch(url, {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  let data = {};
+  try { data = await r.json(); } catch { /* non-JSON response */ }
+  return { ok: r.ok, status: r.status, data };
+}
+
+// ═══════════════════════════════════════════════════
+//  SAVE & NEXT
+// ═══════════════════════════════════════════════════
+async function saveAndNext(step) {
+  // 1. Validate first — block if invalid
+  if (!validateStep(step)) return;
+
+  // 2. Collect & show saving state
+  const data = collectStepData(step);
+  const spinner = document.getElementById('spin-' + step);
+  const nextBtn = document.getElementById('next-' + step);
+  spinner.classList.add('show');
+  nextBtn.disabled = true;
+  setSaveBadge('saving');
+
+  // 3. Actually save — check response
+  try {
+    const r = await apiFetch('/api/onboarding/save', { step, data });
+    if (r.ok) {
+      savedData['step_' + step] = data;
+      setSaveBadge('saved');
+      // 4. Only advance on confirmed success
+      setTimeout(() => goToStep(step + 1), 200);
+    } else {
+      const msg = r.status === 401
+        ? 'Session expired — please sign in again.'
+        : (r.data.error || 'Save failed. Please try again.');
+      setSaveBadge('error', msg);
+      showToast(msg, 'error');
+    }
+  } catch (err) {
+    setSaveBadge('error', 'Network error — check your connection.');
+    showToast('Network error — check your connection.', 'error');
+  } finally {
+    spinner.classList.remove('show');
+    nextBtn.disabled = false;
+  }
+}
+
+// ═══════════════════════════════════════════════════
+//  COMPLETE ONBOARDING
+// ═══════════════════════════════════════════════════
+// STEP 6 WA CONNECTION POLLER
+// WhatsApp is MANDATORY. No skip.
+
+let waPollerInterval = null;
+let _botAssigning    = false;
+
+function startWAPoller() {
+  if (waPollerInterval || _botAssigning) return;
+  const hasSession = {{ 'true' if current_user.whatsapp_session_id else 'false' }};
+  if (!hasSession) { _assignBotThenPoll(); } else { _beginPolling(); }
+}
+
+async function _assignBotThenPoll() {
+  _botAssigning = true;
+  _setSpinnerTxt('Assigning bot instance...');
+  try {
+    const r = await fetch('/api/bot/assign', {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const d = await r.json();
+    if (!d.ok) { _setSpinnerTxt('No free slots available right now'); showToast(d.error || 'No free slots.', 'error'); return; }
+    _setSpinnerTxt('Bot assigned! Waiting for QR...');
+    setTimeout(_beginPolling, 3000);
+  } catch(e) {
+    _setSpinnerTxt('Assignment failed - try refreshing');
+    console.error('[S6]', e);
+  } finally { _botAssigning = false; }
+}
+
+function _beginPolling() {
+  _setSpinnerTxt('Generating QR code...');
+  waPollerInterval = setInterval(checkWANow, 5000);
+  checkWANow();
+}
+
+function stopWAPoller() { clearInterval(waPollerInterval); waPollerInterval = null; }
+
+function _setSpinnerTxt(txt) {
+  const el = document.getElementById('s6-spinner-txt');
+  if (el) el.textContent = txt;
+}
+
+async function checkWANow() {
+  const ico = document.getElementById('manual-check-icon');
+  if (ico) ico.style.animation = 'spin .7s linear infinite';
+  try {
+    const r = await fetch('/api/whatsapp/status', { credentials: 'same-origin' });
+    const d = await r.json();
+    if (ico) ico.style.animation = '';
+    const sub = document.getElementById('wa-poll-sub');
+    const now = new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    if (sub) sub.textContent = 'Last checked: ' + now + ' - checking every 5s';
+    if (d.qr) {
+      const img  = document.getElementById('s6-qr-img');
+      const spin = document.getElementById('s6-qr-spinner');
+      const beam = document.getElementById('s6-scan-beam');
+      if (img)  { img.src = d.qr; img.style.display = ''; }
+      if (spin) spin.style.display = 'none';
+      if (beam) beam.style.display = '';
+    }
+    if (d.connected) { stopWAPoller(); onWAConnected(d.phone || ''); }
+  } catch(e) {
+    if (ico) ico.style.animation = '';
+    console.warn('[WA Poll]', e);
+  }
+}
+
+function onWAConnected(phone) {
+  stopWAPoller();
+  const pill  = document.getElementById('s6-status-pill');
+  const dot   = document.getElementById('s6-pulse-dot');
+  const title = document.getElementById('wa-poll-title');
+  const dots  = document.getElementById('wa-poll-dots');
+  const sub   = document.getElementById('wa-poll-sub');
+  if (pill)  pill.className = 's6-status-pill s6-status-connected';
+  if (dot)   dot.className  = 's6-pulse-dot connected';
+  if (title) title.textContent = 'WhatsApp Connected!';
+  if (dots)  dots.style.display = 'none';
+  if (sub)   sub.textContent = phone ? (phone + ' - Bot is live') : 'Bot is live!';
+  const beam    = document.getElementById('s6-scan-beam');
+  const overlay = document.getElementById('s6-qr-overlay');
+  const ovPhone = document.getElementById('s6-overlay-phone');
+  if (beam)    beam.style.display = 'none';
+  if (overlay) overlay.classList.add('show');
+  if (ovPhone && phone) ovPhone.textContent = phone;
+  const qrBox = document.getElementById('s6-qr-box');
+  if (qrBox) qrBox.style.borderColor = '#4ade80';
+  document.querySelectorAll('.s6-qr-corner-tr,.s6-qr-corner-bl').forEach(function(el) {
+    if (el) el.style.borderColor = '#4ade80';
+  });
+  const checkBtn = document.getElementById('wa-manual-check');
+  if (checkBtn) { checkBtn.disabled = true; checkBtn.style.opacity = '.5'; }
+  showToast('WhatsApp connected! Taking you to your dashboard...', 'success');
+  setTimeout(function() { completeOnboarding(); }, 2500);
+}
+
+async function completeOnboarding() {
+  const data    = collectStepData(6);
+  const spinner = document.getElementById('spin-6');
+  const btn     = document.getElementById('next-6');
+  if (spinner) spinner.classList.add('show');
+  if (btn) btn.disabled = true;
+  setSaveBadge('saving');
+  try {
+    const r = await apiFetch('/api/onboarding/complete', { data });
+    if (r.ok) {
+      setSaveBadge('saved');
+      // WhatsApp is connected — go straight to dashboard
+      window.location.href = '/dashboard';
+    } else {
+      const msg = (r.data && r.data.error) || 'Could not complete setup. Please try again.';
+      setSaveBadge('error', msg);
+      showToast(msg, 'error');
+      if (spinner) spinner.classList.remove('show');
+      if (btn) btn.disabled = false;
+    }
+  } catch {
+    setSaveBadge('error', 'Network error.');
+    showToast('Network error — please try again.', 'error');
+    if (spinner) spinner.classList.remove('show');
+    if (btn) btn.disabled = false;
+  }
+}
+
+function showCompleteScreen(step6Data) {
+  document.querySelectorAll('.step-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('complete-screen').classList.add('active');
+  document.getElementById('tb-title').textContent = 'Setup Complete! 🎉';
+  document.getElementById('tb-sub').textContent   = 'Your salon is ready to take bookings';
+  document.getElementById('ob-pfill').style.width = '100%';
+  document.getElementById('prog-pct').textContent = '100%';
+  document.querySelectorAll('.ob-step-nav').forEach(el => {
+    el.className = 'ob-step-nav done';
+    el.querySelector('.ob-step-ic i').className = 'fas fa-check';
+  });
+  if (!step6Data.phone) {
+    const wi = document.getElementById('wa-final-item');
+    if (wi) { wi.querySelector('i').className = 'fas fa-clock'; wi.style.color = 'var(--g500)'; wi.lastChild.textContent = ' WhatsApp — connect later'; }
+  }
+}
+
+// ═══════════════════════════════════════════════════
+//  SAVE BADGE
+// ═══════════════════════════════════════════════════
+let saveTimeout = null;
+function setSaveBadge(state, msg) {
+  const b   = document.getElementById('save-badge');
+  const ic  = document.getElementById('save-ic');
+  const txt = document.getElementById('save-txt');
+  clearTimeout(saveTimeout);
+  b.className = 'ob-save-badge ' + state;
+  if (state === 'saving') { ic.className = 'fas fa-spinner fa-spin'; txt.textContent = 'Saving…'; }
+  else if (state === 'saved') {
+    ic.className = 'fas fa-check-circle'; txt.textContent = 'Saved';
+    saveTimeout = setTimeout(() => { b.className = 'ob-save-badge'; ic.className = 'fas fa-cloud'; txt.textContent = 'Auto-save on'; }, 3500);
+  } else {
+    ic.className = 'fas fa-exclamation-triangle'; txt.textContent = msg || 'Save failed';
+    saveTimeout = setTimeout(() => { b.className = 'ob-save-badge'; ic.className = 'fas fa-cloud'; txt.textContent = 'Auto-save on'; }, 6000);
+  }
+}
+
+// ═══════════════════════════════════════════════════
+//  TOAST
+// ═══════════════════════════════════════════════════
+function showToast(msg, type = 'info') {
+  let t = document.getElementById('ob-toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'ob-toast';
+    t.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:9999;padding:13px 18px;border-radius:12px;color:#fff;font-family:var(--bf);font-size:.86rem;font-weight:500;box-shadow:0 8px 24px rgba(0,0,0,.18);transition:transform .3s,opacity .3s;transform:translateY(80px);opacity:0;max-width:320px;display:flex;align-items:center;gap:8px';
+    document.body.appendChild(t);
+  }
+  const bg = { error:'#ef4444', warn:'#f59e0b', success:'#10b981', info:'#0d9488' };
+  const ic = { error:'fas fa-exclamation-circle', warn:'fas fa-exclamation-triangle', success:'fas fa-check-circle', info:'fas fa-info-circle' };
+  t.style.background = bg[type] || bg.info;
+  t.innerHTML = `<i class="${ic[type]||ic.info}"></i> ${msg}`;
+  requestAnimationFrame(() => { t.style.transform = 'translateY(0)'; t.style.opacity = '1'; });
+  setTimeout(() => { t.style.transform = 'translateY(80px)'; t.style.opacity = '0'; }, 4500);
+}
+
+// ═══════════════════════════════════════════════════
+//  UTILS
+// ═══════════════════════════════════════════════════
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function escJs(s) {
+  return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'\\"');
+}
+
+// ═══════════════════════════════════════════════════
+//  STEP 5 PAYMENT GATE
+// ═══════════════════════════════════════════════════
+const PLAN_PRICES = { monthly: { pro:999, business:2499 }, annual: { pro:799, business:1999 } };
+const PLAN_FEATS  = {
+  pro:      ['Unlimited appointments','Advanced WhatsApp bot','Analytics dashboard','Automated reminders','Priority support'],
+  business: ['Everything in Pro','Multiple branches','Multiple WhatsApp numbers','Custom bot responses','Dedicated manager'],
+};
+
+// Update step 5 button label whenever plan changes
+function onPlanSelected(plan) {
+  const notice = document.getElementById('payment-required-notice');
+  if (notice) notice.style.display = plan === 'starter' ? 'none' : 'flex';
+  const lbl = document.getElementById('next-5-label');
+  const ico = document.getElementById('next-5-icon');
+  if (!lbl) return;
+  // Starter plan removed — always paid, but keep safe
+  lbl.textContent = 'Proceed to Payment';
+  if (ico) { ico.className = 'fas fa-lock'; }
+}
+
+// Handle click on step 5 Next button
+async function handleStep5Next() {
+  if (!validateStep(5)) return;
+
+  const plan = document.getElementById('selected-plan').value;
+  const spinner = document.getElementById('spin-5');
+  const nextBtn = document.getElementById('next-5');
+  spinner.classList.add('show');
+  nextBtn.disabled = true;
+  setSaveBadge('saving');
+
+  // Save step 5 data first
+  const data = collectStepData(5);
+  try {
+    const r = await apiFetch('/api/onboarding/save', { step: 5, data });
+    if (!r.ok) {
+      const msg = r.data.error || 'Save failed. Please try again.';
+      setSaveBadge('error', msg);
+      showToast(msg, 'error');
+      spinner.classList.remove('show');
+      nextBtn.disabled = false;
+      return;
+    }
+    savedData['step_5'] = data;
+    setSaveBadge('saved');
+  } catch {
+    setSaveBadge('error', 'Network error. Please try again.');
+    showToast('Network error.', 'error');
+    spinner.classList.remove('show');
+    nextBtn.disabled = false;
+    return;
+  }
+
+  spinner.classList.remove('show');
+  nextBtn.disabled = false;
+
+  // Always require payment for Pro/Business before step 6
+  if (plan === 'pro' || plan === 'business') {
+    openPaymentModal(plan);
+  } else {
+    // Fallback: if somehow starter is selected, go straight to step 6
+    goToStep(6);
+  }
+}
+
+function openPaymentModal(plan) {
+  const cycle   = document.getElementById('billing-cycle')?.value || 'monthly';
+  const price   = PLAN_PRICES[cycle]?.[plan] || PLAN_PRICES.monthly[plan];
+  const feats   = PLAN_FEATS[plan] || [];
+  const planLbl = plan === 'pro' ? 'Pro' : 'Business';
+
+  document.getElementById('pm-title').textContent     = `Upgrade to ${planLbl}`;
+  document.getElementById('pm-plan-label').textContent = `${planLbl} Plan`;
+  document.getElementById('pm-cycle-badge').textContent = cycle === 'annual' ? 'Annual' : 'Monthly';
+  document.getElementById('pm-amount').textContent    = price;
+  document.getElementById('pm-period').textContent    = cycle === 'annual'
+    ? 'per month · billed annually'
+    : 'per month · billed monthly';
+
+  const featEl = document.getElementById('pm-features');
+  featEl.innerHTML = feats.map(f => `
+    <div style="display:flex;align-items:center;gap:7px;font-size:.8rem;color:var(--t700)">
+      <i class="fas fa-check" style="font-size:.68rem;color:var(--t500)"></i>${f}
+    </div>`).join('');
+
+  // Store for launchRazorpay
+  document.getElementById('payment-modal').dataset.plan  = plan;
+  document.getElementById('payment-modal').dataset.cycle = cycle;
+
+  document.getElementById('payment-modal').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function closePaymentModal() {
+  document.getElementById('payment-modal').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+// ═══════════════════════════════════════════════════
+//  SHOW PAID STATE — flip Step 5 to success UI
+//  and lock navigation to only allow Step 6
+// ═══════════════════════════════════════════════════
+function showPaidState(plan, cycle) {
+  // Flip UI states
+  document.getElementById('s5-paid-state').style.display  = 'block';
+  document.getElementById('s5-unpaid-state').style.display = 'none';
+
+  // Fill in plan details
+  const planLabel = plan === 'pro' ? 'Pro' : 'Business';
+  const prices    = { monthly: { pro: 999, business: 2499 }, annual: { pro: 799, business: 1999 } };
+  const price     = prices[cycle]?.[plan] || prices.monthly[plan];
+  const el = (id) => document.getElementById(id);
+  if (el('s5-plan-name'))  el('s5-plan-name').textContent  = planLabel;
+  if (el('s5-plan-label')) el('s5-plan-label').textContent = planLabel;
+  if (el('s5-amount'))     el('s5-amount').textContent     = `₹${price}/mo`;
+  if (el('s5-cycle'))      el('s5-cycle').textContent      = cycle === 'annual' ? 'Annual · Auto-renews' : 'Monthly · Auto-renews';
+
+  // Mark payment done in session
+  sessionStorage.setItem('payment_done', '1');
+
+  // Lock navigation — disable all step nav links except step 6
+  document.querySelectorAll('.ob-step-nav').forEach(nav => {
+    const step = parseInt(nav.dataset.step || '0');
+    if (step !== 6) {
+      nav.classList.add('locked');
+      nav.style.pointerEvents = 'none';
+      nav.style.opacity       = '0.4';
+    } else {
+      nav.classList.remove('locked');
+      nav.style.pointerEvents = '';
+      nav.style.opacity       = '';
+    }
+  });
+
+  // Show banner at top of page
+  let banner = document.getElementById('payment-lock-banner');
+  if (!banner) {
+    banner = document.createElement('div');
+    banner.id = 'payment-lock-banner';
+    banner.style.cssText = `
+      position:fixed;top:0;left:0;right:0;z-index:9000;
+      background:linear-gradient(90deg,var(--t800),var(--t600));
+      color:#fff;padding:10px 20px;font-size:.82rem;font-weight:600;
+      display:flex;align-items:center;justify-content:center;gap:10px;
+      box-shadow:0 2px 12px rgba(0,0,0,.2);
+    `;
+    banner.innerHTML = `
+      <i class="fas fa-check-circle" style="color:#4ade80"></i>
+      Subscription active! Please connect WhatsApp to complete setup.
+      <span style="opacity:.7;font-weight:400">You can customise everything later in Dashboard.</span>
+    `;
+    document.body.prepend(banner);
+    // Push content down
+    document.querySelector('.ob-page')?.style.setProperty('padding-top', '50px');
+  }
+}
+
+// ═══════════════════════════════════════════════════
+//  LAUNCH RAZORPAY — handles subscription + order
+// ═══════════════════════════════════════════════════
+async function launchRazorpay() {
+  const modal = document.getElementById('payment-modal');
+  const plan  = modal.dataset.plan;
+  const cycle = modal.dataset.cycle;
+  const btn   = document.getElementById('pm-pay-btn');
+
+  btn.disabled  = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating subscription…';
+
+  let order;
+  try {
+    const res = await fetch('/billing/create-order', {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ plan, billing_cycle: cycle }),
+    });
+    order = await res.json();
+    if (!res.ok) {
+      btn.disabled  = false;
+      btn.innerHTML = '<i class="fas fa-bolt"></i> Pay & Unlock WhatsApp Setup';
+      showToast(order.error || 'Could not start payment. Please try again.', 'error');
+      return;
+    }
+  } catch (e) {
+    btn.disabled  = false;
+    btn.innerHTML = '<i class="fas fa-bolt"></i> Pay & Unlock WhatsApp Setup';
+    showToast('Network error. Please check your connection and try again.', 'error');
+    return;
+  }
+
+  btn.disabled  = false;
+  btn.innerHTML = '<i class="fas fa-bolt"></i> Pay & Unlock WhatsApp Setup';
+
+  // ── Build Razorpay options ─────────────────────────────────────────────────
+  // subscription_id → recurring subscription mode (UPI AutoPay, card mandate)
+  // order_id        → one-time order fallback
+  const isSubscription = order.mode === 'subscription';
+
+  const rzpOptions = {
+    key:         order.key_id,
+    amount:      order.amount,   // ignored for subscriptions but harmless
+    currency:    order.currency,
+    name:        'SalonFlow',
+    description: `${order.plan_label} Plan — ${cycle === 'annual' ? 'Annual' : 'Monthly'} Subscription`,
+    image:       '/static/icons/favicon.svg',
+    prefill: {
+      name:    order.user_name,
+      email:   order.user_email,
+      contact: order.user_phone || '',
+    },
+    theme:       { color: '#0d9488' },
+    modal: {
+      backdropclose: false,
+      escape:        true,
+      animation:     true,
+      ondismiss: () => showToast('Payment cancelled. Your progress is saved — resume anytime.', 'warn'),
+    },
+
+    handler: async function(response) {
+      // Called on successful payment / mandate setup
+      closePaymentModal();
+      setSaveBadge('saving');
+      showToast('Verifying payment…', 'info');
+
+      // Build verify payload — subscription vs order have different fields
+      const verifyPayload = {
+        razorpay_payment_id: response.razorpay_payment_id,
+        razorpay_signature:  response.razorpay_signature,
+      };
+      if (isSubscription) {
+        verifyPayload.razorpay_subscription_id = response.razorpay_subscription_id;
+      } else {
+        verifyPayload.razorpay_order_id = response.razorpay_order_id;
+      }
+
+      try {
+        const vres = await fetch('/billing/verify-payment', {
+          method: 'POST', credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(verifyPayload),
+        });
+        const vd = await vres.json();
+
+        if (vres.ok && vd.ok) {
+          setSaveBadge('saved');
+          showToast('🎉 Subscription confirmed! Setting up your account…', 'success');
+          // Switch Step 5 to paid success state and lock nav
+          showPaidState(plan, cycle);
+          // Close modal and go to step 6 after a beat
+          setTimeout(() => { closePaymentModal(); goToStep(6); }, 1200);
+        } else {
+          setSaveBadge('error', 'Verification failed');
+          showToast(vd.error || 'Verification failed. Contact support@salonflow.in if amount was deducted.', 'error');
+        }
+      } catch {
+        setSaveBadge('error', 'Network error');
+        showToast('Network error during verification. Contact support@salonflow.in with payment ID: ' + response.razorpay_payment_id, 'error');
+      }
+    },
+  };
+
+  // Attach subscription_id or order_id
+  if (isSubscription) {
+    rzpOptions.subscription_id        = order.subscription_id;
+    rzpOptions.recurring               = true;  // enables UPI AutoPay, card mandates
+  } else {
+    rzpOptions.order_id = order.order_id;
+  }
+
+  const rzp = new Razorpay(rzpOptions);
+
+  rzp.on('payment.failed', function(resp) {
+    const desc = resp.error?.description || 'Unknown error';
+    const code = resp.error?.code || '';
+    showToast(`Payment failed: ${desc}. Please try a different payment method.`, 'error');
+    console.error('[Razorpay] payment.failed', resp.error);
+  });
+
+  rzp.open();
+}
+
+// ═══════════════════════════════════════════════════
+//  ON PAGE LOAD — check server-side plan
+// ═══════════════════════════════════════════════════
+(function checkPaymentState() {
+  const userPlan  = '{{ current_user.plan }}';
+  const userCycle = '{{ current_user.subscription.billing_cycle if current_user.subscription else "monthly" }}';
+  const paid = userPlan === 'pro' || userPlan === 'business';
+
+  if (paid) {
+    // Already subscribed — show success state immediately
+    showPaidState(userPlan, userCycle);
+    // If currently on step 5, auto-navigate to step 6
+    if (currentStep === 5) {
+      setTimeout(() => goToStep(6), 400);
+    }
+  }
+})();
+
+// Hook selectPlan so the button stays correct
+const _origSelectPlan = typeof selectPlan !== 'undefined' ? selectPlan : null;
+window.selectPlan = function(plan) {
+  if (_origSelectPlan) _origSelectPlan(plan);
+  onPlanSelected(plan);
+};
+
+// Show payment notice on load (step 5 always requires payment)
+document.addEventListener('DOMContentLoaded', () => onPlanSelected('pro'));
+
+// ═══════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
+//  SCROLL FLOAT BUTTON
+// ═══════════════════════════════════════════════════
+(function initScrollFloat() {
+  const btn = document.getElementById('scroll-float-btn');
+  if (!btn) return;
+
+  function update() {
+    const scrolled  = window.scrollY;
+    const docH      = document.documentElement.scrollHeight;
+    const winH      = window.innerHeight;
+    const nearBottom = scrolled + winH >= docH - 40;
+    // Show when page is taller than viewport and not at bottom
+    if (docH > winH + 80 && !nearBottom) {
+      btn.classList.add('visible');
+    } else {
+      btn.classList.remove('visible');
+    }
+  }
+
+  window.addEventListener('scroll', update, { passive: true });
+  window.addEventListener('resize', update, { passive: true });
+  // Re-check whenever step changes (content height changes)
+  const origGoTo = window.goToStep;
+  window.goToStep = function(...args) {
+    if (origGoTo) origGoTo(...args);
+    setTimeout(update, 100);
+  };
+  update();
+})();
+
+// Clear validation on input
+document.addEventListener('input', e => {
+  if (e.target.id === 's1-salon-name') {
+    if (e.target.value) {
+      document.getElementById('err-salon-name')?.classList.remove('show');
+      e.target.classList.remove('invalid');
+    }
+  }
+  if (e.target.id === 's1-address') { if (e.target.value) clearFieldError('address'); }
+  if (e.target.id === 's1-open')    clearFieldError('open');
+  if (e.target.id === 's1-close')   clearFieldError('close');
+  if (e.target.id === 's4-upi')     clearFieldError('upi');
+  if (e.target.classList.contains('svc-name'))
+    document.getElementById('err-services').classList.remove('show');
+});
+</script>
+{% endblock %}

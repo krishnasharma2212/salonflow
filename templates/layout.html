@@ -1,0 +1,273 @@
+{% extends "base.html" %}
+{% block body %}
+<style>
+:root{--topbar-h:60px}
+.layout{display:flex;flex-direction:column;min-height:100vh}
+
+/* ── TOPBAR ── */
+.topbar{background:var(--w);border-bottom:1px solid var(--g100);padding:0 24px;height:var(--topbar-h);display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:200}
+.tb-logo{display:flex;align-items:center;gap:9px;text-decoration:none;margin-right:auto}
+.tb-logo-icon{width:32px;height:32px;background:linear-gradient(135deg,var(--t700),var(--t500));border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:.85rem}
+.tb-logo-txt{font-family:var(--df);font-size:1.2rem;font-weight:700;color:var(--t800)}
+.tb-right{display:flex;align-items:center;gap:8px}
+.tb-avatar{width:36px;height:36px;background:linear-gradient(135deg,var(--t700),var(--t500));border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;color:#fff;cursor:pointer;border:2px solid transparent;transition:all .2s;position:relative}
+.tb-avatar:hover{border-color:var(--t300)}
+/* Dropdown */
+.user-dropdown{position:absolute;top:calc(100% + 8px);right:0;background:#fff;border:1px solid var(--g200);border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,.12);min-width:240px;z-index:300;overflow:hidden;display:none}
+.user-dropdown.open{display:block}
+.ud-header{padding:16px;border-bottom:1px solid var(--g100)}
+.ud-name{font-size:.88rem;font-weight:700;color:var(--g900)}
+.ud-email{font-size:.75rem;color:var(--g500);margin-top:2px}
+.ud-plan{display:inline-flex;align-items:center;gap:4px;margin-top:7px;padding:3px 9px;border-radius:100px;font-size:.68rem;font-weight:700}
+.ud-plan.plan-starter{background:var(--g100);color:var(--g600)}
+.ud-plan.plan-pro{background:var(--t100);color:var(--t800)}
+.ud-plan.plan-business{background:#fef3c7;color:#92400e}
+.ud-item{display:flex;align-items:center;gap:10px;padding:10px 16px;font-size:.85rem;color:var(--g700);cursor:pointer;transition:background .15s;text-decoration:none}
+.ud-item:hover{background:var(--g50);color:var(--g900)}
+.ud-item i{width:16px;color:var(--g400);font-size:.82rem}
+.ud-item.danger{color:#ef4444}
+.ud-item.danger i{color:#ef4444}
+.ud-divider{height:1px;background:var(--g100);margin:4px 0}
+.tb-nav-tabs{display:flex;gap:3px;overflow-x:auto;flex:1;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.tb-nav-tabs::-webkit-scrollbar{display:none}
+.tb-nav-tab{display:flex;align-items:center;gap:7px;padding:9px 18px;border-radius:9px;font-size:.88rem;font-weight:600;color:var(--g500);cursor:pointer;transition:all .18s;white-space:nowrap;border:none;background:none;font-family:var(--bf);letter-spacing:-.01em}
+.tb-nav-tab:hover{color:var(--g800);background:var(--g100)}
+.tb-nav-tab.active{background:var(--t600);color:#fff;box-shadow:0 2px 8px rgba(13,148,136,.3)}
+.tb-nav-tab.active:hover{background:var(--t700)}
+.tb-nav-tab i{font-size:.82rem}
+/* Topbar taller to fit bigger tabs */
+:root{--topbar-h:64px}
+
+/* ── PAGE CONTENT ── */
+.main{flex:1;display:flex;flex-direction:column}
+.page-content{padding:24px;flex:1}
+/* ── Mobile tab menu ── */
+.mob-tab-trigger{display:none;align-items:center;gap:8px;padding:8px 14px;
+  background:var(--g100);border-radius:9px;cursor:pointer;font-size:.86rem;
+  font-weight:600;color:var(--g800);border:none;font-family:var(--bf);
+  transition:background .15s;flex:1;justify-content:space-between}
+.mob-tab-trigger:hover{background:var(--g200)}
+.mob-tab-trigger #mob-tab-chevron{transition:transform .2s;font-size:.72rem;color:var(--g500)}
+.mob-tab-trigger.open #mob-tab-chevron{transform:rotate(180deg)}
+.mob-tab-menu{display:none;position:absolute;top:calc(var(--topbar-h) + 2px);left:0;right:0;
+  background:#fff;border-bottom:1px solid var(--g200);z-index:199;
+  box-shadow:0 8px 24px rgba(0,0,0,.1);padding:6px}
+.mob-tab-menu.open{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+.mob-tab-item{display:flex;align-items:center;gap:9px;padding:11px 14px;
+  border-radius:9px;font-size:.86rem;font-weight:600;color:var(--g600);
+  cursor:pointer;background:none;border:none;font-family:var(--bf);
+  transition:all .15s;text-align:left}
+.mob-tab-item:hover{background:var(--g50);color:var(--g900)}
+.mob-tab-item.active{background:var(--t50);color:var(--t700)}
+.mob-tab-item i{width:16px;color:var(--g400);font-size:.82rem}
+.mob-tab-item.active i{color:var(--t500)}
+
+@media(max-width:900px){
+  .tb-nav-tab{padding:8px 13px;font-size:.83rem;gap:5px}
+}
+@media(max-width:768px){
+  .page-content{padding:14px}
+  .tb-logo-txt{display:none}
+  .tb-nav-tabs{display:none!important}
+  .mob-tab-trigger{display:flex!important}
+  .topbar{position:relative}
+}
+@media(max-width:480px){
+  .topbar{padding:0 12px;gap:8px}
+}
+
+/* ── PLAN BADGE ── */
+.plan-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:100px;font-size:.68rem;font-weight:700}
+.plan-starter{background:var(--g100);color:var(--g600)}
+.plan-pro{background:var(--t100);color:var(--t800)}
+.plan-business{background:#fef3c7;color:#92400e}
+</style>
+
+<div class="layout">
+  <header class="topbar">
+    <a href="/" class="tb-logo">
+      <div class="tb-logo-icon"><i class="fas fa-scissors"></i></div>
+      <span class="tb-logo-txt">SalonFlow</span>
+    </a>
+
+    <!-- Inline nav tabs (only shown on dashboard) -->
+    {% block topbar_nav %}{% endblock %}
+
+    <div class="tb-right">
+      <!-- User avatar + dropdown -->
+      <div style="position:relative">
+        <div class="tb-avatar" id="tb-av" onclick="toggleUserDropdown()" title="Account">
+          {{ current_user.initials }}
+        </div>
+        <div class="user-dropdown" id="user-dropdown">
+          <div class="ud-header">
+            <div class="ud-name">{{ current_user.salon_name }}</div>
+            <div class="ud-email">{{ current_user.email }}</div>
+            <span class="ud-plan plan-{{ current_user.plan }}">
+              <i class="fas fa-{% if current_user.plan == 'pro' %}star{% elif current_user.plan == 'business' %}building{% else %}seedling{% endif %}"></i>
+              {{ current_user.plan_label }} Plan
+            </span>
+          </div>
+          <a href="{{ url_for('profile') }}" class="ud-item"><i class="fas fa-user-circle"></i> My Profile</a>
+          <a href="{{ url_for('billing') }}" class="ud-item"><i class="fas fa-credit-card"></i> Billing & Subscription</a>
+          <a href="{{ url_for('dashboard') }}" class="ud-item"><i class="fas fa-th-large"></i> Dashboard</a>
+          <div class="ud-divider"></div>
+          <div class="ud-item" onclick="showDeleteAccountModal()"><i class="fas fa-trash-alt"></i> Delete Account</div>
+          <div class="ud-divider"></div>
+          <a href="{{ url_for('logout') }}" class="ud-item danger"><i class="fas fa-sign-out-alt"></i> Sign Out</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="main">
+    <div class="page-content">
+      {% block content %}{% endblock %}
+    </div>
+  </div>
+</div>
+
+<!-- Delete Account Modal -->
+<div id="delete-account-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,.65);backdrop-filter:blur(4px);align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:20px;padding:32px 28px;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.25)">
+    <div style="width:52px;height:52px;background:#fee2e2;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px">
+      <i class="fas fa-trash-alt" style="color:#ef4444;font-size:1.2rem"></i>
+    </div>
+    <h3 style="font-family:var(--df);font-size:1.2rem;font-weight:700;color:var(--g900);text-align:center;margin-bottom:8px">Delete Account</h3>
+    <p style="font-size:.85rem;color:var(--g500);text-align:center;line-height:1.6;margin-bottom:20px">
+      This will permanently delete your account, all appointments, salon data, and disconnect your WhatsApp bot. This cannot be undone.
+    </p>
+    <div style="margin-bottom:20px">
+      <label style="font-size:.8rem;font-weight:600;color:var(--g700);display:block;margin-bottom:6px">Type your email to confirm</label>
+      <input type="email" id="delete-confirm-email" placeholder="{{ current_user.email }}"
+        style="width:100%;padding:10px 14px;border:1.5px solid var(--g200);border-radius:10px;font-size:.9rem;outline:none;box-sizing:border-box"
+        oninput="document.getElementById('delete-confirm-btn').disabled = this.value !== '{{ current_user.email }}'">
+    </div>
+    <div style="display:flex;gap:10px">
+      <button onclick="hideDeleteAccountModal()"
+        style="flex:1;padding:11px;background:var(--g100);color:var(--g700);border:none;border-radius:10px;font-size:.9rem;font-weight:600;cursor:pointer">
+        Cancel
+      </button>
+      <button id="delete-confirm-btn" onclick="confirmDeleteAccount()" disabled
+        style="flex:1;padding:11px;background:#ef4444;color:#fff;border:none;border-radius:10px;font-size:.9rem;font-weight:700;cursor:pointer;opacity:.5;transition:opacity .2s"
+        onmouseenter="if(!this.disabled)this.style.background='#dc2626'"
+        onmouseleave="this.style.background='#ef4444'">
+        <i class="fas fa-trash-alt"></i> Delete Forever
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── CSRF-aware fetch wrapper ──────────────────────────────────────────────────
+// Use fetchAPI() instead of fetch() for all POST/PUT/DELETE dashboard calls
+function fetchAPI(url, opts = {}) {
+  const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+  const token    = csrfMeta ? csrfMeta.getAttribute('content') : '';
+  opts.credentials = opts.credentials || 'same-origin';
+  opts.headers     = Object.assign({ 'Content-Type': 'application/json', 'X-CSRFToken': token }, opts.headers || {});
+  return fetch(url, opts);
+}
+
+// ── User dropdown ────────────────────────────────────────────────────
+function toggleUserDropdown() {
+  document.getElementById('user-dropdown').classList.toggle('open');
+}
+document.addEventListener('click', function(e) {
+  if (!document.getElementById('tb-av').contains(e.target) &&
+      !document.getElementById('user-dropdown').contains(e.target)) {
+    document.getElementById('user-dropdown').classList.remove('open');
+  }
+});
+
+// ── getTabBtn used by dashboard tab system ──────────────────────────
+function getTabBtn(name) {
+  return document.querySelector('.dash-tab[onclick*="' + name + '"]');
+}
+
+// ── Mobile tab dropdown ──────────────────────────────────────────────
+function toggleMobMenu() {
+  const menu    = document.getElementById('mob-tab-menu');
+  const trigger = document.getElementById('mob-tab-trigger');
+  if (!menu) return;
+  const isOpen = menu.classList.contains('open');
+  menu.classList.toggle('open', !isOpen);
+  trigger.classList.toggle('open', !isOpen);
+}
+function closeMobMenu() {
+  const menu    = document.getElementById('mob-tab-menu');
+  const trigger = document.getElementById('mob-tab-trigger');
+  if (menu)    menu.classList.remove('open');
+  if (trigger) trigger.classList.remove('open');
+}
+// Update mobile menu active item when switchTab is called
+const _origSwitchForMob = window.switchTab;
+if (typeof _origSwitchForMob === 'function') {
+  window.switchTab = function(name, btn) {
+    _origSwitchForMob(name, btn);
+    document.querySelectorAll('.mob-tab-item').forEach(b => {
+      b.classList.toggle('active', b.getAttribute('onclick') && b.getAttribute('onclick').includes("'" + name + "'"));
+    });
+  };
+}
+document.addEventListener('click', function(e) {
+  const menu    = document.getElementById('mob-tab-menu');
+  const trigger = document.getElementById('mob-tab-trigger');
+  if (menu && menu.classList.contains('open') &&
+      !menu.contains(e.target) && trigger && !trigger.contains(e.target)) {
+    closeMobMenu();
+  }
+});
+
+// ── Delete account modal ────────────────────────────────────────────
+function showDeleteAccountModal() {
+  document.getElementById('user-dropdown').classList.remove('open');
+  const modal = document.getElementById('delete-account-modal');
+  modal.style.display = 'flex';
+  document.getElementById('delete-confirm-email').value = '';
+  document.getElementById('delete-confirm-btn').disabled = true;
+  document.getElementById('delete-confirm-btn').style.opacity = '.5';
+}
+function hideDeleteAccountModal() {
+  document.getElementById('delete-account-modal').style.display = 'none';
+}
+document.getElementById('delete-account-modal').addEventListener('click', function(e) {
+  if (e.target === this) hideDeleteAccountModal();
+});
+document.getElementById('delete-confirm-btn').addEventListener('click', function() {
+  this.style.opacity = '.5';
+});
+
+// Enable button style when email matches
+document.getElementById('delete-confirm-email').addEventListener('input', function() {
+  const btn = document.getElementById('delete-confirm-btn');
+  btn.style.opacity = this.disabled ? '.5' : '1';
+});
+
+async function confirmDeleteAccount() {
+  const btn = document.getElementById('delete-confirm-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
+  try {
+    const r = await fetch('/api/account/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}' },
+      body: JSON.stringify({ confirm_email: document.getElementById('delete-confirm-email').value }),
+    });
+    const d = await r.json();
+    if (d.ok) {
+      window.location.href = '/?deleted=1';
+    } else {
+      alert(d.error || 'Could not delete account. Please try again.');
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-trash-alt"></i> Delete Forever';
+    }
+  } catch {
+    alert('Network error. Please try again.');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-trash-alt"></i> Delete Forever';
+  }
+}
+</script>
+{% block extra_js %}{% endblock %}
+{% endblock %}

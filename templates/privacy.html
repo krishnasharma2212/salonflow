@@ -1,0 +1,260 @@
+{% extends "base.html" %}
+{% block title %}Privacy Policy – SalonFlow{% endblock %}
+{% block extra_css %}
+<style>
+:root{
+  --t50:#f0fdfa;--t100:#ccfbf1;--t200:#99f6e4;--t400:#2dd4bf;
+  --t500:#14b8a6;--t600:#0d9488;--t700:#0f766e;--t800:#115e59;--t900:#134e4a;
+  --g50:#f9fafb;--g100:#f3f4f6;--g200:#e5e7eb;--g400:#9ca3af;
+  --g500:#6b7280;--g600:#4b5563;--g700:#374151;--g800:#1f2937;--g900:#111827;
+  --df:'Cormorant Garamond',Georgia,serif;--bf:'Outfit',sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:var(--bf);background:var(--g50);color:var(--g800);line-height:1.7}
+
+/* ── TOP NAV BAR ── */
+.topnav{background:#fff;border-bottom:1px solid var(--g100);padding:14px 0;position:sticky;top:0;z-index:100}
+.tnin{max-width:860px;margin:0 auto;padding:0 24px;display:flex;align-items:center;justify-content:space-between}
+.logo{display:flex;align-items:center;gap:9px;text-decoration:none}
+.logo-ic{width:32px;height:32px;background:linear-gradient(135deg,var(--t800),var(--t500));border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:.82rem}
+.logo-txt{font-family:var(--df);font-size:1.35rem;font-weight:700;color:var(--t800)}
+.nav-back{display:flex;align-items:center;gap:6px;font-size:.84rem;color:var(--g500);text-decoration:none;transition:color .2s}
+.nav-back:hover{color:var(--t600)}
+.nav-pills{display:flex;gap:6px}
+.nav-pill{font-size:.78rem;font-weight:600;padding:6px 14px;border-radius:100px;text-decoration:none;color:var(--g600);border:1px solid var(--g200);transition:all .2s}
+.nav-pill:hover{border-color:var(--t300);color:var(--t700);background:var(--t50)}
+.nav-pill.active{background:var(--t600);color:#fff;border-color:var(--t600)}
+
+/* ── HERO ── */
+.pol-hero{background:linear-gradient(135deg,var(--t900),var(--t700));padding:48px 24px 40px}
+.pol-hero-in{max-width:860px;margin:0 auto}
+.pol-badge{display:inline-flex;align-items:center;gap:7px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.85);padding:4px 13px;border-radius:100px;font-size:.72rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px}
+.pol-hero h1{font-family:var(--df);font-size:clamp(2rem,4vw,2.8rem);font-weight:700;color:#fff;margin-bottom:8px}
+.pol-hero-meta{font-size:.82rem;color:rgba(255,255,255,.6)}
+.pol-hero-meta strong{color:rgba(255,255,255,.85)}
+
+/* ── LAYOUT ── */
+.pol-body{max-width:860px;margin:0 auto;padding:40px 24px 80px;display:grid;grid-template-columns:200px 1fr;gap:40px;align-items:start}
+.pol-toc{position:sticky;top:72px}
+.pol-toc h4{font-size:.7rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--g400);margin-bottom:10px}
+.pol-toc ol{list-style:none;display:flex;flex-direction:column;gap:2px}
+.pol-toc li a{font-size:.8rem;color:var(--g500);text-decoration:none;padding:5px 10px;border-radius:7px;display:block;transition:all .2s;border-left:2px solid transparent}
+.pol-toc li a:hover{color:var(--t600);background:var(--t50);border-left-color:var(--t400)}
+.pol-toc li a.toc-active{color:var(--t700);font-weight:600;background:var(--t50);border-left-color:var(--t600)}
+
+/* ── CONTENT ── */
+.pol-content{}
+.pol-section{background:#fff;border-radius:16px;border:1px solid var(--g100);padding:28px 32px;margin-bottom:16px;scroll-margin-top:80px}
+.pol-section h2{font-family:var(--df);font-size:1.25rem;font-weight:700;color:var(--g900);margin-bottom:14px;display:flex;align-items:center;gap:10px}
+.pol-section h2 .sec-num{width:26px;height:26px;background:var(--t600);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:800;color:#fff;flex-shrink:0;font-family:var(--bf)}
+.pol-section p{font-size:.9rem;color:var(--g600);margin-bottom:10px;line-height:1.78}
+.pol-section p:last-child{margin-bottom:0}
+.pol-section ul,.pol-section ol{padding-left:18px;display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
+.pol-section li{font-size:.9rem;color:var(--g600);line-height:1.65}
+.pol-section strong{color:var(--g800);font-weight:600}
+.pol-link{color:var(--t600);font-weight:500}
+.pol-link:hover{color:var(--t800)}
+
+/* ── FOOTER STRIP ── */
+.pol-footer{background:var(--g900);padding:22px 24px;text-align:center}
+.pol-footer p{font-size:.8rem;color:rgba(255,255,255,.35)}
+.pol-footer a{color:rgba(255,255,255,.45);text-decoration:none;transition:color .2s}
+.pol-footer a:hover{color:var(--t400)}
+
+@media(max-width:720px){
+  .pol-body{grid-template-columns:1fr}
+  .pol-toc{display:none}
+  .pol-section{padding:20px}
+}
+</style>
+{% endblock %}
+
+{% block body %}
+<!-- TOP NAV -->
+<nav class="topnav">
+  <div class="tnin">
+    <a href="{{ url_for('index') }}" class="logo">
+      <div class="logo-ic"><i class="fas fa-scissors"></i></div>
+      <span class="logo-txt">SalonFlow</span>
+    </a>
+    <div class="nav-pills">
+      <a href="{{ url_for('privacy') }}" class="nav-pill active">Privacy Policy</a>
+      <a href="{{ url_for('terms') }}" class="nav-pill">Terms of Service</a>
+      <a href="{{ url_for('refund') }}" class="nav-pill">Refund Policy</a>
+    </div>
+    <a href="{{ url_for('index') }}" class="nav-back"><i class="fas fa-arrow-left"></i> Back to site</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<div class="pol-hero">
+  <div class="pol-hero-in">
+    <div class="pol-badge"><i class="fas fa-shield-alt"></i> Legal</div>
+    <h1>Privacy Policy</h1>
+    <p class="pol-hero-meta"><strong>Last updated:</strong> 1 June 2025 &nbsp;·&nbsp; <strong>Effective:</strong> 1 June 2025</p>
+  </div>
+</div>
+
+<!-- BODY -->
+<div class="pol-body">
+
+  <!-- TOC -->
+  <nav class="pol-toc">
+    <h4>Contents</h4>
+    <ol>
+      <li><a href="#s1">Who We Are</a></li>
+      <li><a href="#s2">Information We Collect</a></li>
+      <li><a href="#s3">Legal Basis</a></li>
+      <li><a href="#s4">How We Use Data</a></li>
+      <li><a href="#s5">Data Sharing</a></li>
+      <li><a href="#s6">Data Retention</a></li>
+      <li><a href="#s7">Security</a></li>
+      <li><a href="#s8">Cookies</a></li>
+      <li><a href="#s9">Your Rights</a></li>
+      <li><a href="#s10">Children</a></li>
+      <li><a href="#s11">Policy Changes</a></li>
+      <li><a href="#s12">Contact</a></li>
+    </ol>
+  </nav>
+
+  <!-- CONTENT -->
+  <div class="pol-content">
+
+    <div class="pol-section" id="s1">
+      <h2><span class="sec-num">1</span> Who We Are</h2>
+      <p>SalonFlow ("we", "our", "the Platform") is a software-as-a-service product operated by SalonFlow Technologies, India. Our primary contact is <a href="mailto:support@salonflow.in" class="pol-link">support@salonflow.in</a>.</p>
+      <p>This Privacy Policy explains how we collect, use, store, share, and protect the personal data of salon owners, managers, and their clients ("Users") who access the platform at <strong>salonflow.in</strong>. By using SalonFlow you agree to the practices described in this policy.</p>
+    </div>
+
+    <div class="pol-section" id="s2">
+      <h2><span class="sec-num">2</span> Information We Collect</h2>
+      <p><strong>Account data:</strong> Salon name, owner name, email address, phone number, city, and address provided during registration or onboarding.</p>
+      <p><strong>Booking &amp; service data:</strong> Appointment records, client names, service descriptions, and pricing that you enter into the platform.</p>
+      <p><strong>Payment data:</strong> UPI IDs you provide for advance-payment collection. We do not process or store card numbers. Payments via Razorpay are governed by Razorpay's own privacy policy.</p>
+      <p><strong>WhatsApp session data:</strong> When you link your WhatsApp number via QR scan, we process inbound and outbound messages solely to operate the booking automation. We do not read, store, or analyse conversation content beyond confirming or cancelling bookings.</p>
+      <p><strong>Usage data:</strong> Log files, IP addresses, browser type, pages viewed, and feature interactions — collected automatically to improve the service and detect abuse.</p>
+      <p><strong>Communications:</strong> Emails or messages you send to our support team.</p>
+    </div>
+
+    <div class="pol-section" id="s3">
+      <h2><span class="sec-num">3</span> Legal Basis for Processing</h2>
+      <p>We process your data on the following bases under applicable law (GDPR / India's DPDP Act 2023):</p>
+      <ul>
+        <li><strong>Contract performance</strong> — to deliver the Service you subscribed to</li>
+        <li><strong>Legitimate interests</strong> — fraud prevention, security, and platform improvement</li>
+        <li><strong>Consent</strong> — for optional marketing communications, which you may withdraw at any time</li>
+        <li><strong>Legal obligation</strong> — to comply with Indian law (IT Act 2000, IT Rules 2011, DPDP Act 2023)</li>
+      </ul>
+    </div>
+
+    <div class="pol-section" id="s4">
+      <h2><span class="sec-num">4</span> How We Use Your Data</h2>
+      <ul>
+        <li>Operate, maintain, and improve the SalonFlow platform</li>
+        <li>Send transactional emails (verification, password reset, booking confirmations)</li>
+        <li>Send WhatsApp booking messages via your linked number</li>
+        <li>Process subscription payments through Razorpay</li>
+        <li>Detect, prevent, and respond to fraud, abuse, or security threats</li>
+        <li>Comply with applicable Indian laws and respond to lawful government requests</li>
+        <li>Send product updates or feature announcements (opt-out available at any time)</li>
+      </ul>
+    </div>
+
+    <div class="pol-section" id="s5">
+      <h2><span class="sec-num">5</span> Data Sharing &amp; Third Parties</h2>
+      <p>We do not sell your personal data. We share data only with the following sub-processors:</p>
+      <ul>
+        <li><strong>Razorpay Software Pvt. Ltd.</strong> — payment processing (their privacy policy applies)</li>
+        <li><strong>Hostinger International Ltd.</strong> — email delivery via SMTP</li>
+        <li><strong>Google LLC</strong> — Firebase Authentication, Google Maps Places API</li>
+        <li><strong>Cloud infrastructure provider</strong> — database and application hosting</li>
+        <li><strong>Law enforcement / courts</strong> — when required by a valid legal order under Indian law</li>
+      </ul>
+      <p>All sub-processors are bound by data-processing agreements and are required to maintain appropriate security standards.</p>
+    </div>
+
+    <div class="pol-section" id="s6">
+      <h2><span class="sec-num">6</span> Data Retention</h2>
+      <p>We retain account data for as long as your account is active and for <strong>90 days after deletion</strong> to allow recovery or legal compliance. Booking records are retained for <strong>3 years</strong> for business and tax purposes.</p>
+      <p>You may request deletion at any time by emailing us — we will action requests within 30 days except where retention is required by law.</p>
+    </div>
+
+    <div class="pol-section" id="s7">
+      <h2><span class="sec-num">7</span> Data Security</h2>
+      <p>We employ industry-standard security measures:</p>
+      <ul>
+        <li>TLS/SSL encryption for all data in transit</li>
+        <li>bcrypt hashing for all passwords — never stored in plain text</li>
+        <li>Encrypted storage for sensitive fields</li>
+        <li>Access controls limiting data access to authorised personnel only</li>
+        <li>Regular security reviews and dependency updates</li>
+      </ul>
+      <p>However, no internet-based system is completely secure, and we cannot guarantee absolute security. You are responsible for keeping your login credentials confidential.</p>
+    </div>
+
+    <div class="pol-section" id="s8">
+      <h2><span class="sec-num">8</span> Cookies</h2>
+      <p>We use strictly necessary session cookies for authentication and CSRF protection. We do not use third-party advertising cookies. Analytics data is collected in aggregate and anonymised. You may disable cookies in your browser settings, but some features of the platform may not function correctly without them.</p>
+    </div>
+
+    <div class="pol-section" id="s9">
+      <h2><span class="sec-num">9</span> Your Rights</h2>
+      <p>Under applicable law you have the right to:</p>
+      <ul>
+        <li><strong>Access</strong> — request a copy of the personal data we hold about you</li>
+        <li><strong>Correction</strong> — request correction of inaccurate or incomplete data</li>
+        <li><strong>Deletion</strong> — request erasure of your data (subject to legal retention obligations)</li>
+        <li><strong>Data portability</strong> — receive your data in a machine-readable format</li>
+        <li><strong>Objection</strong> — object to processing based on legitimate interests</li>
+        <li><strong>Withdraw consent</strong> — opt out of marketing communications at any time</li>
+      </ul>
+      <p>To exercise any right, email <a href="mailto:support@salonflow.in" class="pol-link">support@salonflow.in</a>. We will respond within <strong>30 days</strong>.</p>
+    </div>
+
+    <div class="pol-section" id="s10">
+      <h2><span class="sec-num">10</span> Children</h2>
+      <p>SalonFlow is not directed at children under 18 years of age. We do not knowingly collect personal data from minors. If you believe we have inadvertently collected such data, please contact us immediately and we will delete it.</p>
+    </div>
+
+    <div class="pol-section" id="s11">
+      <h2><span class="sec-num">11</span> Changes to This Policy</h2>
+      <p>We may update this Privacy Policy from time to time. The "Last updated" date at the top of this page will reflect any changes. For material changes, we will provide at least 14 days' notice via email or an in-app notification. Continued use of the platform after the effective date constitutes acceptance of the updated policy.</p>
+    </div>
+
+    <div class="pol-section" id="s12">
+      <h2><span class="sec-num">12</span> Contact &amp; Grievance Officer</h2>
+      <p>For privacy concerns, data requests, or grievances (as required under India's IT Rules 2011 and DPDP Act 2023):</p>
+      <p><strong>Email:</strong> <a href="mailto:support@salonflow.in" class="pol-link">support@salonflow.in</a><br>
+      <strong>Response time:</strong> Within 30 days of receipt.</p>
+      <p>If you are not satisfied with our response, you may lodge a complaint with the relevant data protection authority.</p>
+    </div>
+
+  </div>
+</div>
+
+<div class="pol-footer">
+  <p>© 2025 SalonFlow Technologies &nbsp;·&nbsp;
+    <a href="{{ url_for('privacy') }}">Privacy</a> &nbsp;·&nbsp;
+    <a href="{{ url_for('terms') }}">Terms</a> &nbsp;·&nbsp;
+    <a href="{{ url_for('refund') }}">Refund Policy</a> &nbsp;·&nbsp;
+    <a href="mailto:support@salonflow.in">support@salonflow.in</a>
+  </p>
+</div>
+
+<script>
+// Highlight active TOC item on scroll
+const sections = document.querySelectorAll('.pol-section');
+const tocLinks = document.querySelectorAll('.pol-toc a');
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      tocLinks.forEach(a => a.classList.remove('toc-active'));
+      const active = document.querySelector(`.pol-toc a[href="#${e.target.id}"]`);
+      if (active) active.classList.add('toc-active');
+    }
+  });
+}, { rootMargin: '-30% 0px -60% 0px' });
+sections.forEach(s => obs.observe(s));
+</script>
+{% endblock %}

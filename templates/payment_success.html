@@ -1,0 +1,164 @@
+{% extends "layout.html" %}
+{% block title %}Payment Successful – SalonFlow{% endblock %}
+{% block page_title %}Payment Successful{% endblock %}
+{% block page_sub %}Your SalonFlow Pro plan is now active{% endblock %}
+
+{% block extra_css %}
+<style>
+.success-wrap{max-width:620px;margin:0 auto;padding:20px 0}
+.success-hero{background:linear-gradient(135deg,var(--t900),var(--t600));border-radius:22px;padding:40px;text-align:center;position:relative;overflow:hidden;margin-bottom:22px}
+.success-hero::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 50% 0,rgba(255,255,255,.08),transparent 60%)}
+.check-ring{width:80px;height:80px;margin:0 auto 18px;position:relative}
+.check-ring svg{width:80px;height:80px}
+.check-ring circle{stroke:#4ade80;stroke-width:3;fill:none;stroke-dasharray:220;stroke-dashoffset:220;animation:drawRing .6s ease forwards .1s}
+.check-ring path{stroke:#4ade80;stroke-width:3;fill:none;stroke-dasharray:60;stroke-dashoffset:60;animation:drawCheck .4s ease forwards .6s;stroke-linecap:round;stroke-linejoin:round}
+@keyframes drawRing{to{stroke-dashoffset:0}}
+@keyframes drawCheck{to{stroke-dashoffset:0}}
+.success-title{font-family:var(--df);font-size:2.2rem;font-weight:700;color:#fff;margin-bottom:6px;position:relative}
+.success-sub{font-size:.92rem;color:rgba(255,255,255,.75);position:relative;line-height:1.65}
+/* Confetti dots */
+.confetti{position:absolute;top:0;left:0;right:0;bottom:0;pointer-events:none;overflow:hidden}
+.confetti span{position:absolute;width:8px;height:8px;border-radius:2px;opacity:.7;animation:fall linear infinite}
+@keyframes fall{0%{transform:translateY(-20px) rotate(0deg);opacity:.8}100%{transform:translateY(300px) rotate(720deg);opacity:0}}
+
+.what-changed{background:#fff;border-radius:18px;border:1px solid var(--g100);padding:24px;margin-bottom:18px}
+.what-changed h3{font-size:.95rem;font-weight:700;color:var(--g900);margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.what-changed h3 i{color:var(--t500)}
+.feature-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--g50)}
+.feature-row:last-child{border-bottom:none}
+.fr-ic{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:.88rem;flex-shrink:0}
+.fr-text{flex:1}
+.fr-title{font-size:.87rem;font-weight:600;color:var(--g900)}
+.fr-sub{font-size:.74rem;color:var(--g500);margin-top:1px}
+.fr-badge{font-size:.66rem;font-weight:700;padding:2px 9px;border-radius:100px;background:#dcfce7;color:#166534;flex-shrink:0}
+
+.wa-cta{background:linear-gradient(135deg,#064e3b,#065f46);border-radius:18px;padding:24px;margin-bottom:18px;position:relative;overflow:hidden}
+.wa-cta::before{content:'';position:absolute;right:-20px;top:-20px;width:120px;height:120px;background:rgba(37,211,102,.1);border-radius:50%}
+.wa-cta-header{display:flex;align-items:center;gap:12px;margin-bottom:14px;position:relative}
+.wa-cta-ic{width:48px;height:48px;background:rgba(37,211,102,.2);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:1.4rem;color:#4ade80;flex-shrink:0}
+.wa-cta-title{font-size:1.05rem;font-weight:700;color:#fff}
+.wa-cta-sub{font-size:.82rem;color:rgba(255,255,255,.65);margin-top:2px}
+.wa-cta-body{font-size:.84rem;color:rgba(255,255,255,.75);margin-bottom:18px;line-height:1.65;position:relative}
+.wa-cta-btn{display:inline-flex;align-items:center;gap:8px;padding:12px 24px;background:#25d366;color:#fff;border-radius:11px;font-family:var(--bf);font-size:.9rem;font-weight:700;text-decoration:none;transition:all .22s;border:none;cursor:pointer}
+.wa-cta-btn:hover{background:#22c55e;transform:translateY(-1px);box-shadow:0 6px 20px rgba(37,211,102,.35)}
+
+.action-row{display:flex;gap:12px;flex-wrap:wrap}
+.act-btn{flex:1;min-width:140px;padding:12px 20px;border-radius:12px;font-family:var(--bf);font-size:.88rem;font-weight:700;cursor:pointer;text-align:center;text-decoration:none;transition:all .22s;display:flex;align-items:center;justify-content:center;gap:8px;border:none}
+.act-primary{background:var(--t600);color:#fff}
+.act-primary:hover{background:var(--t700);transform:translateY(-1px)}
+.act-ghost{background:#fff;color:var(--g700);border:1.5px solid var(--g200)}
+.act-ghost:hover{border-color:var(--g300);background:var(--g50)}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="success-wrap">
+
+  <!-- Hero -->
+  <div class="success-hero">
+    <div class="confetti" id="confetti"></div>
+    <div class="check-ring">
+      <svg viewBox="0 0 80 80">
+        <circle cx="40" cy="40" r="36"/>
+        <path d="M24 40 L35 51 L56 29"/>
+      </svg>
+    </div>
+    <div class="success-title">Payment Successful! 🎉</div>
+    <div class="success-sub">Welcome to <strong>SalonFlow {{ user.plan_label }}</strong>.<br>Your subscription is now active and all features are unlocked.</div>
+  </div>
+
+  <!-- What's unlocked -->
+  <div class="what-changed">
+    <h3><i class="fas fa-unlock-alt"></i> What's now unlocked for you</h3>
+    <div class="feature-row">
+      <div class="fr-ic" style="background:var(--t50);color:var(--t600)"><i class="fas fa-calendar-check"></i></div>
+      <div class="fr-text"><div class="fr-title">Unlimited Appointments</div><div class="fr-sub">No more 30/month cap — accept as many bookings as you want</div></div>
+      <span class="fr-badge">Active</span>
+    </div>
+    <div class="feature-row">
+      <div class="fr-ic" style="background:#dcfce7;color:#16a34a"><i class="fab fa-whatsapp"></i></div>
+      <div class="fr-text"><div class="fr-title">Advanced WhatsApp Bot</div><div class="fr-sub">Full automation, custom responses, and booking confirmations</div></div>
+      <span class="fr-badge">Active</span>
+    </div>
+    <div class="feature-row">
+      <div class="fr-ic" style="background:#f3e8ff;color:#7c3aed"><i class="fas fa-chart-bar"></i></div>
+      <div class="fr-text"><div class="fr-title">Analytics Dashboard</div><div class="fr-sub">Revenue reports, peak hours, client insights and more</div></div>
+      <span class="fr-badge">Active</span>
+    </div>
+    <div class="feature-row">
+      <div class="fr-ic" style="background:#dbeafe;color:#1d4ed8"><i class="fas fa-bell"></i></div>
+      <div class="fr-text"><div class="fr-title">Automated Reminders</div><div class="fr-sub">WhatsApp reminders sent to clients automatically before their appointment</div></div>
+      <span class="fr-badge">Active</span>
+    </div>
+    <div class="feature-row">
+      <div class="fr-ic" style="background:#fef3c7;color:#b45309"><i class="fas fa-headset"></i></div>
+      <div class="fr-text"><div class="fr-title">Priority Support</div><div class="fr-sub">Get help within 4 hours via email — faster than standard queue</div></div>
+      <span class="fr-badge">Active</span>
+    </div>
+  </div>
+
+  <!-- WhatsApp CTA -->
+  {% if not user.whatsapp_connected %}
+  <div class="wa-cta">
+    <div class="wa-cta-header">
+      <div class="wa-cta-ic"><i class="fab fa-whatsapp"></i></div>
+      <div>
+        <div class="wa-cta-title">Connect WhatsApp Now</div>
+        <div class="wa-cta-sub">Your bot is ready — just scan a QR code</div>
+      </div>
+    </div>
+    <div class="wa-cta-body">
+      Your Pro plan includes the advanced WhatsApp booking bot. Connect your number now so clients can start booking through WhatsApp immediately — it takes under 2 minutes.
+    </div>
+    <a href="{{ url_for('dashboard') }}" onclick="sessionStorage.setItem('open_tab','whatsapp')" class="wa-cta-btn">
+      <i class="fab fa-whatsapp"></i> Connect WhatsApp Bot
+    </a>
+  </div>
+  {% else %}
+  <div style="background:#dcfce7;border-radius:14px;padding:18px;display:flex;align-items:center;gap:12px;margin-bottom:18px">
+    <div style="width:42px;height:42px;background:rgba(22,163,74,.15);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.2rem;color:#16a34a;flex-shrink:0"><i class="fab fa-whatsapp"></i></div>
+    <div>
+      <div style="font-size:.9rem;font-weight:700;color:#166534">WhatsApp Already Connected</div>
+      <div style="font-size:.78rem;color:#166534;opacity:.8;margin-top:2px">{{ user.whatsapp_phone }} · Your booking bot is live</div>
+    </div>
+    <i class="fas fa-check-circle" style="color:#16a34a;margin-left:auto;font-size:1.2rem"></i>
+  </div>
+  {% endif %}
+
+  <!-- Action buttons -->
+  <div class="action-row">
+    <a href="{{ url_for('dashboard') }}" class="act-btn act-primary"><i class="fas fa-th-large"></i> Go to Dashboard</a>
+    <a href="{{ url_for('billing') }}" class="act-btn act-ghost"><i class="fas fa-receipt"></i> View Invoice</a>
+  </div>
+
+</div>
+
+<script>
+// Open WhatsApp tab if redirected from WA CTA
+if (sessionStorage.getItem('open_tab') === 'whatsapp' && window.switchTab) {
+  sessionStorage.removeItem('open_tab');
+  switchTab('whatsapp', document.querySelector('[onclick*="whatsapp"]'));
+}
+
+// Confetti
+(function() {
+  const container = document.getElementById('confetti');
+  if (!container) return;
+  const colors = ['#2dd4bf','#4ade80','#f59e0b','#60a5fa','#f472b6','#a78bfa'];
+  for (let i = 0; i < 24; i++) {
+    const el = document.createElement('span');
+    el.style.cssText = `
+      left:${Math.random()*100}%;
+      background:${colors[i%colors.length]};
+      animation-delay:${Math.random()*2}s;
+      animation-duration:${1.5+Math.random()*2}s;
+      width:${6+Math.random()*6}px;height:${6+Math.random()*6}px;
+      border-radius:${Math.random()>0.5?'50%':'2px'};
+    `;
+    container.appendChild(el);
+  }
+  // Remove after 3s to avoid distraction
+  setTimeout(() => container.remove(), 3500);
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,1230 @@
+{% extends "base.html" %}
+{% block title %}SalonFlow – Automate Your Salon with WhatsApp{% endblock %}
+{% block meta_desc %}SalonFlow helps Indian salon owners manage appointments and automate bookings via WhatsApp bot. Scan a QR code and go live in minutes.{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── RESET & BASE ─────────────────────────────────── */
+body { background: #fff; overflow-x: hidden; }
+:root {
+  --t50:#f0fdfa; --t100:#ccfbf1; --t200:#99f6e4; --t300:#5eead4;
+  --t400:#2dd4bf; --t500:#14b8a6; --t600:#0d9488; --t700:#0f766e;
+  --t800:#115e59; --t900:#134e4a;
+  --amber:#f59e0b; --amber2:#fbbf24;
+  --g50:#f9fafb; --g100:#f3f4f6; --g200:#e5e7eb; --g300:#d1d5db;
+  --g400:#9ca3af; --g500:#6b7280; --g600:#4b5563; --g700:#374151;
+  --g800:#1f2937; --g900:#111827;
+  --dark:#0a1f1e; --dark2:#0d2726;
+  --df:'Cormorant Garamond',Georgia,serif;
+  --bf:'Outfit',sans-serif;
+  --ease: all .28s cubic-bezier(.4,0,.2,1);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+a { text-decoration: none; color: inherit; }
+img { max-width: 100%; }
+
+/* ── SCROLL REVEAL ───────────────────────────────── */
+.sr { opacity: 0; transform: translateY(32px); transition: opacity .65s ease, transform .65s ease; }
+.sr.up { opacity: 1; transform: translateY(0); }
+.sr-d1 { transition-delay: .1s; }
+.sr-d2 { transition-delay: .2s; }
+.sr-d3 { transition-delay: .3s; }
+.sr-d4 { transition-delay: .4s; }
+.sr-d5 { transition-delay: .5s; }
+
+/* ── NAVBAR ──────────────────────────────────────── */
+.nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 999;
+  padding: 18px 0; transition: var(--ease);
+}
+.nav.sticky {
+  background: rgba(255,255,255,.93);
+  backdrop-filter: blur(20px);
+  padding: 12px 0;
+  box-shadow: 0 1px 0 rgba(13,148,136,.1);
+}
+.nav-inner {
+  max-width: 1180px; margin: 0 auto; padding: 0 24px;
+  display: flex; align-items: center; gap: 20px;
+}
+.nav-logo { display: flex; align-items: center; gap: 10px; }
+.nav-logo-icon {
+  width: 36px; height: 36px;
+  background: linear-gradient(135deg, var(--t800), var(--t500));
+  border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: .9rem;
+}
+.nav-logo-text {
+  font-family: var(--df); font-size: 1.5rem; font-weight: 700; color: var(--t800);
+}
+.nav-links {
+  display: flex; align-items: center; gap: 28px;
+  list-style: none; margin-left: 32px;
+}
+.nav-links a {
+  font-size: .87rem; font-weight: 500; color: var(--g600);
+  transition: color .2s;
+}
+.nav-links a:hover { color: var(--t600); }
+.nav-ctas { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+.btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 10px 22px; border-radius: 100px;
+  font-family: var(--bf); font-size: .88rem; font-weight: 600;
+  cursor: pointer; border: none; transition: var(--ease); white-space: nowrap;
+}
+.btn-ghost { background: transparent; color: var(--g700); border: 1.5px solid var(--g200); }
+.btn-ghost:hover { background: var(--g50); border-color: var(--g300); }
+.btn-primary {
+  background: var(--t600); color: #fff;
+  box-shadow: 0 4px 16px rgba(13,148,136,.35);
+}
+.btn-primary:hover {
+  background: var(--t700); transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(13,148,136,.45);
+}
+.btn-lg { padding: 14px 32px; font-size: .96rem; }
+.btn-white {
+  background: #fff; color: var(--t700);
+  box-shadow: 0 4px 16px rgba(0,0,0,.1);
+}
+.btn-white:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(0,0,0,.15); }
+.btn-outline-white {
+  background: transparent; color: #fff;
+  border: 2px solid rgba(255,255,255,.4);
+}
+.btn-outline-white:hover { background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.7); }
+.mob-menu-btn {
+  display: none; background: none; border: none;
+  font-size: 1.25rem; color: var(--g700); cursor: pointer; padding: 4px;
+}
+
+/* ── MOB DRAWER ──────────────────────────────────── */
+.mob-drawer {
+  display: none; position: fixed; inset: 0; z-index: 9998;
+  flex-direction: column; align-items: center; justify-content: center;
+  gap: 26px; background: #fff;
+}
+.mob-drawer.open { display: flex; }
+.mob-drawer a {
+  font-family: var(--df); font-size: 1.6rem; font-weight: 700;
+  color: var(--g900); transition: color .2s;
+}
+.mob-drawer a:hover { color: var(--t600); }
+.mob-close {
+  position: absolute; top: 22px; right: 22px;
+  background: none; border: none; font-size: 1.4rem;
+  color: var(--g500); cursor: pointer;
+}
+
+/* ── HERO ────────────────────────────────────────── */
+.hero {
+  min-height: 100vh;
+  background: linear-gradient(160deg, #fff 0%, var(--t50) 55%, rgba(153,246,228,.3) 100%);
+  display: flex; align-items: center;
+  padding: 120px 24px 80px;
+  position: relative; overflow: hidden;
+}
+.hero::before {
+  content: '';
+  position: absolute; top: -20%; right: -8%;
+  width: 600px; height: 600px;
+  background: radial-gradient(circle, rgba(45,212,191,.18) 0%, transparent 65%);
+  pointer-events: none;
+}
+.hero::after {
+  content: '';
+  position: absolute; bottom: -10%; left: -5%;
+  width: 400px; height: 400px;
+  background: radial-gradient(circle, rgba(20,184,166,.1) 0%, transparent 65%);
+  pointer-events: none;
+}
+.hero-inner {
+  max-width: 1180px; margin: 0 auto; width: 100%;
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 60px; align-items: center;
+  position: relative; z-index: 1;
+}
+.hero-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--t50); border: 1px solid var(--t200);
+  color: var(--t700); padding: 5px 14px; border-radius: 100px;
+  font-size: .78rem; font-weight: 700; margin-bottom: 22px;
+}
+.hero-badge-dot {
+  width: 7px; height: 7px; background: var(--t500);
+  border-radius: 50%; animation: blink 2s infinite;
+}
+@keyframes blink { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.8)} }
+.hero-h1 {
+  font-family: var(--df);
+  font-size: clamp(3rem, 5.5vw, 5rem);
+  font-weight: 700; color: var(--g900); line-height: 1.06;
+  letter-spacing: -.03em; margin-bottom: 20px;
+}
+.hero-h1 em { font-style: italic; color: var(--t600); }
+.hero-sub {
+  font-size: 1.05rem; color: var(--g600);
+  line-height: 1.78; margin-bottom: 36px; max-width: 480px;
+}
+.hero-ctas { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 44px; }
+.hero-stats { display: flex; gap: 30px; }
+.stat-n {
+  font-family: var(--df); font-size: 2rem; font-weight: 700;
+  color: var(--t800); line-height: 1;
+}
+.stat-l { font-size: .78rem; color: var(--g500); margin-top: 3px; }
+
+/* Hero visual */
+.hero-vis { position: relative; padding: 20px 40px 20px 0; }
+.hv-card {
+  background: #fff; border-radius: 24px;
+  box-shadow: 0 24px 64px rgba(13,148,136,.18), 0 4px 16px rgba(0,0,0,.07);
+  overflow: hidden; border: 1px solid rgba(13,148,136,.07);
+}
+.hv-header {
+  background: linear-gradient(135deg, var(--t800), var(--t600));
+  padding: 16px 20px; display: flex; align-items: center; gap: 12px;
+}
+.hv-header-icon {
+  width: 32px; height: 32px; background: rgba(255,255,255,.18);
+  border-radius: 8px; display: flex; align-items: center;
+  justify-content: center; color: #fff; font-size: .9rem;
+}
+.hv-header-title { color: #fff; font-weight: 700; font-size: .92rem; }
+.hv-header-sub { color: rgba(255,255,255,.65); font-size: .72rem; margin-top: 1px; }
+.hv-live {
+  margin-left: auto; background: rgba(255,255,255,.15);
+  color: #fff; font-size: .66rem; font-weight: 700;
+  padding: 3px 10px; border-radius: 100px;
+  display: flex; align-items: center; gap: 4px;
+}
+.hv-live-dot {
+  width: 5px; height: 5px; background: #4ade80;
+  border-radius: 50%;
+}
+.hv-body { padding: 18px; display: flex; flex-direction: column; gap: 10px; }
+.appt-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 13px; background: var(--t50);
+  border-radius: 12px; border: 1px solid var(--t100);
+}
+.appt-time { font-size: .74rem; font-weight: 700; color: var(--t700); min-width: 40px; }
+.appt-info { flex: 1; }
+.appt-name { font-weight: 600; font-size: .84rem; color: var(--g900); }
+.appt-svc { font-size: .7rem; color: var(--g500); margin-top: 1px; }
+.badge-pill {
+  font-size: .66rem; font-weight: 700;
+  padding: 3px 9px; border-radius: 100px;
+}
+.b-green { background: #dcfce7; color: #166534; }
+.b-yellow { background: #fef9c3; color: #854d0e; }
+.b-blue { background: #dbeafe; color: #1e40af; }
+/* Floating chips */
+.float-chip {
+  position: absolute;
+  background: #fff; border-radius: 14px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.12);
+  padding: 10px 14px; display: flex; align-items: center; gap: 9px;
+  font-size: .78rem; font-weight: 600; color: var(--g800);
+  border: 1px solid var(--g100);
+}
+.chip1 { bottom: -10px; left: -30px; animation: floatA 4s ease-in-out infinite; }
+.chip2 { top: 30px; right: -10px; animation: floatB 4s ease-in-out infinite 1.8s; }
+.chip-icon {
+  width: 32px; height: 32px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center; font-size: .9rem;
+}
+@keyframes floatA { 0%,100%{transform:translateY(0) rotate(-.5deg)} 50%{transform:translateY(-9px) rotate(.5deg)} }
+@keyframes floatB { 0%,100%{transform:translateY(0) rotate(.5deg)} 50%{transform:translateY(-8px) rotate(-.5deg)} }
+
+/* ── TRUST BAR ───────────────────────────────────── */
+.trust {
+  padding: 28px 24px;
+  border-top: 1px solid var(--g100); border-bottom: 1px solid var(--g100);
+  background: var(--g50);
+}
+.trust-inner {
+  max-width: 1180px; margin: 0 auto;
+  display: flex; align-items: center; justify-content: center;
+  gap: 40px; flex-wrap: wrap;
+}
+.trust-label {
+  font-size: .72rem; font-weight: 700; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--g400); white-space: nowrap;
+}
+.trust-logos { display: flex; align-items: center; gap: 32px; flex-wrap: wrap; }
+.trust-logo {
+  display: flex; align-items: center; gap: 7px;
+  font-size: .86rem; font-weight: 700; color: var(--g400);
+}
+
+/* ── SECTION SHARED ──────────────────────────────── */
+.sec { padding: 96px 24px; }
+.sec-inner { max-width: 1180px; margin: 0 auto; }
+.sec-head { text-align: center; margin-bottom: 56px; }
+.sec-tag {
+  display: inline-block; font-size: .72rem; font-weight: 700;
+  letter-spacing: .16em; text-transform: uppercase;
+  color: var(--t600); margin-bottom: 12px;
+}
+.sec-title {
+  font-family: var(--df);
+  font-size: clamp(1.9rem, 3.5vw, 3rem);
+  font-weight: 700; color: var(--g900); line-height: 1.15; margin-bottom: 14px;
+}
+.sec-title em { font-style: italic; color: var(--t600); }
+.sec-sub {
+  font-size: .98rem; color: var(--g500);
+  max-width: 520px; margin: 0 auto; line-height: 1.75;
+}
+
+/* ── FEATURES ────────────────────────────────────── */
+.feat-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 22px;
+}
+.feat-card {
+  background: #fff; border: 1px solid var(--g100);
+  border-radius: 20px; padding: 30px 26px;
+  transition: var(--ease); position: relative; overflow: hidden;
+}
+.feat-card::after {
+  content: ''; position: absolute;
+  top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, var(--t400), var(--t700));
+  opacity: 0; transition: opacity .3s;
+}
+.feat-card:hover { transform: translateY(-5px); box-shadow: 0 16px 44px rgba(13,148,136,.12); border-color: var(--t100); }
+.feat-card:hover::after { opacity: 1; }
+.feat-icon {
+  width: 48px; height: 48px;
+  background: linear-gradient(135deg, var(--t50), var(--t100));
+  border-radius: 13px; display: flex; align-items: center;
+  justify-content: center; font-size: 1.15rem; color: var(--t600);
+  margin-bottom: 16px;
+}
+.feat-card h3 { font-size: 1.04rem; font-weight: 700; color: var(--g900); margin-bottom: 8px; }
+.feat-card p { font-size: .85rem; color: var(--g500); line-height: 1.72; }
+
+/* ── WHATSAPP SECTION ────────────────────────────── */
+.wa-sec {
+  background: linear-gradient(145deg, var(--t900) 0%, var(--t700) 100%);
+  position: relative; overflow: hidden;
+}
+.wa-sec::before {
+  content: '';
+  position: absolute; inset: 0;
+  background-image: radial-gradient(circle at 15% 85%, rgba(255,255,255,.06) 0%, transparent 40%),
+                    radial-gradient(circle at 85% 15%, rgba(45,212,191,.12) 0%, transparent 40%);
+}
+.wa-inner {
+  max-width: 1180px; margin: 0 auto; padding: 96px 24px;
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 80px; align-items: center; position: relative; z-index: 1;
+}
+.wa-tag { color: rgba(255,255,255,.5); font-size: .72rem; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; margin-bottom: 14px; }
+.wa-title {
+  font-family: var(--df);
+  font-size: clamp(1.9rem, 3vw, 2.8rem);
+  font-weight: 700; color: #fff; line-height: 1.18; margin-bottom: 16px;
+}
+.wa-title em { font-style: italic; color: var(--t200); }
+.wa-desc { color: rgba(255,255,255,.75); font-size: .97rem; line-height: 1.78; margin-bottom: 32px; }
+.wa-steps { display: flex; flex-direction: column; gap: 18px; margin-bottom: 36px; }
+.wa-step { display: flex; gap: 14px; align-items: flex-start; }
+.wa-step-num {
+  width: 30px; height: 30px; flex-shrink: 0;
+  background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.22);
+  border-radius: 50%; display: flex; align-items: center;
+  justify-content: center; font-size: .72rem; font-weight: 700; color: #fff;
+  margin-top: 2px;
+}
+.wa-step h4 { font-size: .9rem; font-weight: 700; color: #fff; margin-bottom: 2px; }
+.wa-step p { font-size: .81rem; color: rgba(255,255,255,.65); line-height: 1.55; margin: 0; }
+/* Phone mockup */
+.phone-wrap { display: flex; justify-content: center; align-items: center; }
+.phone {
+  width: 220px;
+  background: #1a1a2e; border-radius: 36px; padding: 10px;
+  box-shadow: 0 40px 80px rgba(0,0,0,.55), inset 0 0 0 2px rgba(255,255,255,.07);
+}
+.phone-screen { background: #075e54; border-radius: 28px; overflow: hidden; }
+.phone-status { background: #054c43; padding: 6px 12px; display: flex; justify-content: space-between; }
+.phone-status span { color: #fff; font-size: .58rem; font-weight: 600; }
+.phone-chat-hdr {
+  background: #128c7e; padding: 8px 11px;
+  display: flex; align-items: center; gap: 8px;
+}
+.chat-av {
+  width: 30px; height: 30px; background: var(--t400);
+  border-radius: 50%; display: flex; align-items: center;
+  justify-content: center; font-size: .75rem; color: #fff;
+}
+.chat-name { color: #fff; font-size: .72rem; font-weight: 700; }
+.chat-status { color: rgba(255,255,255,.65); font-size: .55rem; }
+.chat-msgs { padding: 9px 8px; background: #ece5dd; display: flex; flex-direction: column; gap: 6px; min-height: 200px; }
+.msg {
+  max-width: 85%; padding: 6px 10px;
+  border-radius: 8px; font-size: .64rem; line-height: 1.42; color: #222;
+}
+.msg-in  { background: #fff; align-self: flex-start; border-radius: 0 8px 8px 8px; }
+.msg-out { background: #dcf8c6; align-self: flex-end; border-radius: 8px 0 8px 8px; }
+.msg-t { font-size: .48rem; color: #888; text-align: right; margin-top: 2px; }
+.chat-qr {
+  background: #fff; margin: 0 8px 8px; border-radius: 9px;
+  padding: 9px; text-align: center;
+}
+.qr-box {
+  width: 64px; height: 64px; margin: 0 auto 5px;
+}
+.qr-label { font-size: .48rem; color: #555; font-weight: 600; }
+
+/* ── HOW IT WORKS ────────────────────────────────── */
+.how-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 20px; position: relative;
+}
+.how-grid::before {
+  content: '';
+  position: absolute; top: 32px; left: 12%; right: 12%;
+  height: 2px;
+  background: linear-gradient(90deg, var(--t100), var(--t300), var(--t100));
+}
+.how-step { text-align: center; padding: 20px 12px; }
+.how-num {
+  width: 64px; height: 64px; margin: 0 auto 16px;
+  background: #fff; border: 3px solid var(--t200);
+  border-radius: 50%; display: flex; align-items: center;
+  justify-content: center; font-family: var(--df); font-size: 1.5rem;
+  font-weight: 700; color: var(--t600); position: relative; z-index: 1;
+}
+.how-step h3 { font-size: .96rem; font-weight: 700; color: var(--g900); margin-bottom: 8px; }
+.how-step p { font-size: .82rem; color: var(--g500); line-height: 1.65; }
+
+/* ── PRICING ─────────────────────────────────────── */
+.pricing-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr);
+  gap: 22px; align-items: start;
+  max-width: 800px; margin: 0 auto;
+}
+.price-card {
+  background: #fff; border: 1.5px solid var(--g200);
+  border-radius: 22px; padding: 34px 28px;
+  transition: var(--ease); position: relative;
+}
+.price-card:hover { transform: translateY(-4px); box-shadow: 0 16px 44px rgba(13,148,136,.12); }
+.price-card.featured {
+  background: linear-gradient(148deg, var(--t800), var(--t600));
+  border-color: transparent; transform: scale(1.04);
+  box-shadow: 0 24px 64px rgba(13,148,136,.35);
+}
+.price-card.featured:hover { transform: scale(1.04) translateY(-4px); }
+.price-pop {
+  position: absolute; top: -14px; left: 50%; transform: translateX(-50%);
+  background: var(--amber2); color: var(--g900);
+  font-size: .68rem; font-weight: 700; padding: 4px 14px;
+  border-radius: 100px; white-space: nowrap;
+}
+.price-plan {
+  font-size: .7rem; font-weight: 700; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--t600); margin-bottom: 10px;
+}
+.price-card.featured .price-plan { color: var(--t200); }
+.price-amount {
+  font-family: var(--df); font-size: 2.8rem; font-weight: 700;
+  color: var(--g900); line-height: 1; margin-bottom: 4px;
+}
+.price-card.featured .price-amount { color: #fff; }
+.price-amount sup { font-size: 1.2rem; vertical-align: super; font-weight: 600; }
+.price-period { font-size: .78rem; color: var(--g500); margin-bottom: 18px; }
+.price-card.featured .price-period { color: rgba(255,255,255,.65); }
+.price-desc { font-size: .85rem; color: var(--g500); margin-bottom: 22px; line-height: 1.55; }
+.price-card.featured .price-desc { color: rgba(255,255,255,.75); }
+.price-features { list-style: none; display: flex; flex-direction: column; gap: 11px; margin-bottom: 28px; }
+.price-features li { display: flex; align-items: flex-start; gap: 9px; font-size: .84rem; color: var(--g700); }
+.price-card.featured .price-features li { color: rgba(255,255,255,.9); }
+.price-features li i { font-size: .72rem; color: var(--t500); margin-top: 4px; flex-shrink: 0; }
+.price-card.featured .price-features li i { color: var(--t200); }
+.price-features li i.fa-times { color: var(--g300); }
+.price-features li span.muted { color: var(--g400); }
+.price-btn {
+  width: 100%; padding: 12px; border-radius: 11px;
+  font-family: var(--bf); font-size: .9rem; font-weight: 700;
+  cursor: pointer; transition: var(--ease);
+  border: 1.5px solid var(--t200); background: #fff; color: var(--t700);
+}
+.price-btn:hover { background: var(--t50); border-color: var(--t400); }
+.price-card.featured .price-btn { background: #fff; color: var(--t700); border: none; }
+.price-card.featured .price-btn:hover { background: var(--t50); }
+
+/* ── TESTIMONIALS ────────────────────────────────── */
+.testimonials { background: var(--g50); }
+.testi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+.testi-card {
+  background: #fff; border-radius: 18px; padding: 26px;
+  border: 1px solid var(--g100); transition: var(--ease);
+}
+.testi-card:hover { transform: translateY(-3px); box-shadow: 0 12px 32px rgba(0,0,0,.07); }
+.testi-stars { color: var(--amber); font-size: .88rem; margin-bottom: 12px; }
+.testi-text { font-size: .88rem; color: var(--g700); line-height: 1.72; font-style: italic; margin-bottom: 18px; }
+.testi-author { display: flex; align-items: center; gap: 10px; }
+.testi-av {
+  width: 38px; height: 38px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--t700), var(--t400));
+  display: flex; align-items: center; justify-content: center;
+  font-size: .75rem; font-weight: 700; color: #fff; flex-shrink: 0;
+}
+.testi-name { font-weight: 700; font-size: .86rem; color: var(--g900); }
+.testi-salon { font-size: .74rem; color: var(--g400); }
+
+/* ── CTA BANNER ──────────────────────────────────── */
+.cta-banner {
+  background: linear-gradient(135deg, var(--t50), var(--t100));
+  border-radius: 24px; padding: 72px 48px;
+  text-align: center; border: 1px solid var(--t200);
+  position: relative; overflow: hidden;
+}
+.cta-banner::before {
+  content: ''; position: absolute;
+  top: -40%; left: -5%; width: 300px; height: 300px;
+  background: radial-gradient(circle, rgba(45,212,191,.3) 0%, transparent 65%);
+}
+.cta-banner::after {
+  content: ''; position: absolute;
+  bottom: -30%; right: -3%; width: 260px; height: 260px;
+  background: radial-gradient(circle, rgba(20,184,166,.2) 0%, transparent 65%);
+}
+.cta-banner h2 {
+  font-family: var(--df);
+  font-size: clamp(1.8rem, 3vw, 2.8rem);
+  font-weight: 700; color: var(--t900);
+  margin-bottom: 12px; position: relative; z-index: 1;
+}
+.cta-banner p { font-size: 1rem; color: var(--t700); margin-bottom: 28px; position: relative; z-index: 1; }
+.cta-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; position: relative; z-index: 1; }
+
+/* ── FOOTER ──────────────────────────────────────── */
+footer {
+  background: var(--dark); color: rgba(255,255,255,.6);
+  padding: 60px 24px 28px;
+}
+.footer-inner { max-width: 1180px; margin: 0 auto; }
+.footer-top {
+  display: grid; grid-template-columns: 2fr 1fr 1fr 1.5fr;
+  gap: 48px; padding-bottom: 40px;
+  border-bottom: 1px solid rgba(255,255,255,.07);
+  margin-bottom: 24px;
+}
+.footer-brand .nav-logo-text { color: #fff; }
+.footer-brand p {
+  font-size: .84rem; color: rgba(255,255,255,.45);
+  line-height: 1.72; margin: 12px 0 18px;
+}
+.footer-socials { display: flex; gap: 9px; }
+.soc-btn {
+  width: 34px; height: 34px; background: rgba(255,255,255,.07);
+  border-radius: 8px; display: flex; align-items: center;
+  justify-content: center; color: rgba(255,255,255,.5);
+  font-size: .85rem; transition: var(--ease); cursor: pointer;
+}
+.soc-btn:hover { background: var(--t600); color: #fff; }
+.footer-col h4 {
+  font-size: .72rem; font-weight: 700; letter-spacing: .12em;
+  text-transform: uppercase; color: #fff; margin-bottom: 14px;
+}
+.footer-col ul { list-style: none; display: flex; flex-direction: column; gap: 9px; }
+.footer-col ul li a { font-size: .84rem; color: rgba(255,255,255,.48); transition: color .2s; cursor: pointer; }
+.footer-col ul li a:hover { color: var(--t400); }
+.footer-contact-item{display:flex;align-items:flex-start;gap:10px;margin-bottom:13px}
+.footer-contact-item i{color:var(--t400);font-size:.88rem;margin-top:3px;flex-shrink:0;width:16px}
+.footer-contact-item a,.footer-contact-item span{font-size:.85rem;color:rgba(255,255,255,.55);transition:color .2s}
+.footer-contact-item a:hover{color:var(--t400)}
+.footer-bottom {
+  display: flex; justify-content: space-between;
+  align-items: center; flex-wrap: wrap; gap: 12px;
+}
+.footer-bottom p { font-size: .78rem; color: rgba(255,255,255,.3); }
+.footer-bottom-links { display: flex; gap: 16px; }
+.footer-bottom-links a {
+  font-size: .78rem; color: rgba(255,255,255,.3);
+  cursor: pointer; transition: color .2s;
+}
+.footer-bottom-links a:hover { color: var(--t400); }
+
+/* ── MODALS ──────────────────────────────────────── */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.6);
+  backdrop-filter: blur(5px); z-index: 9999;
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px; opacity: 0; pointer-events: none; transition: opacity .3s;
+}
+.modal-overlay.active { opacity: 1; pointer-events: all; }
+.modal-box {
+  background: #fff; border-radius: 22px;
+  max-width: 660px; width: 100%; max-height: 82vh; overflow-y: auto;
+  padding: 44px; position: relative;
+  transform: translateY(20px); transition: transform .35s;
+}
+.modal-overlay.active .modal-box { transform: translateY(0); }
+.modal-close {
+  position: absolute; top: 16px; right: 16px;
+  width: 32px; height: 32px; background: var(--g100);
+  border: none; border-radius: 50%; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--g500); font-size: .88rem; transition: background .2s;
+}
+.modal-close:hover { background: var(--g200); }
+.modal-box h2 { font-family: var(--df); font-size: 2rem; font-weight: 700; color: var(--g900); margin-bottom: 4px; }
+.modal-date { font-size: .74rem; color: var(--g400); margin-bottom: 20px; }
+.modal-box h3 { font-size: .96rem; font-weight: 700; color: var(--g800); margin: 18px 0 7px; }
+.modal-box p, .modal-box li { font-size: .87rem; color: var(--g600); line-height: 1.78; }
+.modal-box ul { padding-left: 18px; }
+.modal-link { color: var(--t600) !important; font-weight: 500; }
+
+/* ── RESPONSIVE ──────────────────────────────────── */
+@media (max-width: 1024px) {
+  .hero-inner { grid-template-columns: 1fr; }
+  .hero-vis { display: none; }
+  .feat-grid { grid-template-columns: repeat(2, 1fr); }
+  .wa-inner { grid-template-columns: 1fr; }
+  .phone-wrap { display: none; }
+  .how-grid { grid-template-columns: repeat(2, 1fr); }
+  .how-grid::before { display: none; }
+  .footer-top { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 768px) {
+  .nav-links, .nav-ctas { display: none; }
+  .mob-menu-btn { display: flex; margin-left: auto; }
+  .feat-grid { grid-template-columns: 1fr; }
+  .pricing-grid { grid-template-columns: 1fr; max-width:100%; }
+  .price-card.featured { transform: none; }
+  .testi-grid { grid-template-columns: 1fr; }
+  .how-grid { grid-template-columns: 1fr; }
+  .cta-banner { padding: 40px 22px; }
+  .footer-top { grid-template-columns: 1fr; gap: 28px; }
+}
+</style>
+{% endblock %}
+
+{% block body %}
+
+<!-- ═══ NAVBAR ═══ -->
+<nav class="nav" id="nav">
+  <div class="nav-inner">
+    <a href="{{ url_for('index') }}" class="nav-logo">
+      <div class="nav-logo-icon"><i class="fas fa-scissors"></i></div>
+      <span class="nav-logo-text">SalonFlow</span>
+    </a>
+    <ul class="nav-links">
+      <li><a href="#features">Features</a></li>
+      <li><a href="#whatsapp">WhatsApp Bot</a></li>
+      <li><a href="#how-it-works">How It Works</a></li>
+      <li><a href="#pricing">Pricing</a></li>
+      <li><a href="#contact">Contact</a></li>
+    </ul>
+    <div class="nav-ctas">
+      <a href="{{ url_for('auth_login') }}" class="btn btn-ghost" style="padding:9px 20px">Sign In</a>
+      <a href="{{ url_for('auth_login') }}?tab=signup" class="btn btn-primary" style="padding:9px 20px">Get Started Free</a>
+    </div>
+    <button class="mob-menu-btn" onclick="openMenu()"><i class="fas fa-bars"></i></button>
+  </div>
+</nav>
+
+<!-- MOB DRAWER -->
+<div class="mob-drawer" id="mob-drawer">
+  <button class="mob-close" onclick="closeMenu()"><i class="fas fa-times"></i></button>
+  <a href="#features" onclick="closeMenu()">Features</a>
+  <a href="#whatsapp" onclick="closeMenu()">WhatsApp Bot</a>
+  <a href="#how-it-works" onclick="closeMenu()">How It Works</a>
+  <a href="#pricing" onclick="closeMenu()">Pricing</a>
+  <a href="{{ url_for('auth_login') }}?tab=signup" class="btn btn-primary btn-lg" onclick="closeMenu()">Get Started Free</a>
+</div>
+
+<!-- ═══ HERO ═══ -->
+<section class="hero" id="home">
+  <div class="hero-inner">
+    <!-- LEFT -->
+    <div class="sr">
+      <div class="hero-badge">
+        <span class="hero-badge-dot"></span>
+        WhatsApp Automation · Live for 500+ Salons
+      </div>
+      <h1 class="hero-h1">
+        Your Salon,<br><em>Fully Automated.</em>
+      </h1>
+      <p class="hero-sub">
+        SalonFlow helps salon owners manage appointments and automate client bookings via a
+        WhatsApp bot — set up in under 2 minutes by scanning a QR code.
+      </p>
+      <div class="hero-ctas">
+        <a href="{{ url_for('auth_login') }}?tab=signup" class="btn btn-primary btn-lg">
+          Start Free Trial &nbsp;<i class="fas fa-arrow-right"></i>
+        </a>
+        <a href="#how-it-works" class="btn btn-ghost btn-lg">
+          <i class="fas fa-play-circle"></i>&nbsp; See How It Works
+        </a>
+      </div>
+      <div class="hero-stats">
+        <div><div class="stat-n">500+</div><div class="stat-l">Salons onboarded</div></div>
+        <div><div class="stat-n">2 min</div><div class="stat-l">Setup time</div></div>
+        <div><div class="stat-n">98%</div><div class="stat-l">Booking accuracy</div></div>
+      </div>
+    </div>
+    <!-- RIGHT: Card mockup -->
+    <div class="hero-vis sr sr-d2">
+      <div style="position:relative; padding: 16px 40px 28px 8px;">
+        <div class="hv-card">
+          <div class="hv-header">
+            <div class="hv-header-icon"><i class="fas fa-calendar-check"></i></div>
+            <div>
+              <div class="hv-header-title">Today's Schedule</div>
+              <div class="hv-header-sub">Tuesday, 24 June 2025</div>
+            </div>
+            <div class="hv-live"><div class="hv-live-dot"></div> Live</div>
+          </div>
+          <div class="hv-body">
+            <div class="appt-row">
+              <div class="appt-time">09:30</div>
+              <div class="appt-info">
+                <div class="appt-name">Priya Sharma</div>
+                <div class="appt-svc">Haircut + Blowdry</div>
+              </div>
+              <span class="badge-pill b-green">Confirmed</span>
+            </div>
+            <div class="appt-row">
+              <div class="appt-time">11:00</div>
+              <div class="appt-info">
+                <div class="appt-name">Neha Gupta</div>
+                <div class="appt-svc">Full Face Waxing</div>
+              </div>
+              <span class="badge-pill b-yellow">In 20 min</span>
+            </div>
+            <div class="appt-row">
+              <div class="appt-time">12:30</div>
+              <div class="appt-info">
+                <div class="appt-name">Ritika Jain</div>
+                <div class="appt-svc">Bridal Makeup</div>
+              </div>
+              <span class="badge-pill b-blue">Via WhatsApp</span>
+            </div>
+          </div>
+        </div>
+        <!-- Floating chips -->
+        <div class="float-chip chip1">
+          <div class="chip-icon" style="background:#dcfce7;color:#16a34a"><i class="fab fa-whatsapp"></i></div>
+          <div>
+            <div style="font-size:.76rem;font-weight:700;color:#111">New Booking</div>
+            <div style="font-size:.68rem;color:#888">via WhatsApp Bot</div>
+          </div>
+        </div>
+        <div class="float-chip chip2">
+          <div class="chip-icon" style="background:#fef9c3;color:#b45309"><i class="fas fa-star"></i></div>
+          <div>
+            <div style="font-size:.76rem;font-weight:700;color:#111">5.0 ★ Review</div>
+            <div style="font-size:.68rem;color:#888">Priya Sharma</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ TRUST BAR ═══ -->
+<div class="trust">
+  <div class="trust-inner">
+    <span class="trust-label">Trusted by salons across India</span>
+    <div class="trust-logos">
+      <div class="trust-logo"><i class="fas fa-cut"></i> GlamZone</div>
+      <div class="trust-logo"><i class="fas fa-spa"></i> Luxe Spa</div>
+      <div class="trust-logo"><i class="fas fa-scissors"></i> Styles Hub</div>
+      <div class="trust-logo"><i class="fas fa-magic"></i> BeautyFirst</div>
+      <div class="trust-logo"><i class="fas fa-fan"></i> AuraBliss</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ FEATURES ═══ -->
+<section class="sec" id="features">
+  <div class="sec-inner">
+    <div class="sec-head sr">
+      <div class="sec-tag">What We Offer</div>
+      <h2 class="sec-title">Everything your salon<br><em>needs to grow</em></h2>
+      <p class="sec-sub">One platform for appointments, clients, and automated WhatsApp communication — no tech skills required.</p>
+    </div>
+    <div class="feat-grid">
+      <div class="feat-card sr"><div class="feat-icon"><i class="fas fa-calendar-check"></i></div><h3>Smart Appointment Booking</h3><p>Let clients book 24/7 via WhatsApp. Auto-confirm, send reminders, and reduce no-shows by up to 70%.</p></div>
+      <div class="feat-card sr sr-d1"><div class="feat-icon"><i class="fab fa-whatsapp"></i></div><h3>WhatsApp Bot via QR</h3><p>Connect your WhatsApp in seconds. Clients book directly from WhatsApp — no app downloads, no friction.</p></div>
+      <div class="feat-card sr sr-d2"><div class="feat-icon"><i class="fas fa-bell"></i></div><h3>Automated Reminders</h3><p>Auto-send appointment confirmations and reminders on WhatsApp. Never lose a client to a forgotten booking.</p></div>
+      <div class="feat-card sr sr-d1"><div class="feat-icon"><i class="fas fa-users"></i></div><h3>Client Management</h3><p>Track visit history, preferences, and frequency. Build lasting relationships through personalized service.</p></div>
+      <div class="feat-card sr sr-d2"><div class="feat-icon"><i class="fas fa-chart-line"></i></div><h3>Business Analytics</h3><p>Revenue insights, peak hours, popular services — all in a beautiful, easy-to-read dashboard.</p></div>
+      <div class="feat-card sr sr-d3"><div class="feat-icon"><i class="fas fa-mobile-alt"></i></div><h3>Mobile-First Dashboard</h3><p>Manage your entire salon from your phone. Fast and intuitive, designed for busy salon owners on the go.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ WHATSAPP SPOTLIGHT ═══ -->
+<section class="wa-sec" id="whatsapp">
+  <div class="wa-inner">
+    <div class="sr">
+      <div class="wa-tag">WhatsApp Automation</div>
+      <h2 class="wa-title">Your Salon's Own<br><em>WhatsApp Booking Bot</em></h2>
+      <p class="wa-desc">No complicated setup. No coding. Just scan a QR code and your salon WhatsApp starts taking bookings automatically — even while you sleep.</p>
+      <div class="wa-steps">
+        <div class="wa-step">
+          <div class="wa-step-num">1</div>
+          <div><h4>Scan the QR Code</h4><p>Open WhatsApp → Linked Devices → scan the QR shown in your dashboard.</p></div>
+        </div>
+        <div class="wa-step">
+          <div class="wa-step-num">2</div>
+          <div><h4>Bot Goes Live Instantly</h4><p>Your number is connected. The intelligent bot starts responding to clients immediately.</p></div>
+        </div>
+        <div class="wa-step">
+          <div class="wa-step-num">3</div>
+          <div><h4>Clients Book via WhatsApp</h4><p>Clients message your number. The bot guides them, confirms slots, and sends reminders — all on WhatsApp.</p></div>
+        </div>
+      </div>
+      <a href="{{ url_for('auth_login') }}?tab=signup" class="btn btn-white btn-lg">
+        <i class="fab fa-whatsapp" style="color:#25d366"></i>&nbsp; Connect WhatsApp Now
+      </a>
+    </div>
+    <!-- Phone mockup -->
+    <div class="phone-wrap sr sr-d2">
+      <div class="phone">
+        <div class="phone-screen">
+          <div class="phone-status">
+            <span>9:41</span>
+            <span><i class="fas fa-signal"></i> <i class="fas fa-wifi"></i></span>
+          </div>
+          <div class="phone-chat-hdr">
+            <div class="chat-av"><i class="fas fa-scissors"></i></div>
+            <div>
+              <div class="chat-name">Styles Hub Salon</div>
+              <div class="chat-status">🤖 Booking Bot Active</div>
+            </div>
+          </div>
+          <div class="chat-msgs">
+            <div class="msg msg-in">Hi! I want to book an appointment<div class="msg-t">10:12</div></div>
+            <div class="msg msg-out">Welcome! 💇‍♀️ Choose service:<br>1. Haircut<br>2. Facial<br>3. Waxing<div class="msg-t">10:12</div></div>
+            <div class="msg msg-in">1<div class="msg-t">10:13</div></div>
+            <div class="msg msg-out">Pick a time:<br>• 11:00 AM ✅<br>• 2:00 PM ✅<br>• 4:30 PM ✅<div class="msg-t">10:13</div></div>
+          </div>
+          <div class="chat-qr">
+            <svg class="qr-box" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+              <rect width="100" height="100" fill="white"/>
+              <rect x="5" y="5" width="28" height="28" fill="none" stroke="#000" stroke-width="5"/>
+              <rect x="13" y="13" width="12" height="12" fill="#000"/>
+              <rect x="67" y="5" width="28" height="28" fill="none" stroke="#000" stroke-width="5"/>
+              <rect x="75" y="13" width="12" height="12" fill="#000"/>
+              <rect x="5" y="67" width="28" height="28" fill="none" stroke="#000" stroke-width="5"/>
+              <rect x="13" y="75" width="12" height="12" fill="#000"/>
+              <rect x="40" y="5" width="5" height="5" fill="#000"/><rect x="50" y="5" width="5" height="5" fill="#000"/>
+              <rect x="40" y="15" width="5" height="5" fill="#000"/><rect x="55" y="15" width="5" height="5" fill="#000"/>
+              <rect x="45" y="25" width="5" height="5" fill="#000"/>
+              <rect x="5" y="40" width="5" height="5" fill="#000"/><rect x="15" y="40" width="5" height="5" fill="#000"/>
+              <rect x="40" y="40" width="5" height="5" fill="#000"/><rect x="50" y="40" width="5" height="5" fill="#000"/>
+              <rect x="60" y="40" width="5" height="5" fill="#000"/><rect x="40" y="50" width="5" height="5" fill="#000"/>
+              <rect x="55" y="50" width="5" height="5" fill="#000"/><rect x="75" y="50" width="5" height="5" fill="#000"/>
+              <rect x="40" y="65" width="5" height="5" fill="#000"/><rect x="50" y="70" width="5" height="5" fill="#000"/>
+              <rect x="70" y="80" width="5" height="5" fill="#000"/><rect x="55" y="80" width="5" height="5" fill="#000"/>
+            </svg>
+            <div class="qr-label">Scan to connect WhatsApp</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ HOW IT WORKS ═══ -->
+<section class="sec" id="how-it-works" style="background:var(--g50)">
+  <div class="sec-inner">
+    <div class="sec-head sr">
+      <div class="sec-tag">Getting Started</div>
+      <h2 class="sec-title">Up and running<br><em>in 4 simple steps</em></h2>
+      <p class="sec-sub">From sign-up to taking automated bookings in under 5 minutes.</p>
+    </div>
+    <div class="how-grid">
+      <div class="how-step sr"><div class="how-num">1</div><h3>Create Your Account</h3><p>Sign up with your salon name, email, and phone. Takes less than 60 seconds.</p></div>
+      <div class="how-step sr sr-d1"><div class="how-num">2</div><h3>Set Up Services</h3><p>Add your services, pricing, and available time slots in just a few minutes.</p></div>
+      <div class="how-step sr sr-d2"><div class="how-num">3</div><h3>Connect WhatsApp</h3><p>Scan the QR code to link your WhatsApp. The booking bot goes live instantly.</p></div>
+      <div class="how-step sr sr-d3"><div class="how-num">4</div><h3>Receive Bookings</h3><p>Share your number. Appointments start flowing in automatically — 24/7.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ PRICING ═══ -->
+<section class="sec" id="pricing">
+  <div class="sec-inner">
+    <div class="sec-head sr">
+      <div class="sec-tag">Simple Pricing</div>
+      <h2 class="sec-title">Transparent plans,<br><em>no hidden charges</em></h2>
+      <p class="sec-sub">Transparent pricing, no hidden fees. All plans include WhatsApp bot access and appointment management.</p>
+    </div>
+    <div class="pricing-grid">
+      <!-- PRO -->
+      <div class="price-card featured sr sr-d1">
+        <div class="price-pop">⭐ Most Popular</div>
+        <div class="price-plan">Pro</div>
+        <div class="price-amount"><sup>₹</sup>999</div>
+        <div class="price-period">per month, billed monthly</div>
+        <div class="price-desc">For growing salons that want full automation and insights.</div>
+        <ul class="price-features">
+          <li><i class="fas fa-check"></i> Unlimited appointments</li>
+          <li><i class="fas fa-check"></i> Advanced WhatsApp bot</li>
+          <li><i class="fas fa-check"></i> Full analytics dashboard</li>
+          <li><i class="fas fa-check"></i> Automated reminders</li>
+          <li><i class="fas fa-check"></i> Staff management</li>
+          <li><i class="fas fa-check"></i> Priority support</li>
+        </ul>
+        <button class="price-btn" onclick="location.href='{{ url_for('auth_login') }}?tab=signup'">Start 14-Day Free Trial</button>
+      </div>
+      <!-- BUSINESS -->
+      <div class="price-card sr sr-d2">
+        <div class="price-plan">Business</div>
+        <div class="price-amount"><sup>₹</sup>2499</div>
+        <div class="price-period">per month, billed monthly</div>
+        <div class="price-desc">For multi-branch salons and high-volume businesses.</div>
+        <ul class="price-features">
+          <li><i class="fas fa-check"></i> Everything in Pro</li>
+          <li><i class="fas fa-check"></i> Multiple branches</li>
+          <li><i class="fas fa-check"></i> Multiple WhatsApp numbers</li>
+          <li><i class="fas fa-check"></i> Custom bot responses</li>
+          <li><i class="fas fa-check"></i> Dedicated account manager</li>
+          <li><i class="fas fa-check"></i> Custom onboarding</li>
+        </ul>
+        <button class="price-btn" onclick="location.href='mailto:support@salonflow.in'">Contact Sales</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ TESTIMONIALS ═══ -->
+<section class="sec testimonials">
+  <div class="sec-inner">
+    <div class="sec-head sr">
+      <div class="sec-tag">What Owners Say</div>
+      <h2 class="sec-title">Loved by <em>salon owners</em><br>across India</h2>
+    </div>
+    <div class="testi-grid">
+      <div class="testi-card sr">
+        <div class="testi-stars">★★★★★</div>
+        <p class="testi-text">"SalonFlow transformed how we take bookings. The WhatsApp bot alone saves us 2 hours a day. Highly recommended!"</p>
+        <div class="testi-author">
+          <div class="testi-av">PS</div>
+          <div><div class="testi-name">Pooja Sharma</div><div class="testi-salon">GlamZone Salon, Delhi</div></div>
+        </div>
+      </div>
+      <div class="testi-card sr sr-d1">
+        <div class="testi-stars">★★★★★</div>
+        <p class="testi-text">"No-shows dropped by 60% after we started using automated WhatsApp reminders. Our clients love the convenience too."</p>
+        <div class="testi-author">
+          <div class="testi-av">RK</div>
+          <div><div class="testi-name">Ritu Kapoor</div><div class="testi-salon">Luxe Spa, Mumbai</div></div>
+        </div>
+      </div>
+      <div class="testi-card sr sr-d2">
+        <div class="testi-stars">★★★★★</div>
+        <p class="testi-text">"Setup was genuinely 2 minutes. Scanned the QR, and bookings started coming in the same day. Incredible product."</p>
+        <div class="testi-author">
+          <div class="testi-av">AM</div>
+          <div><div class="testi-name">Anjali Mehta</div><div class="testi-salon">Styles Hub, Bangalore</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ CTA BANNER ═══ -->
+<section class="sec" style="padding-top:0">
+  <div class="sec-inner">
+    <div class="cta-banner sr">
+      <div class="sec-tag" style="color:var(--t700)">Ready to Grow?</div>
+      <h2>Start automating your salon today.</h2>
+      <p>Join 500+ salon owners across India already using SalonFlow.</p>
+      <div class="cta-btns">
+        <a href="{{ url_for('auth_login') }}?tab=signup" class="btn btn-primary btn-lg">Get Started Free &nbsp;<i class="fas fa-arrow-right"></i></a>
+        <a href="mailto:support@salonflow.in" class="btn btn-ghost btn-lg"><i class="fas fa-envelope"></i>&nbsp; Talk to Us</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ FOOTER ═══ -->
+<footer id="contact">
+  <div class="footer-inner">
+    <div class="footer-top">
+      <!-- Brand -->
+      <div class="footer-brand">
+        <div class="nav-logo">
+          <div class="nav-logo-icon"><i class="fas fa-scissors"></i></div>
+          <span class="nav-logo-text">SalonFlow</span>
+        </div>
+        <p>The all-in-one platform for modern salon owners. Automate bookings, manage clients, and grow your business — powered by WhatsApp.</p>
+        <div class="footer-socials">
+          <div class="soc-btn"><i class="fab fa-instagram"></i></div>
+          <div class="soc-btn"><i class="fab fa-whatsapp"></i></div>
+          <div class="soc-btn"><i class="fab fa-youtube"></i></div>
+        </div>
+      </div>
+      <!-- Product links -->
+      <div class="footer-col">
+        <h4>Product</h4>
+        <ul>
+          <li><a href="#features">Features</a></li>
+          <li><a href="#pricing">Pricing</a></li>
+          <li><a href="#how-it-works">How It Works</a></li>
+          <li><a href="#whatsapp">WhatsApp Bot</a></li>
+        </ul>
+      </div>
+      <!-- Legal -->
+      <div class="footer-col">
+        <h4>Legal</h4>
+        <ul>
+          <li><a href="/privacy">Privacy Policy</a></li>
+          <li><a href="/terms">Terms of Service</a></li>
+          <li><a href="/refund">Refund Policy</a></li>
+        </ul>
+      </div>
+      <!-- Contact info -->
+      <div class="footer-col">
+        <h4>Contact</h4>
+        <div class="footer-contact-item">
+          <i class="fas fa-envelope"></i>
+          <a href="mailto:support@salonflow.in">support@salonflow.in</a>
+        </div>
+        <div class="footer-contact-item">
+          <i class="fas fa-clock"></i>
+          <span>Mon – Sat, 10 AM – 7 PM IST</span>
+        </div>
+        <div class="footer-contact-item">
+          <i class="fas fa-map-marker-alt"></i>
+          <span>India</span>
+        </div>
+        <div class="footer-contact-item" style="margin-top:6px">
+          <i class="fab fa-whatsapp" style="color:#25d366"></i>
+          <a href="https://wa.me/919999999999" target="_blank">Chat on WhatsApp</a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2025 SalonFlow · SalonFlow.in · Made with ❤️ for Indian salons.</p>
+      <div class="footer-bottom-links">
+        <a href="/privacy">Privacy</a>
+        <a href="/terms">Terms</a>
+        <a href="/refund">Refunds</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<!-- ═══ MODALS ═══ -->
+<div class="modal-overlay" id="modal-privacy" onclick="closeModalOutside(event, 'modal-privacy')">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal('modal-privacy')"><i class="fas fa-times"></i></button>
+    <h2>Privacy Policy</h2>
+    <p class="modal-date">Last updated: 1 June 2025 &nbsp;·&nbsp; Effective: 1 June 2025</p>
+
+    <h3>1. Who We Are</h3>
+    <p>SalonFlow ("we", "our", "the Platform") is a software-as-a-service product operated by SalonFlow Technologies, India. Our registered email is <a class="modal-link" href="mailto:support@salonflow.in">support@salonflow.in</a>. This Privacy Policy explains how we collect, use, store, and protect the personal data of salon owners, managers, and their clients ("Users") who access our platform at salonflow.in.</p>
+
+    <h3>2. Information We Collect</h3>
+    <p><strong>Account data:</strong> salon name, owner name, email address, phone number, city, and address provided during registration or onboarding.</p>
+    <p><strong>Booking &amp; service data:</strong> appointment records, client names, service descriptions, and pricing that you enter into the platform.</p>
+    <p><strong>Payment data:</strong> UPI IDs you provide for advance-payment collection. We do not process or store card numbers. Payments via Razorpay are governed by Razorpay's own privacy policy.</p>
+    <p><strong>WhatsApp session data:</strong> When you link your WhatsApp number via QR scan, we process inbound and outbound messages solely to operate the booking automation. We do not read, store, or analyse conversation content beyond confirming or cancelling bookings.</p>
+    <p><strong>Usage data:</strong> Log files, IP addresses, browser type, pages viewed, and feature interactions, collected automatically to improve the service and detect abuse.</p>
+    <p><strong>Communications:</strong> Emails you send to our support address.</p>
+
+    <h3>3. Legal Basis for Processing (GDPR / PDPA)</h3>
+    <p>We process your data on the basis of: (a) contract performance — to deliver the service you subscribed to; (b) legitimate interests — to prevent fraud, maintain security, and improve the platform; and (c) your consent — for optional marketing communications which you may withdraw at any time.</p>
+
+    <h3>4. How We Use Your Data</h3>
+    <ul>
+      <li>Operate, maintain, and improve the SalonFlow platform</li>
+      <li>Send transactional emails (account verification, password reset, booking confirmations)</li>
+      <li>Send WhatsApp booking messages via your linked number</li>
+      <li>Process subscription payments through Razorpay</li>
+      <li>Detect, prevent, and respond to fraud, abuse, or security threats</li>
+      <li>Comply with applicable Indian laws (IT Act 2000, IT Rules 2011)</li>
+      <li>Send product updates or feature announcements (opt-out available at any time)</li>
+    </ul>
+
+    <h3>5. Data Sharing &amp; Third Parties</h3>
+    <p>We do not sell your personal data. We share data only with:</p>
+    <ul>
+      <li><strong>Razorpay Software Pvt. Ltd.</strong> — payment processing (their privacy policy applies)</li>
+      <li><strong>Hostinger International Ltd.</strong> — email delivery via SMTP</li>
+      <li><strong>Google LLC</strong> — Firebase authentication, Google Maps Places API</li>
+      <li><strong>Cloud hosting provider</strong> — for infrastructure and database storage</li>
+      <li><strong>Law enforcement</strong> — when required by a valid court order or applicable Indian law</li>
+    </ul>
+    <p>All sub-processors are bound by data-processing agreements and are required to maintain appropriate security standards.</p>
+
+    <h3>6. Data Retention</h3>
+    <p>We retain account data for as long as your account is active and for 90 days after deletion to allow for recovery or legal compliance. Booking records are retained for 3 years. You may request deletion at any time by emailing us — we will action requests within 30 days except where retention is required by law.</p>
+
+    <h3>7. Data Security</h3>
+    <p>We employ industry-standard security measures: TLS/SSL encryption for all data in transit; bcrypt hashing for passwords; encrypted storage for sensitive fields; access controls limiting data access to authorised personnel only; regular security reviews. However, no internet-based system is completely secure, and we cannot guarantee absolute security.</p>
+
+    <h3>8. Cookies</h3>
+    <p>We use strictly necessary session cookies for authentication and CSRF protection. We do not use third-party advertising cookies. Analytics data is collected in aggregate and anonymised.</p>
+
+    <h3>9. Your Rights</h3>
+    <p>You have the right to access, correct, export, or delete your personal data. You may also object to certain processing or withdraw consent for marketing at any time. To exercise any right, email <a class="modal-link" href="mailto:support@salonflow.in">support@salonflow.in</a>. We will respond within 30 days.</p>
+
+    <h3>10. Children</h3>
+    <p>SalonFlow is not directed at children under 18. We do not knowingly collect data from minors.</p>
+
+    <h3>11. Changes to This Policy</h3>
+    <p>We may update this policy from time to time. The "Last updated" date at the top will reflect any changes. Continued use of the platform after changes constitutes acceptance.</p>
+
+    <h3>12. Contact &amp; Grievance Officer</h3>
+    <p>For privacy concerns, grievances, or requests: <a class="modal-link" href="mailto:support@salonflow.in">support@salonflow.in</a> · Response within 30 days.</p>
+  </div>
+</div>
+<div class="modal-overlay" id="modal-terms" onclick="closeModalOutside(event, 'modal-terms')">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal('modal-terms')"><i class="fas fa-times"></i></button>
+    <h2>Terms of Service</h2>
+    <p class="modal-date">Last updated: 1 June 2025 &nbsp;·&nbsp; Effective: 1 June 2025</p>
+
+    <h3>1. Acceptance of Terms</h3>
+    <p>By registering for or using SalonFlow ("Service", "Platform"), you ("User", "you") agree to be bound by these Terms of Service and our Privacy Policy. If you do not agree, you must not use the Service. These Terms constitute a legally binding agreement under the Information Technology Act, 2000 and applicable Indian law.</p>
+
+    <h3>2. Description of Service</h3>
+    <p>SalonFlow provides salon management software including appointment booking, WhatsApp-based booking automation, client management, analytics, and payment facilitation. Features may be added, modified, or discontinued at any time with reasonable notice.</p>
+
+    <h3>3. Eligibility &amp; Registration</h3>
+    <p>You must be at least 18 years of age and a legal resident of India to use the Service. You agree to provide accurate, current, and complete registration information and to update it promptly if it changes. You are responsible for all activity that occurs under your account.</p>
+
+    <h3>4. WhatsApp Bot Usage</h3>
+    <p>By linking your WhatsApp number via QR scan, you confirm that: (a) you are the authorised account holder of that number; (b) you will use the bot only for legitimate salon booking communications with clients who have consented to receive them; (c) you will not use the bot to send spam, unsolicited marketing, or any content prohibited by WhatsApp's Terms of Service. Violations may result in immediate account suspension. SalonFlow bears no liability for WhatsApp account restrictions arising from User misuse.</p>
+
+    <h3>5. Subscriptions &amp; Billing</h3>
+    <p>Paid plans are billed monthly in advance in Indian Rupees (₹) via Razorpay. Subscriptions auto-renew unless cancelled before the next billing date. All prices are inclusive of applicable taxes unless stated otherwise. SalonFlow reserves the right to change prices with 30 days' notice. Continued use after a price change constitutes acceptance.</p>
+
+    <h3>6. Cancellation</h3>
+    <p>You may cancel your subscription at any time from your Billing page. Cancellation takes effect at the end of the current billing period. Access continues until that date. No refund is issued for the remaining period except as described in our Refund Policy.</p>
+
+    <h3>7. Payments via Razorpay</h3>
+    <p>Payment processing is provided by Razorpay Software Pvt. Ltd. By making a payment, you also agree to Razorpay's Terms of Service and Privacy Policy. SalonFlow does not store card numbers or sensitive payment credentials.</p>
+
+    <h3>8. Acceptable Use</h3>
+    <p>You agree not to: (a) use the Service for any unlawful purpose; (b) attempt to gain unauthorised access to any part of the Service or its infrastructure; (c) transmit viruses, malware, or harmful code; (d) reverse-engineer, decompile, or create derivative works from the Service; (e) resell or sublicense the Service without written permission; (f) use automated scraping or data extraction tools against the Service.</p>
+
+    <h3>9. Intellectual Property</h3>
+    <p>All software, designs, trademarks, and content on the Platform are owned by SalonFlow Technologies and protected by applicable intellectual property laws. You retain ownership of the data you input. You grant SalonFlow a limited licence to process your data solely to provide the Service.</p>
+
+    <h3>10. Data &amp; Privacy</h3>
+    <p>Use of the Service is subject to our Privacy Policy. You are responsible for obtaining any necessary consents from your salon clients before collecting or processing their personal data through the platform.</p>
+
+    <h3>11. Limitation of Liability</h3>
+    <p>To the maximum extent permitted by law, SalonFlow shall not be liable for any indirect, incidental, special, consequential, or punitive damages, including loss of revenue, loss of data, or business interruption, arising from your use of or inability to use the Service. Our total aggregate liability for any claim shall not exceed the amount paid by you in the 3 months preceding the claim.</p>
+
+    <h3>12. Disclaimer of Warranties</h3>
+    <p>The Service is provided "as is" and "as available" without warranties of any kind, express or implied, including fitness for a particular purpose or uninterrupted availability. We do not warrant that the Service will be error-free or that defects will be corrected.</p>
+
+    <h3>13. Indemnification</h3>
+    <p>You agree to indemnify and hold harmless SalonFlow Technologies, its officers, employees, and partners from any claims, losses, or damages (including legal fees) arising from: (a) your use of the Service in violation of these Terms; (b) your violation of any third-party rights; (c) your content or data input into the Service.</p>
+
+    <h3>14. Termination</h3>
+    <p>SalonFlow may suspend or terminate your account immediately, without prior notice, if you breach these Terms, engage in fraudulent activity, or if required by law. Upon termination, your right to use the Service ceases. You may request a data export within 30 days of termination.</p>
+
+    <h3>15. Governing Law &amp; Dispute Resolution</h3>
+    <p>These Terms are governed by the laws of India. Any disputes shall be subject to the exclusive jurisdiction of the courts of India. Before initiating legal proceedings, parties agree to attempt resolution through good-faith negotiation or mediation.</p>
+
+    <h3>16. Changes to Terms</h3>
+    <p>We may update these Terms at any time. Material changes will be notified via email or in-app notice at least 14 days in advance. Continued use after the effective date constitutes acceptance.</p>
+
+    <h3>17. Contact</h3>
+    <p>For questions about these Terms: <a class="modal-link" href="mailto:support@salonflow.in">support@salonflow.in</a></p>
+  </div>
+</div>
+<div class="modal-overlay" id="modal-refund" onclick="closeModalOutside(event, 'modal-refund')">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal('modal-refund')"><i class="fas fa-times"></i></button>
+    <h2>Refund &amp; Cancellation Policy</h2>
+    <p class="modal-date">Last updated: 1 June 2025 &nbsp;·&nbsp; Effective: 1 June 2025</p>
+
+    <h3>1. Overview</h3>
+    <p>This policy applies to all paid subscription plans on the SalonFlow platform. SalonFlow Technologies is committed to fair and transparent billing. Please read this policy carefully before purchasing a plan.</p>
+
+    <h3>2. Subscription Plans</h3>
+    <p>SalonFlow offers monthly subscription plans billed in advance via Razorpay. The Starter plan is free. The Pro and Business plans are paid. All subscriptions are in Indian Rupees (₹) and are subject to applicable GST.</p>
+
+    <h3>3. 7-Day Refund Window</h3>
+    <p>If you are not satisfied with your first paid subscription on SalonFlow, you may request a full refund within <strong>7 (seven) days</strong> of the initial payment date. Refunds under this clause are granted at our sole discretion after reviewing the account for abuse.</p>
+    <p><strong>Eligibility conditions:</strong></p>
+    <ul>
+      <li>The refund request must be submitted within 7 days of the first payment</li>
+      <li>Applies only to the first subscription purchase — not to renewals</li>
+      <li>The account must not have been used to send bulk spam or violate our Terms of Service</li>
+      <li>The subscription must not have been purchased using a coupon or promotional offer that explicitly excluded refunds</li>
+    </ul>
+
+    <h3>4. Non-Refundable Situations</h3>
+    <p>The following are explicitly non-refundable:</p>
+    <ul>
+      <li>Renewal charges after the first billing cycle</li>
+      <li>Partial months — we do not prorate unused subscription time</li>
+      <li>Accounts terminated for violating our Terms of Service</li>
+      <li>Payments made after the 7-day refund window has closed</li>
+      <li>Promotional or discounted subscriptions where refund exclusion was noted at purchase</li>
+    </ul>
+
+    <h3>5. Cancellation</h3>
+    <p>You may cancel your subscription at any time from your Billing settings page. Cancellation stops future renewals but does not trigger a refund for the current billing period. You retain access to paid features until the end of the period you have paid for.</p>
+
+    <h3>6. How to Request a Refund</h3>
+    <p>To request a refund, email <a class="modal-link" href="mailto:support@salonflow.in">support@salonflow.in</a> with the subject line <strong>"Refund Request"</strong>. Include:</p>
+    <ul>
+      <li>Your registered email address</li>
+      <li>Your Razorpay payment ID or transaction reference</li>
+      <li>Reason for the refund request (optional but helpful)</li>
+    </ul>
+    <p>We will acknowledge your request within 2 business days and process eligible refunds within <strong>5–7 business days</strong>. Refunds are returned to the original payment method via Razorpay.</p>
+
+    <h3>7. Refund Processing</h3>
+    <p>Approved refunds are processed through Razorpay back to the original payment source. The time for the refund to appear in your account depends on your bank or card issuer and is typically 5–10 business days after we initiate it. SalonFlow is not responsible for delays caused by the banking system.</p>
+
+    <h3>8. Disputes &amp; Chargebacks</h3>
+    <p>We encourage you to contact us before raising a payment dispute with your bank. Chargebacks initiated without prior contact with our support team may result in account suspension pending investigation. We cooperate fully with Razorpay's dispute resolution process.</p>
+
+    <h3>9. Changes to This Policy</h3>
+    <p>SalonFlow reserves the right to modify this Refund Policy at any time. Changes will be posted on this page with an updated effective date. The policy in effect at the time of your purchase governs that transaction.</p>
+
+    <h3>10. Contact</h3>
+    <p>For any billing or refund queries: <a class="modal-link" href="mailto:support@salonflow.in">support@salonflow.in</a></p>
+  </div>
+</div>
+
+<script>
+// Navbar sticky
+window.addEventListener('scroll', () =>
+  document.getElementById('nav').classList.toggle('sticky', window.scrollY > 40)
+);
+
+// Mobile drawer
+function openMenu()  { document.getElementById('mob-drawer').classList.add('open'); document.body.style.overflow = 'hidden'; }
+function closeMenu() { document.getElementById('mob-drawer').classList.remove('open'); document.body.style.overflow = ''; }
+
+// Modals
+function openModal(id)  { document.getElementById(id).classList.add('active'); document.body.style.overflow = 'hidden'; }
+function closeModal(id) { document.getElementById(id).classList.remove('active'); document.body.style.overflow = ''; }
+function closeModalOutside(e, id) { if (e.target.id === id) closeModal(id); }
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') document.querySelectorAll('.modal-overlay.active').forEach(m => closeModal(m.id));
+});
+
+// Scroll reveal
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('up'); });
+}, { threshold: 0.1 });
+document.querySelectorAll('.sr').forEach(el => obs.observe(el));
+
+
+</script>
+{% endblock %}

@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}{{ code|default(404) }} – SalonFlow{% endblock %}
+{% block extra_css %}
+<style>
+body{background:linear-gradient(135deg,var(--t900) 0%,var(--t700) 100%);display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px;overflow:hidden}
+.bg-orb{position:fixed;border-radius:50%;pointer-events:none}
+.orb1{width:400px;height:400px;background:radial-gradient(circle,rgba(45,212,191,.15) 0%,transparent 70%);top:-100px;right:-80px}
+.orb2{width:320px;height:320px;background:radial-gradient(circle,rgba(255,255,255,.06) 0%,transparent 70%);bottom:-80px;left:-60px}
+.card{background:rgba(255,255,255,.96);border-radius:28px;box-shadow:0 40px 100px rgba(0,0,0,.4);padding:60px 52px;width:100%;max-width:500px;text-align:center;position:relative;z-index:1}@media(min-width:600px){.card{padding:60px 52px}}@media(max-width:400px){.card{padding:40px 24px}}
+.error-num{font-family:var(--df);font-size:7rem;font-weight:700;line-height:1;background:linear-gradient(135deg,var(--t700),var(--t400));-webkit-background-clip:text;background-clip:text;color:transparent;margin-bottom:0}
+.scissors{font-size:2.2rem;display:block;animation:snip 2s ease-in-out infinite;margin-bottom:4px}
+@keyframes snip{0%,100%{transform:rotate(-15deg)}50%{transform:rotate(15deg)}}
+h1{font-family:var(--df);font-size:2rem;font-weight:700;color:var(--g900);margin-bottom:10px}
+.sub{font-size:.92rem;color:var(--g500);line-height:1.75;margin-bottom:32px;max-width:360px;margin-left:auto;margin-right:auto}
+.btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.btn-home{display:inline-flex;align-items:center;gap:8px;padding:12px 26px;background:var(--t600);color:#fff;border-radius:12px;font-size:.9rem;font-weight:700;transition:var(--ease)}
+.btn-home:hover{background:var(--t700);transform:translateY(-2px);box-shadow:0 8px 24px rgba(13,148,136,.35)}
+.btn-back{display:inline-flex;align-items:center;gap:8px;padding:12px 26px;background:var(--w);color:var(--t700);border:1.5px solid var(--t200);border-radius:12px;font-size:.9rem;font-weight:700;transition:var(--ease)}
+.btn-back:hover{background:var(--t50);border-color:var(--t400);transform:translateY(-2px)}
+.logo{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:28px}
+.logo-icon{width:30px;height:30px;background:linear-gradient(135deg,var(--t700),var(--t500));border-radius:7px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:.8rem}
+.logo-txt{font-family:var(--df);font-size:1.25rem;font-weight:700;color:var(--t800)}
+.help-txt{font-size:.78rem;color:var(--g400);margin-top:24px}
+.help-txt a{color:var(--t600);font-weight:600}
+</style>
+{% endblock %}
+{% block body %}
+<div class="bg-orb orb1"></div>
+<div class="bg-orb orb2"></div>
+<div class="card">
+  <a href="/" class="logo">
+    <div class="logo-icon"><i class="fas fa-scissors"></i></div>
+    <span class="logo-txt">SalonFlow</span>
+  </a>
+  <span class="scissors">✂️</span>
+  <div class="error-num">{{ code|default(404) }}</div>
+  <h1>{{ msg|default("Page Not Found") }}</h1>
+  <p class="sub">
+    {% if code == 403 %}
+      You don't have permission to view this page. Please sign in with the correct account.
+    {% elif code == 500 %}
+      Something went wrong on our end. We're on it! Please try again in a moment.
+    {% else %}
+      Looks like this page wandered off. Maybe it booked an appointment elsewhere?
+    {% endif %}
+  </p>
+  <div class="btns">
+    <a href="/" class="btn-home"><i class="fas fa-home"></i> Go Home</a>
+    <a onclick="history.back()" class="btn-back" style="cursor:pointer"><i class="fas fa-arrow-left"></i> Go Back</a>
+  </div>
+  <p class="help-txt">Need help? <a href="mailto:support@salonflow.in">Contact support</a></p>
+</div>
+{% endblock %}

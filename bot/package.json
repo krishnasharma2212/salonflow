@@ -1,0 +1,31 @@
+{
+  "name": "salonflow-whatsapp-bot",
+  "version": "1.0.0",
+  "description": "SalonFlow — AI-powered WhatsApp booking assistant for Indian salons",
+  "main": "reply.js",
+  "type": "module",
+  "scripts": {
+    "start": "node reply.js",
+    "dev": "node --watch reply.js",
+    "pm2": "pm2 start reply.js --name salonflow-bot --restart-delay=3000 --max-restarts=10",
+    "pm2:stop": "pm2 stop salonflow-bot",
+    "pm2:logs": "pm2 logs salonflow-bot"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@hapi/boom": "^10.0.1",
+    "@whiskeysockets/baileys": "^7.0.0-rc.9",
+    "dotenv": "^17.3.1",
+    "googleapis": "^171.4.0",
+    "openai": "^6.33.0",
+    "pg": "^8.20.0",
+    "pino": "^10.3.1",
+    "qrcode": "^1.5.4",
+    "uuid": "^11.0.5"
+  },
+  "devDependencies": {
+    "pm2": "^5.4.3"
+  }
+}

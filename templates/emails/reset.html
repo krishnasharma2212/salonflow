@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reset Your Password – SalonFlow</title>
+</head>
+<body style="margin:0;padding:0;background:#f0fdfa;font-family:'Outfit',Arial,sans-serif">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f0fdfa;padding:40px 0">
+  <tr><td align="center">
+    <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 8px 32px rgba(13,148,136,0.12)">
+      <!-- Header -->
+      <tr><td style="background:linear-gradient(135deg,#115e59,#0d9488);padding:32px 40px;text-align:center">
+        <table cellpadding="0" cellspacing="0" style="margin:0 auto">
+          <tr>
+            <td style="background:rgba(255,255,255,0.15);border-radius:10px;padding:10px 14px;border:1px solid rgba(255,255,255,0.2)">
+              <span style="font-family:Georgia,serif;font-size:1.5rem;font-weight:700;color:#fff">✂ SalonFlow</span>
+            </td>
+          </tr>
+        </table>
+        <p style="color:rgba(255,255,255,0.75);font-size:0.84rem;margin:14px 0 0">Password Reset Request</p>
+      </td></tr>
+      <!-- Body -->
+      <tr><td style="padding:40px 40px 30px">
+        <div style="width:64px;height:64px;background:#f0fdfa;border:2px solid #99f6e4;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 0 22px;text-align:center;line-height:64px;font-size:1.7rem">🔑</div>
+        <h1 style="font-family:Georgia,serif;font-size:1.9rem;font-weight:700;color:#111827;margin:0 0 12px;line-height:1.2">Reset Your Password</h1>
+        <p style="font-size:0.95rem;color:#6b7280;line-height:1.75;margin:0 0 26px">Hi <strong style="color:#1f2937">{{ user.salon_name }}</strong>,<br><br>
+        We received a request to reset the password for your SalonFlow account. Click the button below to choose a new password.</p>
+
+        <!-- CTA Button -->
+        <table cellpadding="0" cellspacing="0" style="margin:0 0 28px">
+          <tr><td style="background:#0d9488;border-radius:12px;padding:0">
+            <a href="{{ reset_url }}" style="display:block;padding:15px 36px;color:#ffffff;font-size:0.95rem;font-weight:700;text-decoration:none;font-family:Arial,sans-serif">
+              🔐 Reset My Password
+            </a>
+          </td></tr>
+        </table>
+
+        <p style="font-size:0.84rem;color:#9ca3af;line-height:1.65;margin:0 0 14px">If the button doesn't work, copy and paste this link:</p>
+        <p style="background:#f0fdfa;border:1px solid #99f6e4;border-radius:9px;padding:12px 14px;font-size:0.78rem;color:#0f766e;word-break:break-all;margin:0 0 24px">{{ reset_url }}</p>
+
+        <div style="background:#fef9c3;border-radius:12px;padding:16px;border-left:3px solid #f59e0b;margin-bottom:16px">
+          <p style="font-size:0.82rem;color:#374151;margin:0"><strong>⏰ This link expires in 2 hours.</strong></p>
+        </div>
+        <div style="background:#f9fafb;border-radius:12px;padding:16px;border-left:3px solid #e5e7eb">
+          <p style="font-size:0.82rem;color:#6b7280;margin:0">If you didn't request a password reset, you can safely ignore this email. Your password will not be changed.</p>
+        </div>
+      </td></tr>
+      <!-- Footer -->
+      <tr><td style="background:#f9fafb;border-top:1px solid #f3f4f6;padding:22px 40px;text-align:center">
+        <p style="font-size:0.76rem;color:#9ca3af;margin:0 0 6px">SalonFlow · SalonFlow.in</p>
+        <p style="font-size:0.73rem;color:#d1d5db;margin:0">
+          <a href="https://salonflow.in" style="color:#9ca3af;text-decoration:none">Website</a> &nbsp;·&nbsp;
+          <a href="mailto:support@salonflow.in" style="color:#9ca3af;text-decoration:none">support@salonflow.in</a>
+        </p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>

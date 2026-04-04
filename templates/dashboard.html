@@ -1,0 +1,2763 @@
+{% extends "layout.html" %}
+{% block title %}Dashboard – SalonFlow{% endblock %}
+{% block page_title %}
+  {%- set h = now.hour if now is defined else 10 -%}
+  {%- if h < 12 %}Good morning{% elif h < 17 %}Good afternoon{% else %}Good evening{% endif %},
+  {{ current_user.salon_name.split()[0] }} 👋
+{% endblock %}
+{% block page_sub %}{{ current_user.salon_name }} · {{ current_user.plan_label }} Plan{% endblock %}
+
+{% block topbar_nav %}
+<!-- Desktop tabs (hidden on mobile) -->
+<div class="tb-nav-tabs" id="dash-tab-nav">
+  <button class="dash-tab tb-nav-tab active" onclick="switchTab('overview',this)"><i class="fas fa-th-large"></i> Overview</button>
+  <button class="dash-tab tb-nav-tab" onclick="switchTab('appointments',this)"><i class="fas fa-calendar-check"></i> Appointments</button>
+  <button class="dash-tab tb-nav-tab" onclick="switchTab('schedule',this)"><i class="fas fa-clock"></i> Schedule</button>
+  <button class="dash-tab tb-nav-tab" onclick="switchTab('whatsapp',this)"><i class="fab fa-whatsapp"></i> WhatsApp</button>
+  <button class="dash-tab tb-nav-tab" onclick="switchTab('payment',this)"><i class="fas fa-rupee-sign"></i> Payment</button>
+  <button class="dash-tab tb-nav-tab" onclick="switchTab('settings',this)"><i class="fas fa-store"></i> Settings</button>
+  <button class="dash-tab tb-nav-tab" onclick="switchTab('analytics',this)"><i class="fas fa-chart-bar"></i> Analytics</button>
+</div>
+<!-- Mobile tab selector (shown only on mobile) -->
+<div class="mob-tab-trigger" id="mob-tab-trigger" onclick="toggleMobMenu()">
+  <span id="mob-tab-label">Overview</span>
+  <i class="fas fa-chevron-down" id="mob-tab-chevron"></i>
+</div>
+<!-- Mobile dropdown menu -->
+<div class="mob-tab-menu" id="mob-tab-menu">
+  <button class="mob-tab-item active" onclick="switchTab('overview',null);closeMobMenu()"><i class="fas fa-th-large"></i> Overview</button>
+  <button class="mob-tab-item" onclick="switchTab('appointments',null);closeMobMenu()"><i class="fas fa-calendar-check"></i> Appointments</button>
+  <button class="mob-tab-item" onclick="switchTab('schedule',null);closeMobMenu()"><i class="fas fa-clock"></i> Schedule</button>
+  <button class="mob-tab-item" onclick="switchTab('whatsapp',null);closeMobMenu()"><i class="fab fa-whatsapp"></i> WhatsApp Bot</button>
+  <button class="mob-tab-item" onclick="switchTab('payment',null);closeMobMenu()"><i class="fas fa-rupee-sign"></i> Advance Payment</button>
+  <button class="mob-tab-item" onclick="switchTab('settings',null);closeMobMenu()"><i class="fas fa-store"></i> Salon Settings</button>
+  <button class="mob-tab-item" onclick="switchTab('analytics',null);closeMobMenu()"><i class="fas fa-chart-bar"></i> Analytics</button>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ═══ TOKENS ═══ */
+:root{
+  --r:16px;--r-sm:10px;--r-lg:20px;
+  --shadow:0 1px 4px rgba(0,0,0,.06),0 4px 16px rgba(0,0,0,.06);
+  --shadow-md:0 4px 24px rgba(13,148,136,.12);
+}
+
+/* ═══ TABS ═══ */
+.dash-tabs{display:flex;gap:2px;background:var(--g100);border-radius:12px;padding:3px;margin-bottom:22px;overflow-x:auto;flex-wrap:nowrap}
+.dash-tab{display:flex;align-items:center;gap:7px;padding:8px 16px;border-radius:9px;font-size:.83rem;font-weight:600;color:var(--g500);cursor:pointer;transition:all .22s;white-space:nowrap;border:none;background:none;font-family:var(--bf)}
+.dash-tab:hover{color:var(--g800)}
+.dash-tab.active{background:#fff;color:var(--t700);box-shadow:0 1px 6px rgba(0,0,0,.1)}
+.dash-tab i{font-size:.8rem}
+.tab-panel{display:none}.tab-panel.active{display:block}
+
+/* ═══ STATS ROW ═══ */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px}
+.stat-card{background:#fff;border-radius:var(--r);border:1px solid var(--g100);padding:18px;transition:all .22s;cursor:default}
+.stat-card:hover{box-shadow:var(--shadow-md);transform:translateY(-2px)}
+.stat-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px}
+.stat-ic{width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:1rem}
+.ic-t{background:var(--t50);color:var(--t600)} .ic-g{background:#dcfce7;color:#16a34a}
+.ic-a{background:#fef9c3;color:#b45309} .ic-b{background:#dbeafe;color:#1d4ed8} .ic-v{background:#f3e8ff;color:#7c3aed}
+.stat-badge{font-size:.66rem;font-weight:700;padding:3px 8px;border-radius:100px}
+.sb-up{background:#dcfce7;color:#16a34a} .sb-dn{background:#fee2e2;color:#dc2626} .sb-nu{background:var(--g100);color:var(--g500)}
+.stat-val{font-family:var(--df);font-size:1.85rem;font-weight:700;color:var(--g900);line-height:1;margin-bottom:2px}
+.stat-lbl{font-size:.74rem;color:var(--g500)}
+
+/* ═══ CARD ═══ */
+.dc{background:#fff;border-radius:var(--r-lg);border:1px solid var(--g100);overflow:hidden;margin-bottom:18px}
+.dc:last-child{margin-bottom:0}
+.dc-hd{display:flex;align-items:center;justify-content:space-between;padding:15px 20px;border-bottom:1px solid var(--g100);gap:10px;flex-wrap:wrap}
+.dc-hd-left h3{font-size:.94rem;font-weight:700;color:var(--g900)}
+.dc-hd-left p{font-size:.74rem;color:var(--g400);margin-top:2px}
+.dc-bd{padding:20px}
+.dc-btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:9px;font-size:.79rem;font-weight:600;cursor:pointer;transition:all .2s;border:1px solid;font-family:var(--bf);text-decoration:none;white-space:nowrap}
+.dc-btn-primary{background:var(--t600);color:#fff;border-color:var(--t600)}
+.dc-btn-primary:hover{background:var(--t700);border-color:var(--t700)}
+.dc-btn-ghost{background:var(--t50);color:var(--t700);border-color:var(--t200)}
+.dc-btn-ghost:hover{background:var(--t100);border-color:var(--t300)}
+.dc-btn-danger{background:#fee2e2;color:#dc2626;border-color:#fecaca}
+.dc-btn-danger:hover{background:#fecaca;border-color:#fca5a5}
+.dc-btn-neutral{background:var(--g50);color:var(--g700);border-color:var(--g200)}
+.dc-btn-neutral:hover{background:var(--g100);border-color:var(--g300)}
+
+/* ═══ APPOINTMENTS ═══ */
+.appt-item{display:flex;align-items:center;gap:13px;padding:12px 20px;border-bottom:1px solid var(--g50);transition:background .15s}
+.appt-item:last-child{border-bottom:none}
+.appt-item:hover{background:var(--t50)}
+.appt-time{min-width:46px;text-align:right}
+.appt-time .t{font-size:.84rem;font-weight:700;color:var(--t700);display:block}
+.appt-time .d{font-size:.67rem;color:var(--g400);display:block;margin-top:1px}
+.appt-line{width:2px;height:30px;background:var(--t200);border-radius:1px;flex-shrink:0}
+.appt-info{flex:1;min-width:0}
+.appt-name{font-weight:600;font-size:.87rem;color:var(--g900)}
+.appt-svc{font-size:.72rem;color:var(--g500);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.appt-pill{font-size:.65rem;font-weight:700;padding:3px 9px;border-radius:100px;white-space:nowrap;flex-shrink:0}
+.pill-c{background:#dcfce7;color:#166534} .pill-u{background:#fef9c3;color:#854d0e}
+.pill-w{background:#dbeafe;color:#1e40af} .pill-p{background:var(--t50);color:var(--t700)}
+
+/* ═══ EMPTY STATE ═══ */
+.empty{padding:48px 20px;text-align:center}
+.empty i{font-size:2.4rem;color:var(--g200);display:block;margin-bottom:12px}
+.empty p{font-size:.88rem;color:var(--g400)}
+
+/* ═══ FORM FIELDS ═══ */
+.form-grid{display:grid;gap:14px}
+.form-grid-2{grid-template-columns:1fr 1fr}
+.form-grid > *,.form-grid-2 > *{min-width:0}
+.form-field{display:flex;flex-direction:column;gap:5px;min-width:0}
+.form-field label{font-size:.77rem;font-weight:600;color:var(--g700)}
+.form-field .hint{font-size:.71rem;color:var(--g400);margin-top:2px}
+/* Service row */
+/* ── Service rows — desktop grid ─────────────────────────────── */
+.svc-row{display:grid;grid-template-columns:28px 1fr 96px 88px 30px;gap:8px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--g50)}
+.svc-row > *{min-width:0}
+.svc-price-wrap{display:flex;align-items:center;position:relative;width:96px}
+.svc-price-wrap span{position:absolute;left:9px;font-size:.82rem;font-weight:600;color:var(--g500);pointer-events:none;z-index:1}
+.svc-price-wrap input{padding-left:30px!important;width:100%;box-sizing:border-box}
+.svc-dur{width:88px}
+.svc-del-btn{width:28px;height:28px;background:none;border:none;border-radius:7px;cursor:pointer;color:var(--g300);display:flex;align-items:center;justify-content:center;font-size:.8rem;transition:all .15s;flex-shrink:0}
+.svc-del-btn:hover{background:#fee2e2;color:#ef4444}
+/* ── Mobile service cards (hidden on desktop) ─────────────────── */
+.svc-card{display:none!important}
+/* ── Service edit modal ──────────────────────────────────────── */
+#svc-edit-modal{position:fixed;inset:0;z-index:10001;display:flex;align-items:flex-end;justify-content:center;background:rgba(15,23,42,.55);backdrop-filter:blur(3px)}
+.svc-modal-sheet{background:#fff;width:100%;max-width:480px;border-radius:22px 22px 0 0;padding:20px 20px 36px;box-shadow:0 -8px 40px rgba(0,0,0,.15);max-height:90vh;overflow-y:auto}
+.svc-modal-handle{width:36px;height:4px;background:var(--g200);border-radius:2px;margin:0 auto 18px}
+/* Collapse form grids inside settings at same breakpoint as settings-grid */
+@media(max-width:900px){
+  .settings-grid .form-grid-2{grid-template-columns:1fr 1fr}
+}
+@media(max-width:640px){
+  .svc-row{grid-template-columns:28px 1fr 30px;gap:6px}
+  .svc-row .svc-price-wrap,.svc-row .svc-dur{display:none}
+  .svc-row-expanded .svc-price-wrap,.svc-row-expanded .svc-dur{display:flex}
+  .form-grid-2{grid-template-columns:1fr!important}
+  /* On mobile: hide desktop rows, show tap-to-edit cards */
+  .svc-row{display:none!important}
+  .svc-header{display:none!important}
+  .svc-card{display:flex!important}
+}
+.fi{width:100%;padding:10px 13px;background:var(--g50);border:1.5px solid var(--g200);border-radius:var(--r-sm);font-family:var(--bf);font-size:.9rem;color:var(--g900);outline:none;transition:all .22s;box-sizing:border-box}
+.fi:focus{border-color:var(--t500);background:#fff;box-shadow:0 0 0 3px rgba(13,148,136,.1)}
+textarea.fi{resize:vertical;min-height:90px;line-height:1.6}
+select.fi{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%239ca3af' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:34px}
+.form-actions{display:flex;align-items:center;gap:10px;padding-top:6px}
+.save-indicator{font-size:.78rem;color:var(--g400);display:flex;align-items:center;gap:5px}
+.save-indicator.saving{color:var(--t600)} .save-indicator.saved{color:#16a34a}
+
+/* ═══ WA SECTION ═══ */
+.wa-hero{background:linear-gradient(135deg,var(--t900),var(--t700));border-radius:var(--r-lg);padding:24px;position:relative;overflow:hidden;margin-bottom:16px}
+.wa-hero::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 80% 0%,rgba(255,255,255,.08),transparent 50%)}
+.wa-hero-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;position:relative}
+.wa-hero-top h3{font-size:1rem;font-weight:700;color:#fff;display:flex;align-items:center;gap:8px}
+.wa-status-badge{display:flex;align-items:center;gap:6px;padding:5px 13px;border-radius:100px;font-size:.76rem;font-weight:700}
+.wsb-on{background:rgba(74,222,128,.2);border:1px solid rgba(74,222,128,.3);color:#4ade80}
+.wsb-off{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.65)}
+.wa-dot{width:7px;height:7px;border-radius:50%}
+.wa-dot-on{background:#4ade80;animation:pulse 2s infinite}
+.wa-dot-off{background:rgba(255,255,255,.4)}
+.wa-content{display:grid;grid-template-columns:auto 1fr;gap:24px;align-items:start;position:relative}
+.wa-qr-box{background:#fff;border-radius:12px;padding:10px;display:inline-flex;align-items:center;justify-content:center}
+.wa-info-panel{display:flex;flex-direction:column;gap:12px}
+.wa-connected-panel{display:flex;align-items:center;gap:14px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);border-radius:12px;padding:14px}
+.wa-conn-ic{width:46px;height:46px;background:rgba(74,222,128,.2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.3rem;color:#4ade80;flex-shrink:0}
+.wa-conn-num{font-size:.95rem;font-weight:700;color:#fff}
+.wa-conn-sub{font-size:.72rem;color:rgba(255,255,255,.6);margin-top:2px}
+.wa-steps{display:flex;flex-direction:column;gap:8px}
+.wa-step{display:flex;align-items:center;gap:9px;font-size:.81rem;color:rgba(255,255,255,.75)}
+.wa-step-num{width:20px;height:20px;background:rgba(255,255,255,.12);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.62rem;font-weight:700;color:#fff;flex-shrink:0}
+.wa-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;position:relative}
+.wa-stat{background:rgba(255,255,255,.1);border-radius:11px;padding:13px;text-align:center}
+.wa-stat-n{font-family:var(--df);font-size:1.55rem;font-weight:700;color:#fff;line-height:1}
+.wa-stat-l{font-size:.67rem;color:rgba(255,255,255,.6);margin-top:3px}
+.wa-actions{display:flex;gap:9px;flex-wrap:wrap;position:relative}
+.wa-btn{display:inline-flex;align-items:center;gap:7px;padding:9px 16px;border-radius:10px;font-size:.82rem;font-weight:600;cursor:pointer;border:none;font-family:var(--bf);transition:all .22s}
+.wa-btn-dis{background:rgba(239,68,68,.2);border:1px solid rgba(239,68,68,.3);color:#fca5a5}
+.wa-btn-dis:hover{background:rgba(239,68,68,.3)}
+.wa-btn-rec{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.2);color:#fff}
+.wa-btn-rec:hover{background:rgba(255,255,255,.25)}
+
+/* ═══ GOOGLE CAL CARD ═══ */
+.gcal-card{border:2px dashed var(--g200);border-radius:var(--r-lg);padding:28px;text-align:center;background:var(--g50)}
+.gcal-icon{width:56px;height:56px;border-radius:14px;background:#fff;border:1px solid var(--g200);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;box-shadow:var(--shadow)}
+.gcal-icon img{width:32px;height:32px}
+.gcal-card h4{font-size:.97rem;font-weight:700;color:var(--g900);margin-bottom:6px}
+.gcal-card p{font-size:.84rem;color:var(--g500);max-width:380px;margin:0 auto 18px;line-height:1.65}
+.gcal-features{display:flex;justify-content:center;gap:16px;flex-wrap:wrap;margin-bottom:20px}
+.gcal-feat{display:flex;align-items:center;gap:6px;font-size:.79rem;color:var(--g600);background:#fff;border:1px solid var(--g200);padding:5px 12px;border-radius:100px}
+.gcal-feat i{font-size:.72rem;color:var(--t500)}
+.gcal-btn{display:inline-flex;align-items:center;gap:8px;padding:11px 22px;background:#fff;border:1.5px solid var(--g300);border-radius:11px;font-family:var(--bf);font-size:.9rem;font-weight:600;color:var(--g700);cursor:pointer;transition:all .22s;box-shadow:var(--shadow)}
+.gcal-btn:hover{border-color:var(--g400);box-shadow:0 4px 16px rgba(0,0,0,.1);transform:translateY(-1px)}
+.gcal-btn img{width:18px;height:18px}
+.gcal-coming{font-size:.72rem;color:var(--g400);margin-top:10px}
+
+/* ═══ SCHEDULE MANAGER ═══ */
+.sched-layout{display:grid;grid-template-columns:280px 1fr;gap:18px;align-items:start}
+.sched-month-nav{background:#fff;border-radius:var(--r);border:1px solid var(--g100);overflow:hidden}
+.sched-cal-hd{padding:14px 16px;border-bottom:1px solid var(--g100);display:flex;align-items:center;justify-content:space-between}
+.sched-cal-hd h4{font-size:.88rem;font-weight:700;color:var(--g900)}
+.sched-nav-btns{display:flex;gap:4px}
+.snb{width:26px;height:26px;background:var(--g50);border:1px solid var(--g200);border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.68rem;color:var(--g600);transition:all .18s}
+.snb:hover{background:var(--t50);color:var(--t600);border-color:var(--t200)}
+.sched-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;padding:12px}
+.sched-cal-lbl{text-align:center;font-size:.6rem;font-weight:700;color:var(--g400);padding:3px 0}
+.sched-day{aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:7px;font-size:.75rem;color:var(--g600);cursor:pointer;transition:all .18s;position:relative;border:1px solid transparent}
+.sched-day:hover:not(.sd-empty){background:var(--t50);color:var(--t700);border-color:var(--t200)}
+.sched-day.sd-today{background:var(--t600);color:#fff;font-weight:700}
+.sched-day.sd-selected{background:var(--t100);color:var(--t800);border-color:var(--t400);font-weight:700}
+.sched-day.sd-today.sd-selected{background:var(--t700);color:#fff}
+.sched-day.sd-has::after{content:'';position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:var(--t400)}
+.sched-day.sd-today.sd-has::after,.sched-day.sd-selected.sd-has::after{background:rgba(255,255,255,.8)}
+.sched-day.sd-off{background:#fef2f2;color:#fca5a5;border-color:#fee2e2}
+.sched-day.sd-empty{color:var(--g200);cursor:default}
+/* Legend */
+.sched-legend{display:flex;flex-direction:column;gap:6px;padding:12px 16px;border-top:1px solid var(--g100)}
+.sl-item{display:flex;align-items:center;gap:7px;font-size:.74rem;color:var(--g600)}
+.sl-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+.sl-green{background:var(--t50);border:1px solid var(--t300)}
+.sl-red{background:#fef2f2;border:1px solid #fecaca}
+.sl-selected{background:var(--t100);border:1px solid var(--t400)}
+/* Day schedule panel */
+.day-sched-panel{background:#fff;border-radius:var(--r);border:1px solid var(--g100);overflow:hidden}
+.dsp-hd{padding:14px 18px;border-bottom:1px solid var(--g100);display:flex;align-items:center;justify-content:space-between}
+.dsp-hd h4{font-size:.9rem;font-weight:700;color:var(--g900)}
+.dsp-date{font-size:.8rem;color:var(--t600);font-weight:600}
+.dsp-body{padding:16px 18px}
+/* Day type toggle */
+.day-type-row{display:flex;gap:8px;margin-bottom:18px}
+.day-type-btn{flex:1;padding:9px;border-radius:9px;font-size:.8rem;font-weight:600;cursor:pointer;transition:all .2s;border:1.5px solid var(--g200);background:#fff;color:var(--g600);font-family:var(--bf);display:flex;align-items:center;justify-content:center;gap:6px}
+.day-type-btn:hover{border-color:var(--g300);color:var(--g800)}
+.day-type-btn.dtb-active-open{background:var(--t50);border-color:var(--t400);color:var(--t700)}
+.day-type-btn.dtb-active-closed{background:#fef2f2;border-color:#fecaca;color:#dc2626}
+/* Time slots */
+.slots-label{font-size:.76rem;font-weight:600;color:var(--g700);margin-bottom:10px}
+.slots-grid{display:flex;flex-direction:column;gap:8px}
+.slot-row{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--g50);border-radius:9px;border:1px solid var(--g200)}
+.slot-row.slot-busy{background:#fef9c3;border-color:#fde68a}
+.slot-row.slot-break{background:#f0f9ff;border-color:#bae6fd}
+.slot-time-wrap{display:flex;align-items:center;gap:6px;flex:1}
+.slot-time-wrap span{font-size:.78rem;color:var(--g500);font-weight:500}
+.slot-fi{padding:6px 10px;background:#fff;border:1.5px solid var(--g200);border-radius:7px;font-family:var(--bf);font-size:.84rem;color:var(--g900);outline:none;transition:all .2s;width:100px}
+.slot-fi:focus{border-color:var(--t500);box-shadow:0 0 0 2px rgba(13,148,136,.1)}
+.slot-type-sel{padding:6px 10px;background:#fff;border:1.5px solid var(--g200);border-radius:7px;font-family:var(--bf);font-size:.82rem;color:var(--g900);cursor:pointer;outline:none}
+.slot-del{width:28px;height:28px;background:none;border:none;border-radius:7px;cursor:pointer;color:var(--g300);display:flex;align-items:center;justify-content:center;font-size:.8rem;transition:all .18s;flex-shrink:0}
+.slot-del:hover{background:#fee2e2;color:#ef4444}
+.add-slot-btn{display:flex;align-items:center;gap:7px;padding:9px 14px;background:#fff;border:1.5px dashed var(--t300);border-radius:9px;color:var(--t600);font-family:var(--bf);font-size:.83rem;font-weight:600;cursor:pointer;transition:all .2s;width:100%;justify-content:center;margin-top:10px}
+.add-slot-btn:hover{background:var(--t50);border-color:var(--t500)}
+.dsp-empty{text-align:center;padding:40px 20px;color:var(--g400);font-size:.86rem}
+.dsp-empty i{font-size:1.8rem;display:block;margin-bottom:10px;color:var(--g200)}
+/* Bulk actions */
+.bulk-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;padding-top:14px;border-top:1px solid var(--g100)}
+.bulk-btn{display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border-radius:8px;font-size:.77rem;font-weight:600;cursor:pointer;border:1px solid;font-family:var(--bf);transition:all .18s}
+.bb-teal{background:var(--t50);color:var(--t700);border-color:var(--t200)}
+.bb-teal:hover{background:var(--t100);border-color:var(--t300)}
+.bb-red{background:#fef2f2;color:#dc2626;border-color:#fecaca}
+.bb-red:hover{background:#fee2e2;border-color:#fca5a5}
+.bb-gray{background:var(--g50);color:var(--g600);border-color:var(--g200)}
+.bb-gray:hover{background:var(--g100);border-color:var(--g300)}
+
+/* ═══ ANALYTICS ═══ */
+.analytics-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px}
+.metric-card{background:#fff;border-radius:var(--r);border:1px solid var(--g100);padding:18px}
+.metric-card h4{font-size:.8rem;font-weight:700;color:var(--g500);text-transform:uppercase;letter-spacing:.08em;margin-bottom:14px}
+.metric-list{display:flex;flex-direction:column;gap:10px}
+.metric-item{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--g50)}
+.metric-item:last-child{border-bottom:none}
+.mi-label{font-size:.85rem;color:var(--g600)}
+.mi-val{font-size:.88rem;font-weight:700;color:var(--g900)}
+.mi-bar-wrap{display:flex;align-items:center;gap:8px;width:120px;flex-shrink:0}
+.mi-bar{height:5px;background:var(--g100);border-radius:3px;flex:1;overflow:hidden}
+.mi-fill{height:100%;background:linear-gradient(90deg,var(--t500),var(--t300));border-radius:3px}
+.mi-pct{font-size:.72rem;color:var(--g500);min-width:30px;text-align:right}
+/* Bar chart mock */
+.bar-chart{display:flex;align-items:flex-end;gap:8px;height:120px;padding:0 0 8px}
+.bar-wrap{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px}
+.bar-col{width:100%;background:linear-gradient(180deg,var(--t400),var(--t600));border-radius:5px 5px 0 0;transition:height .5s ease;min-height:4px}
+.bar-lbl{font-size:.63rem;color:var(--g400)}
+.bar-val{font-size:.68rem;font-weight:700;color:var(--t700)}
+
+/* ═══ ALERT ═══ */
+.dash-alert{border-radius:11px;padding:11px 14px;display:flex;align-items:flex-start;gap:9px;margin-bottom:18px;font-size:.82rem}
+.dash-alert i{flex-shrink:0;margin-top:1px}
+.da-warn{background:#fef9c3;border:1px solid #fde68a;color:#92400e}
+.da-info{background:var(--t50);border:1px solid var(--t200);color:var(--t800)}
+.da-close{margin-left:auto;background:none;border:none;cursor:pointer;opacity:.5;font-size:.82rem;color:inherit}
+.da-close:hover{opacity:1}
+
+/* Google Places */
+.pac-container{border-radius:11px;border:1.5px solid var(--t200)!important;box-shadow:0 8px 24px rgba(0,0,0,.1)!important;font-family:var(--bf);margin-top:4px;overflow:hidden}
+.pac-item{padding:9px 13px;font-size:.86rem;color:var(--g800);cursor:pointer;border-top:1px solid var(--g50)}
+.pac-item:hover,.pac-item-selected{background:var(--t50)!important}
+.pac-item-query{font-weight:600;color:var(--g900)}
+.pac-matched{color:var(--t600)}
+/* ═══ MISC ═══ */
+.two-col{display:grid;grid-template-columns:1fr 330px;gap:18px;align-items:start}
+.tog-row{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:var(--g50);border-radius:10px;border:1.5px solid var(--g200);transition:all .22s}
+.tog-row.on{background:var(--t50);border-color:var(--t200)}
+.tog-info h4{font-size:.88rem;font-weight:600;color:var(--g900)}
+.tog-info p{font-size:.75rem;color:var(--g500);margin-top:2px}
+.tog-sw{position:relative;width:42px;height:23px;flex-shrink:0;display:inline-block;cursor:pointer}
+.tog-sw input{opacity:0;width:0;height:0;position:absolute}
+.tog-knob{position:absolute;inset:0;background:var(--g300);border-radius:23px;transition:all .25s;cursor:pointer}
+.tog-knob:before{content:"";position:absolute;width:17px;height:17px;left:3px;top:3px;background:#fff;border-radius:50%;transition:all .25s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.tog-sw input:checked + .tog-knob{background:var(--t500)}
+.tog-sw input:checked + .tog-knob:before{transform:translateX(19px)}
+.tok{position:absolute;inset:0;background:var(--g300);border-radius:100px;cursor:pointer;transition:all .25s}
+.tok::before{content:'';position:absolute;width:17px;height:17px;background:#fff;border-radius:50%;top:3px;left:3px;transition:all .25s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+input:checked+.tok{background:var(--t600)}
+input:checked+.tok::before{transform:translateX(19px)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes pageLoaderFade{0%{opacity:1}100%{opacity:0;pointer-events:none;visibility:hidden}}
+#page-loader{position:fixed;inset:0;background:#fff;z-index:9990;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;transition:opacity .35s ease}
+#page-loader.hidden{opacity:0;pointer-events:none}
+.pl-ring{width:48px;height:48px;border:3.5px solid var(--g100);border-top-color:var(--t500);border-radius:50%;animation:spinQR .8s linear infinite}
+.pl-text{font-family:var(--df);font-size:.9rem;font-weight:600;color:var(--g500)}
+.pl-logo{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.pl-logo-icon{width:36px;height:36px;background:linear-gradient(135deg,var(--t700),var(--t500));border-radius:9px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:.9rem}
+.pl-logo-txt{font-family:var(--df);font-size:1.3rem;font-weight:700;color:var(--t800)}
+@keyframes scanLine{0%{top:8%}100%{top:88%}}
+@keyframes cornerPulse{0%,100%{opacity:.5}50%{opacity:1}}
+@keyframes spinQR{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+/* ═══ SETTINGS PANELS ═══ */
+.settings-wrap{width:100%;min-width:0}
+/* Two-column grid for settings/payment on wide screens */
+.settings-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start;min-width:0}
+.settings-grid > *{min-width:0}
+.settings-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px;align-items:start}
+.settings-col-wide{grid-column:1/-1}
+/* Service column headers */
+.svc-header{display:grid;grid-template-columns:28px 1fr 96px 88px 30px;gap:8px;padding:6px 16px;background:var(--g50);border-bottom:1px solid var(--g100)}
+.svc-header > div{font-size:.71rem;font-weight:700;color:var(--g400);text-transform:uppercase;letter-spacing:.06em}
+@media(max-width:900px){
+  .settings-grid{grid-template-columns:1fr}
+  .settings-grid-3{grid-template-columns:1fr 1fr}
+  .svc-header{display:none}
+}
+@media(max-width:700px){.settings-grid-3{grid-template-columns:1fr}}
+/* Legacy pay-grid */
+.pay-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+@media(max-width:900px){.pay-grid{grid-template-columns:1fr}}
+
+/* ═══ RESPONSIVE ═══ */
+@media(max-width:1100px){.stats-row{grid-template-columns:repeat(2,1fr)}.two-col{grid-template-columns:1fr}.analytics-grid{grid-template-columns:1fr}}
+@media(max-width:760px){.sched-layout{grid-template-columns:1fr}.form-grid-2{grid-template-columns:1fr}.wa-content{grid-template-columns:1fr}.wa-qr-box{display:none}.tab-panel{overflow-x:hidden}.settings-wrap{overflow-x:hidden}.dc{overflow:hidden}.svc-price-wrap{display:flex;width:80px}.svc-price-wrap input{width:80px}.svc-dur{width:78px}}
+@media(max-width:600px){.stats-row{grid-template-columns:1fr 1fr}.dash-tabs{gap:1px}.dash-tab{padding:7px 10px;font-size:.77rem}}
+</style>
+{% if google_places_key %}
+<script>
+function initPlacesDash() {
+  const input = document.getElementById('set-address');
+  if (!input || !window.google) return;
+  const ac = new google.maps.places.Autocomplete(input, {
+    types: ['establishment','geocode'],
+    componentRestrictions: {country:'in'},
+    fields: ['formatted_address','address_components'],
+  });
+  input.addEventListener('keydown', e => { if(e.key==='Enter') e.preventDefault(); });
+  ac.addListener('place_changed', () => {
+    const p = ac.getPlace();
+    if (!p?.formatted_address) return;
+    input.value = p.formatted_address;
+    for (const c of (p.address_components||[])) {
+      if (c.types.includes('locality')) {
+        const ci = document.getElementById('set-city');
+        if (ci) ci.value = c.long_name;
+        break;
+      }
+    }
+  });
+}
+
+</script>
+<script src="https://maps.googleapis.com/maps/api/js?key={{ google_places_key }}&libraries=places&callback=initPlacesDash" async defer></script>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+
+<!-- Page loader — shown until all init data is fetched -->
+<div id="page-loader">
+  <div class="pl-logo">
+    <div class="pl-logo-icon"><i class="fas fa-scissors"></i></div>
+    <span class="pl-logo-txt">SalonFlow</span>
+  </div>
+  <div class="pl-ring"></div>
+  <div class="pl-text">Loading your dashboard…</div>
+</div>
+
+{% if not current_user.is_verified %}
+<div class="dash-alert da-warn" id="verify-alert">
+  <i class="fas fa-exclamation-triangle"></i>
+  <span>Your email isn't verified. <a href="{{ url_for('verify_required') }}" style="font-weight:700;text-decoration:underline">Resend verification →</a></span>
+  <button class="da-close" onclick="this.closest('.dash-alert').remove()"><i class="fas fa-times"></i></button>
+</div>
+{% endif %}
+
+<!-- ═══════════════ TAB: OVERVIEW ═══════════════ -->
+<div class="tab-panel active" id="tab-overview">
+
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-top"><div class="stat-ic ic-t"><i class="fas fa-calendar-check"></i></div></div>
+      <div class="stat-val" id="stat-today-appts">—</div><div class="stat-lbl">Today's Appointments</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-top"><div class="stat-ic ic-g"><i class="fas fa-calendar-alt"></i></div></div>
+      <div class="stat-val" id="stat-week-appts">—</div><div class="stat-lbl">This Week's Bookings</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-top"><div class="stat-ic ic-a"><i class="fas fa-calendar-check"></i></div></div>
+      <div class="stat-val" id="stat-total-appts">—</div><div class="stat-lbl">Total Bookings</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-top"><div class="stat-ic ic-b"><i class="fab fa-whatsapp"></i></div></div>
+      <div class="stat-val" id="stat-wa-appts">—</div><div class="stat-lbl">WhatsApp Bookings</div>
+    </div>
+  </div>
+
+  <div class="two-col">
+    <!-- LEFT: appointments + analytics -->
+    <div>
+      <div class="dc">
+        <div class="dc-hd">
+          <div class="dc-hd-left"><h3>Today's Appointments</h3><p id="today-appts-hdr">Loading…</p></div>
+          <button class="dc-btn dc-btn-ghost" onclick="switchTab('appointments',getTabBtn('appointments'))"><i class="fas fa-expand-alt"></i> Full View</button>
+        </div>
+        <div id="overview-appts"></div>
+      </div>
+
+      <!-- Weekly metrics -->
+      <div class="dc">
+        <div class="dc-hd"><div class="dc-hd-left"><h3>This Week at a Glance</h3></div></div>
+        <div class="dc-bd" style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+          <div>
+            <div style="font-size:.74rem;font-weight:700;color:var(--g400);text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px">Metrics</div>
+            <div class="metric-list">
+              <div class="metric-item"><span class="mi-label">This week</span><span class="mi-val" id="metric-week">—</span></div>
+              <div class="metric-item"><span class="mi-label">Today</span><span class="mi-val" id="metric-today">—</span></div>
+              <div class="metric-item"><span class="mi-label">Total</span><span class="mi-val" id="metric-total">—</span></div>
+              <div class="metric-item"><span class="mi-label">Upcoming</span><span class="mi-val" id="metric-upcoming">—</span></div>
+            </div>
+          </div>
+          <div>
+            <div style="font-size:.74rem;font-weight:700;color:var(--g400);text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px">Daily Bookings</div>
+            <div class="bar-chart" id="weekly-bars"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: WA mini + Google Cal + quick actions -->
+    <div>
+      <!-- WA mini status -->
+      <div class="dc" style="margin-bottom:14px">
+        <div class="dc-hd">
+          <div class="dc-hd-left"><h3><i class="fab fa-whatsapp" style="color:#25d366;margin-right:6px"></i>WhatsApp Bot</h3></div>
+          <div style="display:flex;align-items:center;gap:6px;font-size:.78rem;font-weight:700;color:{{ '#25d366' if current_user.whatsapp_connected else 'var(--g400)' }}">
+            <span style="width:7px;height:7px;border-radius:50%;background:{{ '#25d366' if current_user.whatsapp_connected else 'var(--g300)' }};display:inline-block"></span>
+            {{ 'Connected' if current_user.whatsapp_connected else 'Not connected' }}
+          </div>
+        </div>
+        <div class="dc-bd" style="padding:14px 18px">
+          {% if current_user.whatsapp_connected %}
+          <div style="font-size:.86rem;color:var(--g700);margin-bottom:12px">
+            <strong>{{ current_user.whatsapp_phone or '+91 98765 43210' }}</strong> is active and taking bookings.
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+            <div style="text-align:center;padding:10px;background:var(--t50);border-radius:9px">
+              <div style="font-family:var(--df);font-size:1.4rem;font-weight:700;color:var(--t800)" data-wa-today>—</div>
+              <div style="font-size:.69rem;color:var(--g500)">Bookings today</div>
+            </div>
+            <div style="text-align:center;padding:10px;background:var(--t50);border-radius:9px">
+              <div style="font-family:var(--df);font-size:1.4rem;font-weight:700;color:var(--t800)" data-wa-total>—</div>
+              <div style="font-size:.69rem;color:var(--g500)">Total bookings</div>
+            </div>
+          </div>
+          {% else %}
+          <div style="font-size:.84rem;color:var(--g500);margin-bottom:12px">Not connected. Scan a QR code to activate your booking bot.</div>
+          {% endif %}
+          <button class="dc-btn dc-btn-ghost" style="width:100%;justify-content:center" onclick="switchTab('whatsapp',getTabBtn('whatsapp'))">
+            <i class="fas fa-arrow-right"></i> Manage WhatsApp
+          </button>
+        </div>
+      </div>
+
+      <!-- Google Calendar card -->
+      <div class="dc" style="margin-bottom:14px">
+        <div class="dc-hd"><div class="dc-hd-left"><h3><i class="fab fa-google" style="color:#4285f4;margin-right:6px"></i>Google Calendar</h3></div><span style="font-size:.7rem;font-weight:700;background:#fef9c3;color:#b45309;padding:3px 9px;border-radius:100px">Coming Soon</span></div>
+        <div class="dc-bd">
+          <p style="font-size:.83rem;color:var(--g500);margin-bottom:12px;line-height:1.6">Sync your WhatsApp appointments directly to Google Calendar — keep your whole schedule in one place.</p>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px">
+            <div style="display:flex;align-items:center;gap:7px;font-size:.8rem;color:var(--g600)"><i class="fas fa-check" style="color:var(--t500);font-size:.72rem"></i> Two-way sync</div>
+            <div style="display:flex;align-items:center;gap:7px;font-size:.8rem;color:var(--g600)"><i class="fas fa-check" style="color:var(--t500);font-size:.72rem"></i> WhatsApp bookings → Google Calendar</div>
+            <div style="display:flex;align-items:center;gap:7px;font-size:.8rem;color:var(--g600)"><i class="fas fa-check" style="color:var(--t500);font-size:.72rem"></i> Block off busy times</div>
+          </div>
+          <button class="gcal-btn" style="width:100%;justify-content:center" disabled title="Coming soon">
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G">
+            Connect Google Calendar
+          </button>
+          <div class="gcal-coming">Integration available in the next release</div>
+        </div>
+      </div>
+
+      <!-- Quick actions -->
+      <div class="dc">
+        <div class="dc-hd"><div class="dc-hd-left"><h3>Quick Actions</h3></div></div>
+        <div class="dc-bd" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:14px">
+          <button onclick="switchTab('schedule',getTabBtn('schedule'))" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:var(--g50);border:1px solid var(--g200);border-radius:11px;cursor:pointer;transition:all .2s;font-family:var(--bf)" onmouseover="this.style.borderColor='var(--t300)';this.style.background='var(--t50)'" onmouseout="this.style.borderColor='var(--g200)';this.style.background='var(--g50)'">
+            <div style="width:36px;height:36px;background:var(--t50);color:var(--t600);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:.9rem"><i class="fas fa-clock"></i></div>
+            <span style="font-size:.74rem;font-weight:600;color:var(--g700)">Schedule</span>
+          </button>
+          <button onclick="switchTab('settings',getTabBtn('settings'))" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:var(--g50);border:1px solid var(--g200);border-radius:11px;cursor:pointer;transition:all .2s;font-family:var(--bf)" onmouseover="this.style.borderColor='var(--t300)';this.style.background='var(--t50)'" onmouseout="this.style.borderColor='var(--g200)';this.style.background='var(--g50)'">
+            <div style="width:36px;height:36px;background:#dbeafe;color:#1d4ed8;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:.9rem"><i class="fas fa-store"></i></div>
+            <span style="font-size:.74rem;font-weight:600;color:var(--g700)">Salon Info</span>
+          </button>
+          <a href="{{ url_for('billing') }}" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:var(--g50);border:1px solid var(--g200);border-radius:11px;cursor:pointer;transition:all .2s;text-decoration:none" onmouseover="this.style.borderColor='var(--t300)';this.style.background='var(--t50)'" onmouseout="this.style.borderColor='var(--g200)';this.style.background='var(--g50)'">
+            <div style="width:36px;height:36px;background:#fef3c7;color:#b45309;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:.9rem"><i class="fas fa-credit-card"></i></div>
+            <span style="font-size:.74rem;font-weight:600;color:var(--g700)">Billing</span>
+          </a>
+          <a href="{{ url_for('profile') }}" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:var(--g50);border:1px solid var(--g200);border-radius:11px;cursor:pointer;transition:all .2s;text-decoration:none" onmouseover="this.style.borderColor='var(--t300)';this.style.background='var(--t50)'" onmouseout="this.style.borderColor='var(--g200)';this.style.background='var(--g50)'">
+            <div style="width:36px;height:36px;background:#f3e8ff;color:#7c3aed;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:.9rem"><i class="fas fa-user-circle"></i></div>
+            <span style="font-size:.74rem;font-weight:600;color:var(--g700)">Profile</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ TAB: APPOINTMENTS ═══════════════ -->
+<div class="tab-panel" id="tab-appointments">
+
+  <!-- Filter bar -->
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap">
+    <div style="display:flex;gap:4px;background:var(--g100);padding:3px;border-radius:9px">
+      <button class="dash-tab active" style="padding:6px 14px;font-size:.78rem" onclick="filterAppts('all',this)">All</button>
+      <button class="dash-tab" style="padding:6px 14px;font-size:.78rem" onclick="filterAppts('today',this)">Today</button>
+      <button class="dash-tab" style="padding:6px 14px;font-size:.78rem" onclick="filterAppts('upcoming',this)">Upcoming</button>
+    </div>
+    <button class="dc-btn dc-btn-primary" style="margin-left:auto" onclick="openNewApptModal()"><i class="fas fa-plus"></i> New Appointment</button>
+  </div>
+
+  <div class="dc">
+    <div class="dc-hd">
+      <div class="dc-hd-left"><h3>All Appointments</h3><p id="appt-count">Loading…</p></div>
+    </div>
+    <div id="full-appt-list"></div>
+  </div>
+</div>
+
+<!-- ═══════════════ TAB: SCHEDULE ═══════════════ -->
+<div class="tab-panel" id="tab-schedule">
+
+  <!-- Booking mode selector — clear, large, prominent -->
+  <div class="dc" style="margin-bottom:18px">
+    <div class="dc-hd">
+      <div class="dc-hd-left">
+        <h3><i class="fas fa-calendar-alt" style="color:var(--t500);margin-right:7px"></i>Booking Schedule Mode</h3>
+        <p>Choose how the bot handles booking availability</p>
+      </div>
+    </div>
+    <div class="dc-bd" style="padding:18px 20px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <!-- Anytime card -->
+        <div id="mode-card-anytime" onclick="setScheduleMode('anytime', true)" style="
+          border:2px solid var(--g200);border-radius:14px;padding:18px 16px;cursor:pointer;transition:all .2s;
+          display:flex;flex-direction:column;align-items:flex-start;gap:8px;background:#fff">
+          <div style="display:flex;align-items:center;gap:10px;width:100%">
+            <div style="width:38px;height:38px;background:var(--g100);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s" id="mode-ic-anytime">
+              <i class="fas fa-bolt" style="color:#f59e0b"></i>
+            </div>
+            <div style="flex:1">
+              <div style="font-size:.9rem;font-weight:700;color:var(--g900)">Accept Anytime</div>
+              <div style="font-size:.75rem;color:var(--g500)">No schedule needed</div>
+            </div>
+            <div style="width:18px;height:18px;border-radius:50%;border:2px solid var(--g300);flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .2s" id="mode-radio-anytime"></div>
+          </div>
+          <div style="font-size:.78rem;color:var(--g500);line-height:1.5">Bot accepts bookings 24/7. Customers can book any time without checking your schedule.</div>
+        </div>
+        <!-- Hourly card -->
+        <div id="mode-card-hourly" onclick="setScheduleMode('hourly', true)" style="
+          border:2px solid var(--t400);border-radius:14px;padding:18px 16px;cursor:pointer;transition:all .2s;
+          display:flex;flex-direction:column;align-items:flex-start;gap:8px;background:var(--t50)">
+          <div style="display:flex;align-items:center;gap:10px;width:100%">
+            <div style="width:38px;height:38px;background:var(--t100);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s" id="mode-ic-hourly">
+              <i class="fas fa-clock" style="color:var(--t600)"></i>
+            </div>
+            <div style="flex:1">
+              <div style="font-size:.9rem;font-weight:700;color:var(--g900)">Set Hours</div>
+              <div style="font-size:.75rem;color:var(--g500)">Calendar-based schedule</div>
+            </div>
+            <div style="width:18px;height:18px;border-radius:50%;border:2px solid var(--t400);flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--t500);transition:all .2s" id="mode-radio-hourly">
+              <div style="width:8px;height:8px;border-radius:50%;background:#fff"></div>
+            </div>
+          </div>
+          <div style="font-size:.78rem;color:var(--g600);line-height:1.5">Set specific dates and working hours. The bot only books within your schedule.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Anytime mode message (no calendar needed) -->
+  <div id="sched-locked-msg" style="display:none">
+    <div style="text-align:center;padding:48px 24px;background:#fff;border-radius:16px;border:2px dashed #fde68a">
+      <i class="fas fa-bolt" style="font-size:2.5rem;color:#f59e0b;display:block;margin-bottom:12px"></i>
+      <div style="font-size:1.05rem;font-weight:700;color:var(--g800);margin-bottom:6px">Accepting bookings anytime</div>
+      <div style="font-size:.84rem;color:var(--g500);max-width:320px;margin:0 auto">
+        The bot will accept customer bookings at any time of day. Switch to "Set Hours" above to control availability.
+      </div>
+    </div>
+  </div>
+
+  <!-- Schedule editor (hourly mode) -->
+  <div id="sched-editor">
+
+    <!-- Chairs + bulk actions row -->
+    <div class="dc" style="margin-bottom:14px">
+      <div class="dc-bd" style="padding:14px 18px">
+        <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:center">
+          <div>
+            <label style="font-size:.78rem;font-weight:700;color:var(--g600);display:block;margin-bottom:6px">
+              <i class="fas fa-chair" style="color:var(--t500);margin-right:4px"></i>Simultaneous chairs
+            </label>
+            <div style="display:flex;gap:6px" id="chairs-picker"></div>
+            <div style="font-size:.72rem;color:var(--g400);margin-top:3px">Clients served at the same time slot</div>
+          </div>
+          <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <button class="bulk-btn bb-teal" onclick="bulkMark('open')"><i class="fas fa-sun"></i> Week open</button>
+            <button class="bulk-btn bb-red"  onclick="bulkMark('closed')"><i class="fas fa-moon"></i> Week off</button>
+            <button class="bulk-btn bb-gray" onclick="copyYesterdaySlots()"><i class="fas fa-copy"></i> Copy prev.</button>
+            <button class="dc-btn dc-btn-primary" onclick="saveSchedule()" style="margin-left:4px"><i class="fas fa-save"></i> Save</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sched-layout">
+      <!-- Month calendar — date + month only, simple -->
+      <div>
+        <div class="sched-month-nav">
+          <div class="sched-cal-hd">
+            <h4 id="sched-month-title"></h4>
+            <div class="sched-nav-btns">
+              <button class="snb" onclick="schedCalNav(-1)"><i class="fas fa-chevron-left"></i></button>
+              <button class="snb" onclick="schedCalNav(1)"><i class="fas fa-chevron-right"></i></button>
+            </div>
+          </div>
+          <div class="sched-cal-grid" id="sched-cal-grid"></div>
+          <div class="sched-legend">
+            <div class="sl-item"><div class="sl-dot sl-green"></div> Working</div>
+            <div class="sl-item"><div class="sl-dot sl-red"></div> Day off</div>
+            <div class="sl-item"><div class="sl-dot sl-selected"></div> Selected</div>
+          </div>
+        </div>
+        <div style="margin-top:10px;font-size:.76rem;color:var(--g400);text-align:center;line-height:1.5">
+          Tap a date to set hours.<br>Tap again to toggle open/off.
+        </div>
+      </div>
+
+      <!-- Day panel — simplified: just open/off + time range -->
+      <div class="day-sched-panel" id="day-panel">
+        <div class="dsp-hd">
+          <h4>Set Hours</h4>
+          <span class="dsp-date" id="dsp-date-label">Select a date</span>
+        </div>
+        <div class="dsp-body" id="dsp-body">
+          <div class="dsp-empty"><i class="fas fa-hand-pointer"></i>Tap a date to set hours</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════ TAB: WHATSAPP ═══════════════ -->
+<div class="tab-panel" id="tab-whatsapp">
+
+  <!-- ═══ WHATSAPP BOT CARD ═══ -->
+  <div class="dc" style="padding:0;overflow:hidden">
+
+    <!-- Status header bar -->
+    <div id="wa-hdr" style="
+      padding:16px 20px;display:flex;align-items:center;
+      justify-content:space-between;flex-wrap:wrap;gap:10px;
+      background:linear-gradient(135deg,#0f172a,#1e293b);
+    ">
+      <div style="display:flex;align-items:center;gap:10px">
+        <i class="fab fa-whatsapp" style="font-size:1.4rem;color:#25d366"></i>
+        <div>
+          <div style="font-family:var(--df,sans-serif);font-size:1rem;font-weight:700;color:#fff">WhatsApp Bot</div>
+          <div style="font-size:.74rem;color:rgba(255,255,255,.5)" id="wa-hdr-sub">Checking status…</div>
+        </div>
+      </div>
+      <div id="wa-status-badge" style="
+        display:flex;align-items:center;gap:7px;
+        padding:6px 14px;border-radius:100px;font-size:.78rem;font-weight:700;
+        background:rgba(255,255,255,.08);color:rgba(255,255,255,.7);
+        border:1px solid rgba(255,255,255,.12);transition:all .3s;
+      ">
+        <span id="wa-dot-el" style="width:8px;height:8px;border-radius:50%;background:#94a3b8;flex-shrink:0"></span>
+        <span id="wa-status-txt">Checking…</span>
+      </div>
+    </div>
+
+    <div style="padding:22px 20px">
+
+      <!-- ── STATE: CONNECTED ───────────────────────────────────────── -->
+      <div id="wa-view-connected" style="display:none">
+        <div style="display:flex;align-items:center;gap:14px;padding:16px;
+          background:linear-gradient(135deg,#ecfdf5,#f0fdf4);
+          border:1.5px solid #6ee7b7;border-radius:14px;margin-bottom:18px">
+          <div style="width:48px;height:48px;background:#dcfce7;border-radius:50%;
+            display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <i class="fab fa-whatsapp" style="font-size:1.4rem;color:#16a34a"></i>
+          </div>
+          <div>
+            <div style="font-weight:700;color:#15803d;font-size:.95rem">Bot is live and taking bookings</div>
+            <div style="font-size:.78rem;color:#16a34a;margin-top:2px" id="wa-phone-display">Active</div>
+          </div>
+          <div style="margin-left:auto;display:flex;align-items:center;gap:5px">
+            <span style="width:8px;height:8px;border-radius:50%;background:#4ade80;animation:pls 2s infinite;display:inline-block"></span>
+            <span style="font-size:.72rem;font-weight:700;color:#16a34a">LIVE</span>
+          </div>
+        </div>
+
+        <!-- Bot controls -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:6px">
+          <button onclick="botControl('stop')" style="
+            display:flex;align-items:center;justify-content:center;gap:7px;
+            padding:11px 14px;border-radius:11px;font-family:var(--bf,sans-serif);
+            font-size:.84rem;font-weight:600;cursor:pointer;transition:all .2s;
+            background:#fff;border:1.5px solid #fca5a5;color:#dc2626;" id="wa-btn-stop"
+            onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='#fff'">
+            <i class="fas fa-stop-circle"></i> Stop Bot
+          </button>
+          <button onclick="botControl('restart')" style="
+            display:flex;align-items:center;justify-content:center;gap:7px;
+            padding:11px 14px;border-radius:11px;font-family:var(--bf,sans-serif);
+            font-size:.84rem;font-weight:600;cursor:pointer;transition:all .2s;
+            background:#fff;border:1.5px solid var(--t300);color:var(--t700);" id="wa-btn-restart"
+            onmouseover="this.style.background='var(--t50)'" onmouseout="this.style.background='#fff'">
+            <i class="fas fa-redo"></i> Restart Bot
+          </button>
+          <button onclick="botControl('disconnect')" style="
+            display:flex;align-items:center;justify-content:center;gap:7px;
+            padding:11px 14px;border-radius:11px;font-family:var(--bf,sans-serif);
+            font-size:.84rem;font-weight:600;cursor:pointer;transition:all .2s;
+            background:#fff;border:1.5px solid #fdba74;color:#c2410c;" id="wa-btn-disconnect"
+            onmouseover="this.style.background='#fff7ed'" onmouseout="this.style.background='#fff'">
+            <i class="fas fa-unlink"></i> Change Account
+          </button>
+        </div>
+        <p style="font-size:.73rem;color:var(--g400);text-align:center;margin-top:8px">
+          "Change Account" disconnects the current WhatsApp and lets you scan a new QR code.
+        </p>
+      </div>
+
+      <!-- ── STATE: QR SCANNING ─────────────────────────────────────── -->
+      <div id="wa-view-qr" style="display:none">
+        <div style="display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start">
+
+          <!-- QR box with scan beam -->
+          <div style="position:relative;flex-shrink:0;margin:0 auto">
+            <div id="wa-qr-corners" style="
+              position:absolute;inset:-5px;pointer-events:none;
+              border:2px solid transparent;border-radius:16px;
+            "></div>
+            <!-- corner brackets -->
+            <div style="position:absolute;top:-4px;left:-4px;width:22px;height:22px;
+              border-top:3px solid var(--t500);border-left:3px solid var(--t500);border-radius:3px;
+              animation:cornerPulse 2s ease-in-out infinite"></div>
+            <div style="position:absolute;top:-4px;right:-4px;width:22px;height:22px;
+              border-top:3px solid var(--t500);border-right:3px solid var(--t500);border-radius:3px;
+              animation:cornerPulse 2s ease-in-out infinite .4s"></div>
+            <div style="position:absolute;bottom:-4px;left:-4px;width:22px;height:22px;
+              border-bottom:3px solid var(--t500);border-left:3px solid var(--t500);border-radius:3px;
+              animation:cornerPulse 2s ease-in-out infinite .8s"></div>
+            <div style="position:absolute;bottom:-4px;right:-4px;width:22px;height:22px;
+              border-bottom:3px solid var(--t500);border-right:3px solid var(--t500);border-radius:3px;
+              animation:cornerPulse 2s ease-in-out infinite 1.2s"></div>
+
+            <div id="wa-qr-img-wrap" style="
+              width:200px;height:200px;background:#fff;
+              border-radius:14px;border:1.5px solid var(--g200);
+              overflow:hidden;display:flex;align-items:center;justify-content:center;
+              box-shadow:0 4px 20px rgba(0,0,0,.1);position:relative;
+            ">
+              <!-- Scan beam — uses top% animation so it travels across the QR -->
+              <div id="wa-scan-beam" style="
+                position:absolute;left:5%;right:5%;height:3px;top:8%;
+                background:linear-gradient(90deg,transparent,var(--t500),var(--t400),var(--t500),transparent);
+                box-shadow:0 0 10px 3px rgba(13,148,136,.5);
+                animation:scanLine 2.5s ease-in-out infinite alternate;
+                border-radius:2px;z-index:3;pointer-events:none;
+              "></div>
+              <!-- QR image or spinner -->
+              <img id="wa-qr-img" src="" alt="QR Code" style="width:100%;height:100%;object-fit:contain;display:none">
+              <div id="wa-qr-spinner" style="text-align:center;color:var(--g400)">
+                <i class="fas fa-spinner fa-spin" style="font-size:1.5rem;margin-bottom:8px;display:block"></i>
+                <div style="font-size:.74rem">Loading QR…</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Scan instructions -->
+          <div style="flex:1;min-width:200px">
+            <div style="font-weight:700;color:var(--g900);margin-bottom:12px;font-size:.9rem">
+              How to connect:
+            </div>
+            <div style="display:flex;flex-direction:column;gap:9px">
+              <div style="display:flex;align-items:center;gap:10px;font-size:.83rem;color:var(--g700)">
+                <div style="width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,var(--t700),var(--t500));
+                  display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:800;color:#fff;flex-shrink:0">1</div>
+                Open WhatsApp on your phone
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;font-size:.83rem;color:var(--g700)">
+                <div style="width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,var(--t700),var(--t500));
+                  display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:800;color:#fff;flex-shrink:0">2</div>
+                Tap ⋮ → Settings → Linked Devices
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;font-size:.83rem;color:var(--g700)">
+                <div style="width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,var(--t700),var(--t500));
+                  display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:800;color:#fff;flex-shrink:0">3</div>
+                Tap "Link a Device" → scan QR
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;font-size:.83rem;color:#16a34a;font-weight:600">
+                <div style="width:24px;height:24px;border-radius:50%;background:#dcfce7;
+                  display:flex;align-items:center;justify-content:center;font-size:.7rem;color:#16a34a;flex-shrink:0">✓</div>
+                Bot activates instantly!
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Polling status bar -->
+        <div id="wa-poll-bar" style="
+          margin-top:16px;padding:10px 14px;border-radius:10px;
+          background:var(--t50);border:1px solid var(--t200);
+          display:flex;align-items:center;gap:10px;font-size:.8rem;
+        ">
+          <div style="display:flex;gap:3px" id="wa-poll-dots">
+            <span style="width:5px;height:5px;border-radius:50%;background:var(--t500);animation:waDot 1.3s ease-in-out infinite"></span>
+            <span style="width:5px;height:5px;border-radius:50%;background:var(--t500);animation:waDot 1.3s ease-in-out infinite .2s"></span>
+            <span style="width:5px;height:5px;border-radius:50%;background:var(--t500);animation:waDot 1.3s ease-in-out infinite .4s"></span>
+          </div>
+          <span id="wa-poll-txt" style="color:var(--t700);font-weight:600">Checking every 5 seconds…</span>
+        </div>
+      </div>
+
+      <!-- ── STATE: IDLE / EXPIRED ──────────────────────────────────── -->
+      <div id="wa-view-idle" style="display:none">
+        <div style="text-align:center;padding:28px 20px">
+          <div style="width:64px;height:64px;background:#eff6ff;border-radius:50%;
+            display:flex;align-items:center;justify-content:center;margin:0 auto 14px">
+            <i class="fas fa-qrcode" style="font-size:1.6rem;color:#3b82f6"></i>
+          </div>
+          <div style="font-weight:700;color:var(--g800);margin-bottom:6px">QR code has expired</div>
+          <div style="font-size:.82rem;color:var(--g500);margin-bottom:18px">
+            The QR was not scanned within 3 minutes. Click below to get a fresh one.
+          </div>
+          <button onclick="waStartQR()" style="
+            display:inline-flex;align-items:center;gap:8px;
+            padding:12px 24px;background:linear-gradient(135deg,var(--t700),var(--t500));
+            color:#fff;border:none;border-radius:12px;font-family:var(--bf,sans-serif);
+            font-size:.9rem;font-weight:700;cursor:pointer;
+            box-shadow:0 4px 14px rgba(13,148,136,.35);transition:all .2s;
+          " onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform=''">
+            <i class="fas fa-sync-alt"></i> Reload QR Code
+          </button>
+        </div>
+      </div>
+
+      <!-- ── STATE: STOPPED ─────────────────────────────────────────── -->
+      <div id="wa-view-stopped" style="display:none">
+        <div style="text-align:center;padding:24px 20px">
+          <div style="width:64px;height:64px;background:#fef2f2;border-radius:50%;
+            display:flex;align-items:center;justify-content:center;margin:0 auto 14px">
+            <i class="fas fa-stop-circle" style="font-size:1.6rem;color:#ef4444"></i>
+          </div>
+          <div style="font-weight:700;color:var(--g800);margin-bottom:6px">Bot is stopped</div>
+          <div style="font-size:.82rem;color:var(--g500);margin-bottom:18px">
+            Your bot is currently stopped. Start it to resume taking bookings.
+          </div>
+          <button onclick="botControl('start')" style="
+            display:inline-flex;align-items:center;gap:8px;
+            padding:12px 24px;background:linear-gradient(135deg,#16a34a,#22c55e);
+            color:#fff;border:none;border-radius:12px;font-family:var(--bf,sans-serif);
+            font-size:.9rem;font-weight:700;cursor:pointer;
+            box-shadow:0 4px 14px rgba(22,163,74,.35);transition:all .2s;
+          ">
+            <i class="fas fa-play"></i> Start Bot
+          </button>
+        </div>
+      </div>
+
+      <!-- ── STATE: NO BOT ASSIGNED ─────────────────────────────────── -->
+      <div id="wa-view-none" style="display:none">
+        <div style="text-align:center;padding:28px 20px">
+          <div style="width:64px;height:64px;background:#f8fafc;border-radius:50%;
+            display:flex;align-items:center;justify-content:center;margin:0 auto 14px">
+            <i class="fab fa-whatsapp" style="font-size:1.8rem;color:var(--g300)"></i>
+          </div>
+          <div style="font-weight:700;color:var(--g700);margin-bottom:6px">No bot assigned yet</div>
+          <div style="font-size:.82rem;color:var(--g500);margin-bottom:18px">
+            Your subscription is active. Click below to assign a bot and get your QR code.
+          </div>
+          <button onclick="waAssignBot()" id="wa-assign-btn" style="
+            display:inline-flex;align-items:center;gap:8px;
+            padding:12px 24px;background:linear-gradient(135deg,var(--t700),var(--t500));
+            color:#fff;border:none;border-radius:12px;font-family:var(--bf,sans-serif);
+            font-size:.9rem;font-weight:700;cursor:pointer;
+            box-shadow:0 4px 14px rgba(13,148,136,.35);
+          ">
+            <i class="fab fa-whatsapp"></i> Assign &amp; Connect
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Bot Settings: language only (no schedule check here) -->
+  <div class="dc">
+    <div class="dc-hd">
+      <div class="dc-hd-left"><h3><i class="fas fa-robot" style="color:var(--t500);margin-right:6px"></i>Bot Settings</h3><p>Language and custom instructions</p></div>
+    </div>
+    <div class="dc-bd">
+      <div class="form-field" style="margin-bottom:16px">
+        <label><i class="fas fa-language" style="color:var(--t500);margin-right:5px"></i>Response Language</label>
+        <select class="fi" id="bot-language" onchange="saveBotSettings()">
+          <option value="auto">Auto-detect (recommended)</option>
+          <option value="hinglish">Hinglish (Roman Hindi)</option>
+          <option value="hindi">Hindi (हिन्दी)</option>
+          <option value="english">English</option>
+        </select>
+        <div class="hint">Bot replies in the customer's language automatically when set to auto.</div>
+      </div>
+      <div class="form-field" style="margin-bottom:14px">
+        <label>Custom Instructions</label>
+        <textarea class="fi" id="bot-instructions" rows="4" placeholder="e.g. Always greet with Namaste. Ask for client name before confirming. Offer 10% discount to returning clients.">{{ current_user.whatsapp_instructions or '' }}</textarea>
+        <div class="hint">The AI follows these instructions exactly for every customer conversation.</div>
+      </div>
+      <div class="form-actions">
+        <button class="dc-btn dc-btn-primary" onclick="saveBotInstructions()"><i class="fas fa-save"></i> Save Instructions</button>
+        <span class="save-indicator" id="bot-instr-saved"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Google Calendar section on WA tab -->
+  <div class="dc">
+    <div class="dc-hd">
+      <div class="dc-hd-left"><h3><i class="fab fa-google" style="color:#4285f4;margin-right:7px"></i>Google Calendar Sync</h3><p>WhatsApp appointments will appear in your Google Calendar</p></div>
+      <span style="font-size:.7rem;font-weight:700;background:#fef9c3;color:#b45309;padding:3px 10px;border-radius:100px">Coming Soon</span>
+    </div>
+    <div class="dc-bd">
+      <div class="gcal-features" style="justify-content:flex-start;margin-bottom:16px">
+        <div class="gcal-feat"><i class="fas fa-sync-alt"></i> Full two-way sync</div>
+        <div class="gcal-feat"><i class="fab fa-whatsapp"></i> WA bookings → Calendar</div>
+        <div class="gcal-feat"><i class="fas fa-ban"></i> Busy blocks auto-applied</div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <button class="gcal-btn" disabled title="Coming soon">
+          <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
+          Connect Google Calendar
+        </button>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <label style="display:flex;align-items:center;gap:7px;font-size:.82rem;color:var(--g600);cursor:not-allowed;opacity:.55">
+            <input type="radio" name="gcal-sync" disabled> Full sync (all appointments)
+          </label>
+          <label style="display:flex;align-items:center;gap:7px;font-size:.82rem;color:var(--g600);cursor:not-allowed;opacity:.55">
+            <input type="radio" name="gcal-sync" disabled> WhatsApp bookings only
+          </label>
+        </div>
+      </div>
+      <div class="gcal-coming" style="text-align:left;margin-top:10px">Available in the next release · <a href="mailto:support@salonflow.in" style="color:var(--t600)">Join the waitlist</a></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════ TAB: ADVANCE PAYMENT ═══════════════ -->
+<div class="tab-panel" id="tab-payment">
+  <div class="settings-wrap">
+
+    <!-- Info note card -->
+    <div style="background:linear-gradient(135deg,#eff6ff,#f0f9ff);border:1.5px solid #bfdbfe;border-radius:16px;padding:16px 20px;margin-bottom:20px;display:flex;gap:14px;align-items:flex-start">
+      <div style="width:38px;height:38px;background:#3b82f6;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <i class="fas fa-robot" style="color:#fff;font-size:.9rem"></i>
+      </div>
+      <div>
+        <div style="font-weight:700;color:#1e40af;margin-bottom:4px;font-size:.9rem">Powered by AI verification</div>
+        <div style="font-size:.8rem;color:#1d4ed8;line-height:1.6">
+          When a customer books, the bot asks for advance payment. The customer sends a UPI screenshot, and the AI extracts the transaction ID automatically for your records.<br>
+          <strong>Tip:</strong> We recommend 10-20% of the service price as advance to reduce no-shows.
+        </div>
+      </div>
+    </div>
+
+    <!-- Enable toggle — single clean row, no duplicate icon -->
+    <div class="dc" id="pay-enable-header" style="margin-bottom:16px;border:2px solid var(--g200);transition:border-color .25s">
+      <div class="dc-hd" style="cursor:pointer" onclick="document.getElementById('pay-enabled-toggle').click()">
+        <div class="dc-hd-left">
+          <h3 style="color:var(--g900)">Enable Advance Payment</h3>
+          <p id="pay-toggle-sub">Off — customers pay at the salon</p>
+        </div>
+        <label class="tog-sw" style="flex-shrink:0;pointer-events:none">
+          <input type="checkbox" id="pay-enabled-toggle" onchange="togglePaymentSettings()" style="pointer-events:none">
+          <span class="tog-knob"></span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Settings (visible when enabled) -->
+    <div id="pay-settings-body" style="display:none">
+    <div class="settings-grid">
+
+      <!-- Amount -->
+      <div class="dc" style="margin-bottom:0">
+        <div class="dc-hd"><div class="dc-hd-left"><h3><i class="fas fa-rupee-sign" style="color:var(--t500);margin-right:6px"></i>Advance Amount</h3></div></div>
+        <div class="dc-bd">
+          <div class="form-field">
+            <label>Amount (rupees) <span style="font-weight:400;color:var(--g400);font-size:.75rem">recommended: 10-20% of average service price</span></label>
+            <div style="position:relative">
+              <span style="position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--g600);font-weight:600">Rs.</span>
+              <input type="number" class="fi" id="pay-advance-amount" min="0" style="padding-left:38px" placeholder="e.g. 100">
+            </div>
+            <div class="hint">Customers pay this before booking is confirmed.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- UPI setup -->
+      <div class="dc" style="margin-bottom:16px">
+        <div class="dc-hd"><div class="dc-hd-left"><h3><i class="fas fa-qrcode" style="color:var(--t500);margin-right:6px"></i>UPI Setup</h3><p>Upload your QR code OR type your UPI ID - only one is needed</p></div></div>
+        <div class="dc-bd">
+
+          <!-- Method switcher -->
+          <div style="display:flex;gap:6px;background:var(--g100);padding:3px;border-radius:9px;width:fit-content;margin-bottom:18px">
+            <button id="upi-tab-qr" class="dash-tab active" style="padding:7px 18px;font-size:.8rem" onclick="switchUPIMethod('qr')">
+              <i class="fas fa-qrcode"></i> Upload QR Code
+            </button>
+            <button id="upi-tab-id" class="dash-tab" style="padding:7px 18px;font-size:.8rem" onclick="switchUPIMethod('id')">
+              <i class="fas fa-at"></i> Enter UPI ID
+            </button>
+          </div>
+
+          <!-- QR upload -->
+          <div id="upi-method-qr">
+            <div style="display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap">
+              <div>
+                <div id="pay-qr-preview" style="width:150px;height:150px;background:var(--g50);border:2px dashed var(--g200);border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;overflow:hidden" onclick="document.getElementById('pay-qr-input').click()">
+                  <i class="fas fa-qrcode" id="pay-qr-placeholder" style="font-size:2.5rem;color:var(--g300);margin-bottom:8px"></i>
+                  <span style="font-size:.72rem;color:var(--g400)">Click to upload</span>
+                  <img id="pay-qr-img" src="" style="display:none;width:100%;height:100%;object-fit:contain">
+                </div>
+                <input type="file" id="pay-qr-input" accept="image/*" style="display:none" onchange="handleQRUpload(event)">
+                <button class="dc-btn dc-btn-ghost" onclick="document.getElementById('pay-qr-input').click()" style="width:100%;margin-top:8px;font-size:.8rem">
+                  <i class="fas fa-upload"></i> Upload QR
+                </button>
+              </div>
+              <div style="flex:1;min-width:180px">
+                <div style="font-size:.82rem;color:var(--g600);line-height:1.7">
+                  <div style="margin-bottom:5px"><i class="fas fa-check-circle" style="color:var(--t500);margin-right:5px"></i>Upload your UPI QR from PhonePe, GPay, Paytm etc.</div>
+                  <div style="margin-bottom:5px"><i class="fas fa-check-circle" style="color:var(--t500);margin-right:5px"></i>Bot sends this QR to customers after booking</div>
+                  <div><i class="fas fa-check-circle" style="color:var(--t500);margin-right:5px"></i>UPI ID is extracted automatically from the QR</div>
+                </div>
+                <div id="qr-extracted-upi" style="display:none;margin-top:12px;padding:9px 12px;background:var(--t50);border:1px solid var(--t200);border-radius:9px;font-size:.8rem;color:var(--t700);font-weight:600">
+                  <i class="fas fa-check-circle" style="margin-right:5px"></i>UPI ID: <span id="qr-upi-val"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Manual UPI ID -->
+          <div id="upi-method-id" style="display:none">
+            <div class="form-field" style="max-width:360px">
+              <label>Your UPI ID</label>
+              <input type="text" class="fi" id="pay-upi-id" placeholder="name@upi or 9876543210@ybl" oninput="onUPIIdInput()">
+              <div class="hint">e.g. name@phonepe or 9876543210@ybl or name@paytm</div>
+            </div>
+            <div id="upi-id-preview" style="display:none;margin-top:10px;padding:10px 14px;background:var(--t50);border:1.5px solid var(--t200);border-radius:10px;display:flex;align-items:center;gap:10px">
+              <i class="fas fa-check-circle" style="color:var(--t600)"></i>
+              <span style="font-size:.82rem;font-weight:700;color:var(--t700)" id="upi-id-display"></span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div><!-- /settings-grid -->
+
+      <div class="form-actions" style="margin-top:16px">
+        <button class="dc-btn dc-btn-primary" onclick="savePaymentSettings()"><i class="fas fa-save"></i> Save Settings</button>
+        <span class="save-indicator" id="pay-settings-saved"></span>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ TAB: SALON SETTINGS ═══════════════ -->
+<div class="tab-panel" id="tab-settings">
+
+  <div class="settings-wrap">
+
+  <!-- Salon Info + Hours stacked, Services on right (collapses to single col on mobile) -->
+  <div class="settings-grid">
+
+    <!-- LEFT: Info + Hours stacked -->
+    <div style="display:flex;flex-direction:column;gap:18px">
+
+      <!-- Basic info -->
+      <div class="dc">
+        <div class="dc-hd">
+          <div class="dc-hd-left"><h3><i class="fas fa-store" style="color:var(--t500);margin-right:7px"></i>Salon Information</h3><p>Used by the booking bot and shown to clients</p></div>
+        </div>
+        <div class="dc-bd">
+          <div class="form-grid form-grid-2" style="margin-bottom:14px">
+            <div class="form-field">
+              <label>Salon Name *</label>
+              <input type="text" class="fi" id="set-salon-name" value="{{ current_user.salon_name or '' }}" placeholder="e.g. Styles Hub Salon">
+            </div>
+            <div class="form-field">
+              <label>Owner Name</label>
+              <input type="text" class="fi" id="set-owner-name" value="{{ current_user.owner_name or '' }}" placeholder="Your full name">
+            </div>
+          </div>
+          <div class="form-field" style="margin-bottom:14px">
+            <label>Salon Address</label>
+            <div style="position:relative">
+              <i class="fas fa-map-marker-alt" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--g400);font-size:.84rem;pointer-events:none;z-index:1"></i>
+              <input type="text" class="fi" id="set-address" autocomplete="off"
+                     value="{{ current_user.address or '' }}"
+                     placeholder="Start typing your salon address…"
+                     style="padding-left:34px">
+            </div>
+          </div>
+          <div class="form-grid form-grid-2" style="margin-bottom:14px">
+            <div class="form-field">
+              <label>City</label>
+              <input type="text" class="fi" id="set-city" value="{{ current_user.city or '' }}" placeholder="e.g. Delhi">
+            </div>
+            <div class="form-field">
+              <label>Phone Number</label>
+              <input type="tel" class="fi" id="set-phone" value="{{ current_user.phone or '' }}" placeholder="+91 98765 43210">
+            </div>
+          </div>
+          <div class="form-actions">
+            <button class="dc-btn dc-btn-primary" onclick="saveSettings()"><i class="fas fa-save"></i> Save Changes</button>
+            <span class="save-indicator" id="settings-saved"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Operating hours -->
+      <div class="dc">
+        <div class="dc-hd"><div class="dc-hd-left"><h3><i class="fas fa-business-time" style="color:var(--t500);margin-right:7px"></i>Operating Hours</h3><p>Default hours shown to clients</p></div></div>
+        <div class="dc-bd">
+          <div class="form-grid form-grid-2" style="margin-bottom:14px">
+            <div class="form-field">
+              <label>Opens at</label>
+              <input type="time" class="fi" id="set-open" value="{{ current_user.opening_time or '09:00' }}">
+            </div>
+            <div class="form-field">
+              <label>Closes at</label>
+              <input type="time" class="fi" id="set-close" value="{{ current_user.closing_time or '20:00' }}">
+            </div>
+          </div>
+          <div class="form-field" style="margin-bottom:14px">
+            <label>Working Days</label>
+            <select class="fi" id="set-days">
+              <option value="mon-sat">Monday – Saturday</option>
+              <option value="mon-sun">Monday – Sunday (All Days)</option>
+              <option value="tue-sun">Tuesday – Sunday</option>
+              <option value="custom">Custom (use Schedule Manager)</option>
+            </select>
+          </div>
+          <div class="form-actions">
+            <button class="dc-btn dc-btn-primary" onclick="saveSettings()"><i class="fas fa-save"></i> Save Hours</button>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /left stacked -->
+
+    <!-- RIGHT: Services -->
+    <div>
+      <div class="dc" style="position:sticky;top:72px">
+        <div class="dc-hd">
+          <div class="dc-hd-left"><h3><i class="fas fa-cut" style="color:var(--t500);margin-right:7px"></i>Services</h3><p>What your salon offers</p></div>
+          <button class="dc-btn dc-btn-primary" onclick="addServiceRow()"><i class="fas fa-plus"></i> Add</button>
+        </div>
+        <!-- Column headers (hidden on mobile) -->
+        <div class="svc-header">
+          <div></div>
+          <div>Service Name</div>
+          <div>Price</div>
+          <div>Duration</div>
+          <div></div>
+        </div>
+        <div id="services-list" style="padding:4px 0;max-height:480px;overflow-y:auto"></div>
+        <div style="padding:12px 16px;border-top:1px solid var(--g100);display:flex;align-items:center;gap:10px">
+          <button class="dc-btn dc-btn-primary" onclick="saveServices()"><i class="fas fa-save"></i> Save Services</button>
+          <span class="save-indicator" id="svc-saved"></span>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /settings-grid -->
+  </div>
+
+<!-- ── Service edit modal (mobile bottom sheet) ── -->
+<div id="svc-edit-modal" style="display:none" onclick="if(event.target===this)closeSvcModal()">
+  <div class="svc-modal-sheet">
+    <div class="svc-modal-handle"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <h3 style="font-family:var(--df);font-size:1.05rem;font-weight:700;color:var(--g900);margin:0">
+        <i class="fas fa-cut" style="color:var(--t500);margin-right:8px"></i>Edit Service
+      </h3>
+      <button onclick="closeSvcModal()" style="width:30px;height:30px;background:var(--g100);border:none;border-radius:50%;cursor:pointer;color:var(--g500);font-size:.84rem;display:flex;align-items:center;justify-content:center">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="form-field">
+        <label>Service Name *</label>
+        <input type="text" class="fi" id="svc-modal-name" placeholder="e.g. Haircut, Facial, Manicure">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div class="form-field">
+          <label>Price (Rs.)</label>
+          <input type="number" class="fi" id="svc-modal-price" min="0" placeholder="0">
+        </div>
+        <div class="form-field">
+          <label>Duration</label>
+          <select class="fi" id="svc-modal-dur">
+            <option value="15">15 min</option>
+            <option value="30">30 min</option>
+            <option value="45">45 min</option>
+            <option value="60">1 hr</option>
+            <option value="90">1.5 hr</option>
+            <option value="120">2 hr</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:24px">
+      <button onclick="deleteSvcFromModal()" style="flex:0 0 44px;height:44px;background:#fee2e2;color:#ef4444;border:none;border-radius:11px;cursor:pointer;font-size:.9rem;display:flex;align-items:center;justify-content:center">
+        <i class="fas fa-trash"></i>
+      </button>
+      <button onclick="saveSvcModal()" style="flex:1;height:44px;background:var(--t600);color:#fff;border:none;border-radius:11px;font-size:.95rem;font-weight:700;cursor:pointer;font-family:var(--bf)">
+        <i class="fas fa-check"></i> Save
+      </button>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ═══════════════ TAB: ANALYTICS ═══════════════ -->
+<div class="tab-panel" id="tab-analytics">
+
+  <!-- Period selector -->
+  <div style="display:flex;gap:4px;background:var(--g100);padding:3px;border-radius:9px;width:fit-content;margin-bottom:20px">
+    <button class="dash-tab active" style="padding:6px 16px;font-size:.8rem" onclick="setPeriod('week',this)">This Week</button>
+    <button class="dash-tab" style="padding:6px 16px;font-size:.8rem" onclick="setPeriod('month',this)">This Month</button>
+    <button class="dash-tab" style="padding:6px 16px;font-size:.8rem" onclick="setPeriod('all',this)">All Time</button>
+  </div>
+
+  <!-- Real stats -->
+  <div class="stats-row" style="margin-bottom:20px">
+    <div class="stat-card">
+      <div class="stat-top"><div class="stat-ic ic-t"><i class="fas fa-calendar-check"></i></div></div>
+      <div class="stat-val" id="an-total">—</div><div class="stat-lbl">Appointments</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-top"><div class="stat-ic ic-t"><i class="fas fa-calendar"></i></div></div>
+      <div class="stat-val" id="an-today">—</div><div class="stat-lbl">Today</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-top"><div class="stat-ic ic-g"><i class="fas fa-users"></i></div></div>
+      <div class="stat-val" id="an-clients">—</div><div class="stat-lbl">Unique Clients</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-top"><div class="stat-ic ic-b"><i class="fas fa-clock"></i></div></div>
+      <div class="stat-val" id="an-upcoming">—</div><div class="stat-lbl">Upcoming</div>
+    </div>
+  </div>
+
+  <div class="analytics-grid">
+    <!-- Daily appointments chart -->
+    <div class="dc">
+      <div class="dc-hd"><div class="dc-hd-left"><h3>Daily Appointments</h3><p id="an-chart-label">Last 7 days</p></div></div>
+      <div class="dc-bd">
+        <div class="bar-chart" id="revenue-bars" style="height:140px"></div>
+      </div>
+    </div>
+
+    <!-- Top services (real) -->
+    <div class="dc">
+      <div class="dc-hd"><div class="dc-hd-left"><h3>Top Services</h3><p>Most booked</p></div></div>
+      <div class="dc-bd" id="an-top-services">
+        <div style="padding:20px;text-align:center;color:var(--g400);font-size:.84rem">No bookings yet</div>
+      </div>
+    </div>
+
+    <!-- Peak hours (real) -->
+    <div class="dc">
+      <div class="dc-hd"><div class="dc-hd-left"><h3>Peak Hours</h3><p>Busiest booking times</p></div></div>
+      <div class="dc-bd" id="an-peak-hours">
+        <div style="padding:20px;text-align:center;color:var(--g400);font-size:.84rem">No data yet</div>
+      </div>
+    </div>
+
+    <!-- Appointment activity list -->
+    <div class="dc">
+      <div class="dc-hd"><div class="dc-hd-left"><h3>Recent Activity</h3><p>Latest bookings</p></div></div>
+      <div id="an-activity" style="max-height:280px;overflow-y:auto"></div>
+    </div>
+  </div>
+</div>
+
+<!-- New Appointment Modal -->
+<div id="new-appt-modal" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(15,23,42,.65);backdrop-filter:blur(4px);align-items:flex-end;justify-content:center;padding:0">
+  <div style="background:#fff;width:100%;max-width:480px;border-radius:20px 20px 0 0;padding:24px 20px 32px;box-shadow:0 -8px 40px rgba(0,0,0,.18);max-height:90vh;overflow-y:auto">
+    <div style="width:40px;height:4px;background:var(--g200);border-radius:2px;margin:0 auto 18px"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <h3 style="font-family:var(--df);font-size:1.1rem;font-weight:700;color:var(--g900);margin:0"><i class="fas fa-plus-circle" style="color:var(--t500);margin-right:8px"></i>New Appointment</h3>
+      <button onclick="closeNewApptModal()" style="background:var(--g100);border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;color:var(--g500);font-size:.84rem"><i class="fas fa-times"></i></button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div class="form-field">
+        <label>Customer Name *</label>
+        <input type="text" class="fi" id="na-name" placeholder="e.g. Priya Sharma">
+      </div>
+      <div class="form-field">
+        <label>Service *</label>
+        <select class="fi" id="na-service"></select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-field">
+          <label>Date *</label>
+          <input type="date" class="fi" id="na-date">
+        </div>
+        <div class="form-field">
+          <label>Time *</label>
+          <input type="time" class="fi" id="na-time">
+        </div>
+      </div>
+      <div class="form-field">
+        <label>Duration</label>
+        <select class="fi" id="na-duration">
+          <option value="15">15 min</option>
+          <option value="30" selected>30 min</option>
+          <option value="45">45 min</option>
+          <option value="60">60 min</option>
+          <option value="90">90 min</option>
+          <option value="120">2 hours</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label>Notes <span style="font-weight:400;color:var(--g400)">(optional)</span></label>
+        <input type="text" class="fi" id="na-notes" placeholder="Any special requests…">
+      </div>
+      <button onclick="saveNewAppt()" id="na-save-btn" style="width:100%;padding:13px;background:linear-gradient(135deg,var(--t700),var(--t500));color:#fff;border:none;border-radius:12px;font-family:var(--bf);font-size:.94rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 14px rgba(13,148,136,.3)">
+        <i class="fas fa-check"></i> Save Appointment
+      </button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ── Variable declarations (hoisted to avoid TDZ errors) ────────────────────
+let schedChairs    = 1;
+let _schedMode     = 'hourly';
+let _upiQrBase64   = '';
+let _extractedUpiId = '';
+
+// ═══════════════════════════════════════════════════
+//  TAB SYSTEM
+// ═══════════════════════════════════════════════════
+// _tabLoaded lives on window to avoid duplicate-const across script blocks
+if (!window._tabLoaded) window._tabLoaded = {};
+
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.dash-tab, .mob-tab-item').forEach(b => b.classList.remove('active'));
+  const panel = document.getElementById('tab-' + name);
+  if (panel) panel.classList.add('active');
+  // Find and activate the correct button using attribute value (avoids querySelector quote issues)
+  Array.from(document.querySelectorAll('.dash-tab')).forEach(function(b) {
+    if ((b.getAttribute('onclick') || '').indexOf("'" + name + "'") !== -1) b.classList.add('active');
+  });
+  Array.from(document.querySelectorAll('.mob-tab-item')).forEach(function(b) {
+    if ((b.getAttribute('onclick') || '').indexOf("'" + name + "'") !== -1) b.classList.add('active');
+  });
+  if (!window._tabLoaded[name]) window._tabLoaded[name] = true;
+  try { localStorage.setItem('sf_active_tab', name); } catch(e) {}
+  var mobileLabel = document.getElementById('mob-tab-label');
+  var tabNames = {overview:'Overview',appointments:'Appointments',schedule:'Schedule',
+    whatsapp:'WhatsApp',payment:'Payment',settings:'Settings',analytics:'Analytics'};
+  if (mobileLabel) mobileLabel.textContent = tabNames[name] || name;
+  if (name === 'whatsapp')  loadBotSettings();
+  if (name === 'schedule')  { loadScheduleFromServer(); renderChairsPicker(); loadScheduleMode(); }
+  if (name === 'analytics') renderAnalytics();
+  if (name === 'payment')   loadPaymentSettings();
+  if (name === 'settings' && !window._tabLoaded._svcsLoaded) { loadServices(); window._tabLoaded._svcsLoaded = true; }
+}
+window.switchTab = switchTab;
+(function() {
+  // Restore last active tab (hash → localStorage → default overview)
+  const hash = location.hash.replace('#','');
+  let restoreTab = 'overview';
+  if (hash && document.getElementById('tab-' + hash)) {
+    restoreTab = hash;
+  } else {
+    try {
+      const saved = localStorage.getItem('sf_active_tab');
+      if (saved && document.getElementById('tab-' + saved)) restoreTab = saved;
+    } catch(e) {}
+  }
+  var btn = Array.from(document.querySelectorAll('.dash-tab')).find(function(b){ return (b.getAttribute('onclick')||'').indexOf("'" + restoreTab + "'") !== -1; }) || null;
+  switchTab(restoreTab, btn);
+})();
+
+// ===================================================
+//  APPOINTMENTS  -  real data from /api/appointments
+// ===================================================
+let APPTS = [];
+
+function apptHTML(a) {
+  const today = new Date().toLocaleDateString('sv-SE');
+  const isToday = a.date === today;
+  const isPast  = a.date < today;
+  const payBadge = a.payment_status === 'paid'        ? '<span style="font-size:.68rem;background:#dcfce7;color:#16a34a;padding:2px 7px;border-radius:99px;margin-left:6px;font-weight:700">Paid</span>'
+                 : a.payment_status === 'pending'     ? '<span style="font-size:.68rem;background:#fef9c3;color:#b45309;padding:2px 7px;border-radius:99px;margin-left:6px;font-weight:700">Awaiting Payment</span>'
+                 : a.payment_status === 'suspicious'  ? '<span style="font-size:.68rem;background:#fee2e2;color:#dc2626;padding:2px 7px;border-radius:99px;margin-left:6px;font-weight:700">Suspicious</span>'
+                 : a.payment_status === 'manual_review' ? '<span style="font-size:.68rem;background:#ede9fe;color:#7c3aed;padding:2px 7px;border-radius:99px;margin-left:6px;font-weight:700">Review</span>'
+                 : '';
+  const statusLabel = isPast ? 'Completed' : isToday ? 'Today' : 'Upcoming';
+  const statusClass = isPast ? 'pill-c' : isToday ? 'pill-p' : 'pill-u';
+  const durLabel = a.duration_min ? a.duration_min + 'm' : '';
+  return `<div class="appt-item" data-status="${statusLabel.toLowerCase()}">
+    <div class="appt-time"><span class="t">${a.time || ''}</span><span class="d">${durLabel}</span></div>
+    <div class="appt-line"></div>
+    <div class="appt-info">
+      <div class="appt-name">${escHtml(a.customer_name || 'Customer')}${payBadge}</div>
+      <div class="appt-svc">${escHtml(a.service || '')}${a.date ? '  .  ' + a.date : ''}${a.transaction_id ? '  ·  TXN: ' + a.transaction_id : ''}</div>
+    </div>
+    <span class="appt-pill ${statusClass}">${statusLabel}</span>
+  </div>`;
+}
+
+async function loadAppointments() {
+  try {
+    const r = await fetch('/api/appointments', { credentials: 'same-origin' });
+    const d = await r.json();
+    if (!d.ok) return;
+    APPTS = d.appointments || [];
+    renderAppointmentLists();
+    updateOverviewStats();
+  } catch(e) { console.warn('[APPTS]', e); }
+}
+
+function renderAppointmentLists(filter = 'all') {
+  const today = new Date().toLocaleDateString('sv-SE');
+  // Update count label
+  const countEl = document.getElementById('appt-count');
+  if (countEl) countEl.textContent = APPTS.length + ' appointment' + (APPTS.length !== 1 ? 's' : '');
+
+  // Overview: today's appointments
+  const overviewList = document.getElementById('overview-appts');
+  if (overviewList) {
+    const todayAppts = APPTS.filter(a => a.date === today);
+    if (todayAppts.length === 0) {
+      overviewList.innerHTML = '<div style="text-align:center;padding:24px;color:var(--g400);font-size:.84rem"><i class="fas fa-calendar" style="display:block;font-size:1.5rem;margin-bottom:8px"></i>No appointments today</div>';
+    } else {
+      overviewList.innerHTML = todayAppts.slice(0, 5).map(apptHTML).join('');
+      if (todayAppts.length > 5) {
+        overviewList.innerHTML += `<div style="text-align:center;padding:12px;font-size:.8rem;color:var(--t600);cursor:pointer;font-weight:600" onclick="switchTab('appointments',getTabBtn('appointments'))">View ${todayAppts.length - 5} more -></div>`;
+      }
+    }
+  }
+
+  // Full list
+  const fullList = document.getElementById('full-appt-list');
+  if (fullList) {
+    let filtered = APPTS;
+    if (filter === 'today')    filtered = APPTS.filter(a => a.date === today);
+    if (filter === 'upcoming') filtered = APPTS.filter(a => a.date >= today);
+    if (filtered.length === 0) {
+      fullList.innerHTML = '<div style="text-align:center;padding:32px;color:var(--g400)"><i class="fas fa-calendar-times" style="display:block;font-size:2rem;margin-bottom:10px"></i>No appointments found</div>';
+    } else {
+      fullList.innerHTML = filtered.map(apptHTML).join('');
+    }
+  }
+}
+
+function updateOverviewStats() {
+  const today = new Date().toLocaleDateString('sv-SE');
+
+  // Calculate real counts
+  const weekStart = new Date(); weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1);
+  const weekKey   = weekStart.toLocaleDateString('sv-SE');
+  const todayCount    = APPTS.filter(a => a.date === today).length;
+  const weekCount     = APPTS.filter(a => a.date >= weekKey && a.date <= today).length;
+  const upcomingCount = APPTS.filter(a => a.date > today).length;
+  const totalCount    = APPTS.length;
+
+  // Stat cards — use explicit IDs, no positional querySelector
+  const todayEl = document.getElementById('stat-today-appts');
+  const weekEl  = document.getElementById('stat-week-appts');
+  const totalEl = document.getElementById('stat-total-appts');
+  const waEl    = document.getElementById('stat-wa-appts');
+  if (todayEl) todayEl.textContent = todayCount;
+  if (weekEl)  weekEl.textContent  = weekCount;
+  if (totalEl) totalEl.textContent = totalCount;
+  // WA bookings = appointments from wa_appointments (all are WA sourced)
+  if (waEl)    waEl.textContent    = totalCount;
+
+  // Today header
+  const hdr = document.getElementById('today-appts-hdr');
+  if (hdr) hdr.textContent = todayCount === 0 ? 'No appointments today' :
+    `${todayCount} appointment${todayCount !== 1 ? 's' : ''} today`;
+
+  // WA mini stats
+  const waToday = document.querySelector('[data-wa-today]');
+  const waTotal = document.querySelector('[data-wa-total]');
+  if (waToday) waToday.textContent = todayCount;
+  if (waTotal) waTotal.textContent = totalCount;
+
+  // Weekly metrics
+  const mw = document.getElementById('metric-week');
+  const mt = document.getElementById('metric-today');
+  const mtt= document.getElementById('metric-total');
+  const mu = document.getElementById('metric-upcoming');
+  if (mw)  mw.textContent  = weekCount;
+  if (mt)  mt.textContent  = todayCount;
+  if (mtt) mtt.textContent = totalCount;
+  if (mu)  mu.textContent  = upcomingCount;
+
+  // Weekly bars  -  last 7 days real counts
+  const days = [];
+  for (let i = 6; i >= 0; i--) {
+    const dt = new Date(); dt.setDate(dt.getDate() - i);
+    const key = dt.toLocaleDateString('sv-SE');
+    days.push(APPTS.filter(a => a.date === key).length);
+  }
+  renderBars('weekly-bars', days, ['M','T','W','T','F','S','S'], null);
+}
+
+function filterAppts(filter, btn) {
+  document.querySelectorAll('#tab-appointments .dash-tab').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderAppointmentLists(filter);
+}
+
+
+// ===================================================
+//  WEEKLY BARS (Overview + Analytics)
+// ===================================================
+function renderBars(containerId, values, labels, formatter) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  const max = Math.max(...values);
+  el.innerHTML = values.map((v, i) => `
+    <div class="bar-wrap">
+      <div class="bar-val">${formatter ? formatter(v) : v}</div>
+      <div class="bar-col" style="height:${max ? (v/max*100) : 4}%"></div>
+      <div class="bar-lbl">${labels[i]}</div>
+    </div>`).join('');
+}
+// Weekly bars rendered after real appointments load (see loadAppointments/updateOverviewStats)
+// Revenue bars - placeholder (no revenue tracking yet)
+renderBars('revenue-bars', [0,0,0,0,0,0,0], ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'], v => v > 0 ? 'Rs.'+(v/1000).toFixed(1)+'k' : 'Rs.0');
+
+// ===================================================
+//  WA CONNECT / DISCONNECT
+// ===================================================
+// ===============================================================
+//  WHATSAPP BOT  -  Full state machine with QR polling
+// ===============================================================
+
+const WA_POLL_INTERVAL_MS = 5000;   // poll every 5s
+const WA_IDLE_TIMEOUT_MS  = 3 * 60 * 1000; // stop polling after 3 min if no scan
+
+let _waPollTimer   = null;
+let _waIdleTimer   = null;
+let _waCurrentView = null;   // 'connected' | 'qr' | 'idle' | 'stopped' | 'none'
+
+// -- Show exactly one view ----------------------------------------
+function _waShowView(view) {
+  if (_waCurrentView === view) return;
+  _waCurrentView = view;
+  ['connected','qr','idle','stopped','none'].forEach(v => {
+    const el = document.getElementById('wa-view-' + v);
+    if (el) el.style.display = v === view ? '' : 'none';
+  });
+  _updateHeader(view);
+}
+
+function _updateHeader(view) {
+  const dot = document.getElementById('wa-dot-el');
+  const txt = document.getElementById('wa-status-txt');
+  const sub = document.getElementById('wa-hdr-sub');
+  const badge = document.getElementById('wa-status-badge');
+  const configs = {
+    connected: { dot:'#4ade80', txt:'Connected & Active', sub:'Bot is live . taking bookings', bg:'rgba(74,222,128,.15)', border:'rgba(74,222,128,.3)' },
+    qr:        { dot:'#facc15', txt:'Waiting for scan...',   sub:'Scan the QR to activate bot',  bg:'rgba(250,204,21,.12)', border:'rgba(250,204,21,.3)' },
+    idle:      { dot:'#60a5fa', txt:'QR Expired',           sub:'Click Reload QR to try again', bg:'rgba(96,165,250,.12)', border:'rgba(96,165,250,.3)' },
+    stopped:   { dot:'#f87171', txt:'Bot Stopped',          sub:'Click Start Bot to resume',    bg:'rgba(248,113,113,.12)',border:'rgba(248,113,113,.3)' },
+    none:      { dot:'#94a3b8', txt:'Not Connected',         sub:'Assign a bot to get started',  bg:'rgba(148,163,184,.1)', border:'rgba(148,163,184,.2)' },
+  };
+  const c = configs[view] || configs.none;
+  if (dot)   dot.style.background = c.dot;
+  if (txt)   txt.textContent      = c.txt;
+  if (sub)   sub.textContent      = c.sub;
+  if (badge) { badge.style.background = c.bg; badge.style.borderColor = c.border; }
+}
+
+// -- QR image loader ----------------------------------------------
+function _setQR(dataUrl) {
+  const img  = document.getElementById('wa-qr-img');
+  const spin = document.getElementById('wa-qr-spinner');
+  if (!dataUrl) { if (img) img.style.display='none'; if (spin) spin.style.display=''; return; }
+  if (img)  { img.src = dataUrl; img.style.display = ''; }
+  if (spin) spin.style.display = 'none';
+}
+
+function _setPollTxt(txt) {
+  const el = document.getElementById('wa-poll-txt');
+  if (el) el.textContent = txt;
+}
+
+// -- Start QR polling ---------------------------------------------
+function waStartQR() {
+  _waStopPoller();
+  _waShowView('qr');
+  _setQR(null);   // show spinner while waiting
+
+  // Idle timeout  -  stop polling after 3 min
+  _waIdleTimer = setTimeout(() => {
+    _waStopPoller();
+    _waShowView('idle');
+  }, WA_IDLE_TIMEOUT_MS);
+
+  _waPollTimer = setInterval(_waPollTick, WA_POLL_INTERVAL_MS);
+  _waPollTick();   // immediate first check
+}
+
+function _waStopPoller() {
+  clearInterval(_waPollTimer); _waPollTimer = null;
+  clearTimeout(_waIdleTimer);  _waIdleTimer  = null;
+}
+
+async function _waPollTick() {
+  try {
+    const r  = await fetch('/api/whatsapp/status', { credentials: 'same-origin' });
+    const d  = await r.json();
+    const now = new Date().toLocaleTimeString('en-IN', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    _setPollTxt(`Last checked: ${now}  .  checking every 5s`);
+
+    if (d.connected) {
+      _waStopPoller();
+      if (d.phone) {
+        const el = document.getElementById('wa-phone-display');
+        if (el) el.textContent = d.phone + ' . Bot is live';
+      }
+      _waShowView('connected');
+      showToast('WhatsApp connected! Bot is now live.', 'success');
+      return;
+    }
+    // QR available  -  show it
+    if (d.qr) _setQR(d.qr);
+  } catch(e) {
+    _setPollTxt('Check failed  -  retrying...');
+  }
+}
+
+// -- Bot control actions ------------------------------------------
+async function botControl(action) {
+  const labels = { stop:'Stopping...', restart:'Restarting...', disconnect:'Disconnecting...', start:'Starting...' };
+  showToast(labels[action] || 'Working...', 'info');
+
+  try {
+    const r = await fetchAPI('/api/bot/control', {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action }),
+    });
+    const d = await r.json();
+    if (!d.ok) { showToast(d.error || 'Action failed', 'error'); return; }
+
+    if (action === 'stop') {
+      _waStopPoller();
+      _waShowView('stopped');
+      showToast('Bot stopped.', 'warn');
+    } else if (action === 'start') {
+      // After start, begin QR polling
+      showToast('Bot starting  -  waiting for QR...', 'info');
+      setTimeout(waStartQR, 2000);
+    } else if (action === 'restart') {
+      showToast('Bot restarting  -  waiting for QR...', 'info');
+      setTimeout(waStartQR, 3000);
+    } else if (action === 'disconnect') {
+      _waStopPoller();
+      // After disconnect, try to assign a fresh bot and show QR
+      showToast('Disconnected. Assigning new session...', 'info');
+      setTimeout(waAssignBot, 1000);
+    }
+  } catch(e) {
+    showToast('Request failed: ' + e.message, 'error');
+  }
+}
+
+// -- Assign a free bot slot ---------------------------------------
+async function waAssignBot() {
+  const btn = document.getElementById('wa-assign-btn');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Assigning...'; }
+  try {
+    const r = await fetchAPI('/api/bot/assign', {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const d = await r.json();
+    if (!d.ok) {
+      showToast(d.error || 'No free slots available', 'error');
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fab fa-whatsapp"></i> Assign & Connect'; }
+      return;
+    }
+    showToast('Bot assigned! Loading QR code...', 'success');
+    setTimeout(waStartQR, 2500);
+  } catch(e) {
+    showToast('Assignment failed: ' + e.message, 'error');
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fab fa-whatsapp"></i> Assign & Connect'; }
+  }
+}
+
+// -- Initial state on page load -------------------
+(function waInit() {
+  const connected  = {{ 'true' if current_user.whatsapp_connected else 'false' }};
+  const hasSession = {{ 'true' if current_user.whatsapp_session_id else 'false' }};
+  const waStatus   = {{ current_user.wa_status or 1 }};
+  // wa_status: 1=idle/fresh 2=qr_generated 3=connected
+
+  if (connected) {
+    const phone = {{ ('"' + current_user.whatsapp_phone + '"') | safe if current_user.whatsapp_phone else 'null' }};
+    if (phone) {
+      const el = document.getElementById('wa-phone-display');
+      if (el) el.textContent = phone + ' . Bot is live';
+    }
+    _waShowView('connected');
+  } else if (hasSession && waStatus === 2) {
+    // QR was generated  -  poll for it
+    waStartQR();
+  } else {
+    // wa_status=1 (fresh/after disconnect)  -  show Assign & Connect
+    _waShowView('none');
+  }
+})();
+
+// ===================================================
+//  SAVE HANDLERS (stub  -  wire to backend)
+// ===================================================
+async function saveBotInstructions() {
+  const txt = document.getElementById('bot-instructions').value.trim();
+  const ind = document.getElementById('bot-instr-saved');
+  ind.className = 'save-indicator saving';
+  ind.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+  try {
+    await fetchAPI('/api/profile/bot-instructions', {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ instructions: txt }),
+    });
+    ind.className = 'save-indicator saved';
+    ind.innerHTML = '<i class="fas fa-check-circle"></i> Saved';
+  } catch {
+    ind.className = 'save-indicator'; ind.textContent = 'Save failed';
+  }
+  setTimeout(() => { ind.className = 'save-indicator'; ind.innerHTML = ''; }, 3500);
+}
+
+// -- Bot settings (language + schedule) ------------------------------------
+async function saveBotSettings() {
+  const lang   = document.getElementById('bot-language')?.value || 'auto';
+  const ignore = document.getElementById('sched-ignore-toggle')?.checked || false;
+  _syncIgnoreScheduleUI(ignore);
+  try {
+    await fetchAPI('/api/bot-settings', {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ language: lang, ignore_schedule: ignore }),
+    });
+    showToast('Settings saved', 'success');
+  } catch { showToast('Could not save settings', 'error'); }
+}
+
+async function loadBotSettings() {
+  try {
+    const r = await fetch('/api/bot-settings', { credentials: 'same-origin' });
+    const d = await r.json();
+    const lang = document.getElementById('bot-language');
+    if (lang) lang.value = d.language || 'auto';
+    _syncIgnoreScheduleUI(!!d.ignore_schedule);
+  } catch {}
+
+  // Also check real-time WA connection status on every tab open
+  try {
+    const rs = await fetch('/api/whatsapp/status', { credentials: 'same-origin' });
+    const ds = await rs.json();
+    // connected=true OR wa_status=3 ALWAYS wins — ignore any stale qr in response
+    if (ds.connected === true || ds.wa_status === 3) {
+      _waStopPoller();
+      const el = document.getElementById('wa-phone-display');
+      if (el && ds.phone) el.textContent = ds.phone + ' · Bot is live';
+      _waShowView('connected');
+    } else if (ds.wa_status === 2 && ds.qr && ds.connected !== true) {
+      // QR waiting to be scanned — explicitly NOT connected
+      _waShowView('qr');
+      _setQR(ds.qr);
+      if (!_waPollTimer) _waPollTimer = setInterval(_waPollTick, WA_POLL_INTERVAL_MS);
+    }
+    // wa_status=1 = idle → leave on default idle view (Connect button)
+  } catch {}
+}
+
+// -- New Appointment Modal --------------------------------------------------
+function openNewApptModal() {
+  const modal = document.getElementById('new-appt-modal');
+  modal.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+  // Set today as default date
+  document.getElementById('na-date').value = new Date().toLocaleDateString('sv-SE');
+  // Populate services
+  const sel = document.getElementById('na-service');
+  sel.innerHTML = '<option value=""> -  Select service  - </option>';
+  servicesData.forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s.name;
+    opt.textContent = s.name + (s.price ? '  -  Rs.' + s.price : '');
+    if (s.duration_min) opt.dataset.dur = s.duration_min;
+    sel.appendChild(opt);
+  });
+  sel.onchange = () => {
+    const opt = sel.options[sel.selectedIndex];
+    if (opt?.dataset.dur) document.getElementById('na-duration').value = opt.dataset.dur;
+  };
+}
+
+function closeNewApptModal() {
+  document.getElementById('new-appt-modal').style.display = 'none';
+  document.body.style.overflow = '';
+  ['na-name','na-notes'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+}
+
+async function saveNewAppt() {
+  const name     = document.getElementById('na-name').value.trim();
+  const service  = document.getElementById('na-service').value;
+  const date     = document.getElementById('na-date').value;
+  const time     = document.getElementById('na-time').value;
+  const duration = parseInt(document.getElementById('na-duration').value) || 30;
+  const notes    = document.getElementById('na-notes').value.trim();
+
+  if (!name || !service || !date || !time) {
+    showToast('Please fill in name, service, date and time', 'warn');
+    return;
+  }
+
+  const btn = document.getElementById('na-save-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+  try {
+    // Save directly via bot assign endpoint  -  creates a real wa_appointment entry
+    const r = await fetchAPI('/api/appointments/manual', {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ customer_name: name, service, date, time, duration_min: duration, notes }),
+    });
+    const d = await r.json();
+    if (d.ok) {
+      showToast('Appointment saved!', 'success');
+      closeNewApptModal();
+      loadAppointments();
+    } else {
+      showToast(d.error || 'Could not save appointment', 'error');
+    }
+  } catch { showToast('Network error', 'error'); }
+
+  btn.disabled = false;
+  btn.innerHTML = '<i class="fas fa-check"></i> Save Appointment';
+}
+
+// close modal on backdrop click
+document.getElementById('new-appt-modal')?.addEventListener('click', function(e) {
+  if (e.target === this) closeNewApptModal();
+});
+
+// -- Analytics (real data) -------------------------------------------------
+let analyticsPeriod = 'week';
+
+function setPeriod(p, btn) {
+  analyticsPeriod = p;
+  document.querySelectorAll('#tab-analytics .dash-tab').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderAnalytics();
+}
+
+function renderAnalytics() {
+  const today = new Date().toLocaleDateString('sv-SE');
+
+  // Date range based on period
+  let startDate;
+  const now = new Date();
+  if (analyticsPeriod === 'week') {
+    const d = new Date(now); d.setDate(d.getDate() - 6);
+    startDate = d.toLocaleDateString('sv-SE');
+    document.getElementById('an-chart-label').textContent = 'Last 7 days';
+  } else if (analyticsPeriod === 'month') {
+    const d = new Date(now); d.setDate(d.getDate() - 29);
+    startDate = d.toLocaleDateString('sv-SE');
+    document.getElementById('an-chart-label').textContent = 'Last 30 days';
+  } else {
+    startDate = '2000-01-01';
+    document.getElementById('an-chart-label').textContent = 'All time';
+  }
+
+  const filtered = APPTS.filter(a => a.date >= startDate);
+  const upcoming = APPTS.filter(a => a.date > today);
+  const uniqueClients = new Set(filtered.map(a => a.customer_name?.toLowerCase().trim())).size;
+
+  // Stats
+  const el = id => document.getElementById(id);
+  if (el('an-total'))    el('an-total').textContent    = filtered.length;
+  if (el('an-today'))    el('an-today').textContent    = APPTS.filter(a => a.date === today).length;
+  if (el('an-clients'))  el('an-clients').textContent  = uniqueClients;
+  if (el('an-upcoming')) el('an-upcoming').textContent = upcoming.length;
+
+  // Daily chart
+  const days = analyticsPeriod === 'week' ? 7 : analyticsPeriod === 'month' ? 30 : 14;
+  const vals = [], lbls = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(now); d.setDate(d.getDate() - i);
+    const key = d.toLocaleDateString('sv-SE');
+    vals.push(APPTS.filter(a => a.date === key).length);
+    lbls.push(days <= 7 ? ['M','T','W','T','F','S','S'][d.getDay()] : (i === 0 ? 'Today' : (days - i) + 'd'));
+  }
+  renderBars('revenue-bars', vals, lbls, null);
+
+  // Top services
+  const svcCount = {};
+  filtered.forEach(a => { if (a.service) svcCount[a.service] = (svcCount[a.service] || 0) + 1; });
+  const topSvcs = Object.entries(svcCount).sort((a,b) => b[1]-a[1]).slice(0,5);
+  const maxSvc  = topSvcs[0]?.[1] || 1;
+  const tsList  = document.getElementById('an-top-services');
+  if (tsList) {
+    if (!topSvcs.length) {
+      tsList.innerHTML = '<div style="padding:20px;text-align:center;color:var(--g400);font-size:.84rem">No bookings yet</div>';
+    } else {
+      tsList.innerHTML = '<div class="metric-list">' + topSvcs.map(([name, cnt]) =>
+        `<div class="metric-item">
+          <span class="mi-label">${escHtml(name)}</span>
+          <div class="mi-bar-wrap">
+            <div class="mi-bar"><div class="mi-fill" style="width:${Math.round(cnt/maxSvc*100)}%"></div></div>
+            <span class="mi-pct">${cnt}</span>
+          </div>
+        </div>`
+      ).join('') + '</div>';
+    }
+  }
+
+  // Peak hours (bucket by 2h window)
+  const hourBuckets = {};
+  filtered.forEach(a => {
+    if (!a.time) return;
+    const h = parseInt(a.time.split(':')[0]);
+    const bucket = `${String(h).padStart(2,'0')}:00`;
+    hourBuckets[bucket] = (hourBuckets[bucket] || 0) + 1;
+  });
+  const topHours = Object.entries(hourBuckets).sort((a,b) => b[1]-a[1]).slice(0,5);
+  const maxH = topHours[0]?.[1] || 1;
+  const phList = document.getElementById('an-peak-hours');
+  if (phList) {
+    if (!topHours.length) {
+      phList.innerHTML = '<div style="padding:20px;text-align:center;color:var(--g400);font-size:.84rem">No data yet</div>';
+    } else {
+      phList.innerHTML = '<div class="metric-list">' + topHours.map(([h, cnt]) => {
+        const hourNum = parseInt(h);
+        const label = `${hourNum % 12 || 12} ${hourNum < 12 ? 'AM' : 'PM'}`;
+        return `<div class="metric-item">
+          <span class="mi-label">${label}</span>
+          <div class="mi-bar-wrap">
+            <div class="mi-bar"><div class="mi-fill" style="width:${Math.round(cnt/maxH*100)}%"></div></div>
+            <span class="mi-pct">${cnt}</span>
+          </div>
+        </div>`;
+      }).join('') + '</div>';
+    }
+  }
+
+  // Recent activity
+  const actEl = document.getElementById('an-activity');
+  if (actEl) {
+    const recent = [...APPTS].sort((a,b) => (b.date+b.time).localeCompare(a.date+a.time)).slice(0,8);
+    if (!recent.length) {
+      actEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--g400);font-size:.84rem">No bookings yet</div>';
+    } else {
+      actEl.innerHTML = recent.map(a =>
+        `<div style="display:flex;align-items:center;gap:12px;padding:10px 18px;border-bottom:1px solid var(--g50)">
+          <div style="width:36px;height:36px;background:var(--t50);border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--t600);flex-shrink:0;font-size:.78rem;font-weight:700">
+            ${escHtml((a.customer_name||'?')[0].toUpperCase())}
+          </div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:.84rem;font-weight:600;color:var(--g900)">${escHtml(a.customer_name||'Customer')}</div>
+            <div style="font-size:.74rem;color:var(--g500)">${escHtml(a.service||'')} - ${a.date||''} ${a.time||''}</div>
+          </div>
+        </div>`
+      ).join('');
+    }
+  }
+}
+
+async function saveSettings() {
+  const ind = document.getElementById('settings-saved');
+  ind.className = 'save-indicator saving';
+  ind.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+  const payload = {
+    salon_name:   document.getElementById('set-salon-name').value.trim(),
+    owner_name:   document.getElementById('set-owner-name')?.value.trim(),
+    address:      document.getElementById('set-address').value.trim(),
+    city:         document.getElementById('set-city').value.trim(),
+    phone:        document.getElementById('set-phone').value.trim(),
+  };
+  try {
+    const r = await fetchAPI('/api/profile/update', {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    ind.className = 'save-indicator saved';
+    ind.innerHTML = '<i class="fas fa-check-circle"></i> Saved';
+  } catch {
+    ind.className = 'save-indicator'; ind.textContent = 'Save failed';
+  }
+  setTimeout(() => { ind.className = 'save-indicator'; ind.innerHTML = ''; }, 3500);
+}
+
+function setPeriod(p, btn) {
+  document.querySelectorAll('#tab-analytics .dash-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+// ===================================================
+//  SERVICES MANAGEMENT
+// ===================================================
+let servicesData = [];   // [{name, price, duration_min}]
+
+async function loadServices() {
+  const list = document.getElementById('services-list');
+  if (!list) return;
+  list.innerHTML = '<div style="padding:16px 20px;font-size:.84rem;color:var(--g400)"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
+  try {
+    const r = await fetch('/api/services', { credentials: 'same-origin' });
+    const d = await r.json();
+    servicesData = d.services || [];
+    renderServices();
+  } catch(err) {
+    console.error('[loadServices]', err);
+    list.innerHTML = '<div style="padding:16px 20px;font-size:.84rem;color:var(--g400)">Could not load services. <a href="#" onclick="loadServices();return false" style="color:var(--t600)">Retry</a></div>';
+  }
+}
+
+// Escape HTML entities — prevents XSS and broken service name rendering
+function escHtml(str) {
+  if (!str) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function _svcDurLabel(d) {
+  return d < 60 ? d + ' min' : (d === 60 ? '1 hr' : (d / 60) + ' hr');
+}
+
+function renderServices() {
+  const list = document.getElementById('services-list');
+  if (!list) return;
+  if (!servicesData.length) {
+    list.innerHTML = '<div style="padding:32px 20px;text-align:center;color:var(--g400);font-size:.86rem">'
+      + '<i class="fas fa-cut" style="font-size:2rem;display:block;margin-bottom:10px;color:var(--g200)"></i>'
+      + 'No services yet. Tap <strong>+ Add</strong> to start.'
+      + '</div>';
+    return;
+  }
+  list.innerHTML = servicesData.map(function(s, i) {
+    var durOpts = [15,30,45,60,90,120].map(function(d) {
+      return '<option value="' + d + '"' + ((s.duration_min||30) === d ? ' selected' : '') + '>'
+        + _svcDurLabel(d) + '</option>';
+    }).join('');
+    var displayName = s.name || 'Unnamed service';
+    var priceStr = s.price ? 'Rs. ' + s.price : 'Free';
+    var durStr   = _svcDurLabel(s.duration_min || 30);
+    // ── Desktop row (hidden on mobile via CSS) ──────────────────────────────
+    var desktopRow = '<div class="svc-row" id="svc-row-' + i + '">'
+      + '<div style="height:28px;display:flex;align-items:center;justify-content:center;color:var(--g300);cursor:grab"><i class="fas fa-grip-vertical"></i></div>'
+      + '<input class="fi" placeholder="Service name" value="' + escHtml(s.name) + '"'
+      + ' oninput="servicesData[' + i + '].name=this.value" style="min-width:0">'
+      + '<div class="svc-price-wrap"><span>Rs.</span>'
+      + '<input class="fi" type="number" min="0" placeholder="0" value="' + (s.price || '') + '"'
+      + ' oninput="servicesData[' + i + '].price=parseInt(this.value)||0"></div>'
+      + '<select class="fi svc-dur" onchange="servicesData[' + i + '].duration_min=parseInt(this.value)">' + durOpts + '</select>'
+      + '<button onclick="removeServiceRow(' + i + ')" class="svc-del-btn" title="Remove"><i class="fas fa-times"></i></button>'
+      + '</div>';
+    // ── Mobile card (hidden on desktop via CSS) ──────────────────────────────
+    var mobileCard = '<div class="svc-card" id="svc-card-' + i + '"'
+      + ' style="align-items:center;gap:12px;padding:13px 16px;border-bottom:1px solid var(--g50);cursor:pointer;transition:background .15s;-webkit-tap-highlight-color:transparent"'
+      + ' onclick="openSvcModal(' + i + ')"'
+      + ' onmouseenter="this.style.background=\'var(--g50)\'" onmouseleave="this.style.background=\'\'">'
+      + '<div style="width:38px;height:38px;background:var(--t50);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0">'
+      + '<i class="fas fa-cut" style="color:var(--t500);font-size:.85rem"></i></div>'
+      + '<div style="flex:1;min-width:0">'
+      + '<div style="font-size:.9rem;font-weight:600;color:var(--g900);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escHtml(displayName) + '</div>'
+      + '<div style="font-size:.76rem;color:var(--g500);margin-top:2px">' + priceStr + ' &nbsp;·&nbsp; ' + durStr + '</div>'
+      + '</div>'
+      + '<i class="fas fa-chevron-right" style="color:var(--g300);font-size:.75rem;flex-shrink:0"></i>'
+      + '</div>';
+    return desktopRow + mobileCard;
+  }).join('');
+}
+
+
+
+function removeServiceRow(i) {
+  servicesData.splice(i, 1);
+  renderServices();
+}
+
+async function saveServices() {
+  const ind = document.getElementById('svc-saved');
+  const valid = servicesData.filter(s => s.name.trim());
+  if (!valid.length) { showToast('Add at least one service with a name', 'warn'); return; }
+  ind.className = 'save-indicator saving';
+  ind.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+  try {
+    const r = await fetchAPI('/api/services', {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ services: valid }),
+    });
+    const d = await r.json();
+    if (r.ok) {
+      servicesData = d.services || valid;
+      renderServices();
+      ind.className = 'save-indicator saved';
+      ind.innerHTML = '<i class="fas fa-check-circle"></i> Saved';
+      showToast('Services saved successfully', 'success');
+      window._tabLoaded._svcsLoaded = false; // allow reload on next switch
+    } else {
+      ind.className = 'save-indicator'; ind.textContent = 'Save failed';
+    }
+  } catch {
+    ind.className = 'save-indicator'; ind.textContent = 'Network error';
+  }
+  setTimeout(() => { if(ind) { ind.className='save-indicator'; ind.innerHTML=''; } }, 4000);
+}
+
+// ===================================================
+//  SCHEDULE MANAGER
+// ===================================================
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const DAYS   = ['S','M','T','W','T','F','S'];
+let schedDate    = new Date();
+let selectedDay  = null;  // {year, month, day}
+// ===================================================
+//  SCHEDULE MANAGER
+//  scheduleData: { "YYYY-MM-DD": { type, slots:[{from,to}], chairs } }
+//  chairs stored globally in scheduleData._chairs (default 1)
+// ===================================================
+const scheduleData = {};
+
+function defaultSlots() { return [{ from: '09:00', to: '20:00' }]; }
+function schedKey(y, m, d) { return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`; }
+
+// -- Chairs picker ----------------------------------------------------------
+function renderChairsPicker() {
+  const p = document.getElementById('chairs-picker');
+  if (!p) return;
+  p.innerHTML = [1,2,3,4,5,6].map(n =>
+    `<button onclick="setChairs(${n})" style="
+      width:36px;height:36px;border-radius:8px;border:1.5px solid ${n===schedChairs ? 'var(--t500)' : 'var(--g200)'};
+      background:${n===schedChairs ? 'var(--t50)' : '#fff'};
+      color:${n===schedChairs ? 'var(--t700)' : 'var(--g500)'};
+      font-family:var(--df);font-size:.88rem;font-weight:700;cursor:pointer;transition:all .2s;
+    ">${n}</button>`
+  ).join('');
+}
+
+function setChairs(n) {
+  schedChairs = n;
+  scheduleData._chairs = n;
+  renderChairsPicker();
+  showToast(`Chairs set to ${n}`, 'success');
+}
+
+// -- Calendar ---------------------------------------------------------------
+function renderSchedCal() {
+  const y = schedDate.getFullYear(), m = schedDate.getMonth();
+  document.getElementById('sched-month-title').textContent = `${MONTHS[m]} ${y}`;
+  const g = document.getElementById('sched-cal-grid');
+  g.innerHTML = DAYS.map(d => `<div class="sched-cal-lbl">${d}</div>`).join('');
+  const fd = new Date(y, m, 1).getDay();
+  const tot = new Date(y, m+1, 0).getDate();
+  const now = new Date();
+  for (let i = 0; i < fd; i++) g.innerHTML += `<div class="sched-day sd-empty"></div>`;
+  for (let d = 1; d <= tot; d++) {
+    const key = schedKey(y, m, d);
+    const isToday = d===now.getDate() && m===now.getMonth() && y===now.getFullYear();
+    const isSel   = selectedDay && selectedDay.year===y && selectedDay.month===m && selectedDay.day===d;
+    const data    = scheduleData[key];
+    const isOff   = data?.type === 'closed';
+    const hasSlots= data?.slots?.length > 0;
+    let cls = 'sched-day';
+    if (isToday)  cls += ' sd-today';
+    if (isSel)    cls += ' sd-selected';
+    if (isOff)    cls += ' sd-off';
+    else if (hasSlots) cls += ' sd-has';
+    g.innerHTML += `<div class="${cls}" onclick="selectSchedDay(${y},${m},${d})">${d}</div>`;
+  }
+}
+
+function schedCalNav(dir) { schedDate.setMonth(schedDate.getMonth() + dir); renderSchedCal(); }
+
+function selectSchedDay(y, m, d) {
+  selectedDay = { year:y, month:m, day:d };
+  renderSchedCal();
+  renderDayPanel();
+}
+
+// -- Day panel --------------------------------------------------------------
+function renderDayPanel() {
+  if (!selectedDay) return;
+  const { year:y, month:m, day:d } = selectedDay;
+  const key     = schedKey(y, m, d);
+  const data    = scheduleData[key] || { type: 'open', slots: [] };
+  const dateStr = new Date(y, m, d).toLocaleDateString('en-IN',
+    { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+  document.getElementById('dsp-date-label').textContent = dateStr;
+
+  const isOpen = data.type !== 'closed';
+  const slots  = data.slots || [];
+
+  document.getElementById('dsp-body').innerHTML = `
+    <div class="day-type-row">
+      <button class="day-type-btn ${isOpen ? 'dtb-active-open' : ''}" onclick="setDayType('open')">
+        <i class="fas fa-sun"></i> Open
+      </button>
+      <button class="day-type-btn ${!isOpen ? 'dtb-active-closed' : ''}" onclick="setDayType('closed')">
+        <i class="fas fa-moon"></i> Day Off
+      </button>
+    </div>
+    ${isOpen ? `
+      <div class="slots-label" style="margin-top:14px">
+        Working Hours
+        <span style="font-size:.72rem;font-weight:400;color:var(--g400);margin-left:6px">Add multiple ranges if needed</span>
+      </div>
+      <div class="slots-grid" id="slots-grid">
+        ${slots.map((s, i) => slotHTML(s, i)).join('')}
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+        <button class="add-slot-btn" onclick="addSlot()">
+          <i class="fas fa-plus-circle"></i> Add hours range
+        </button>
+        <button class="add-slot-btn" style="border-color:var(--t200);color:var(--t600)" onclick="addCommonHours()">
+          <i class="fas fa-magic"></i> 9AM-6PM
+        </button>
+        <button class="add-slot-btn" style="border-color:var(--t200);color:var(--t600)" onclick="addCommonHours('10:00','20:00')">
+          <i class="fas fa-magic"></i> 10AM-8PM
+        </button>
+      </div>
+    ` : `
+      <div class="dsp-empty"><i class="fas fa-moon"></i>Day off  -  no bookings on this day.</div>
+    `}
+  `;
+}
+
+function slotHTML(slot, i) {
+  return `<div class="slot-row" id="slot-${i}">
+    <div class="slot-time-wrap">
+      <input type="time" class="slot-fi" value="${slot.from}" oninput="updateSlot(${i},'from',this.value)">
+      <span style="color:var(--g400)">to</span>
+      <input type="time" class="slot-fi" value="${slot.to}" oninput="updateSlot(${i},'to',this.value)">
+    </div>
+    <button class="slot-del" onclick="removeSlot(${i})" title="Remove"><i class="fas fa-times"></i></button>
+  </div>`;
+}
+
+function setDayType(type) {
+  const key = schedKey(selectedDay.year, selectedDay.month, selectedDay.day);
+  if (!scheduleData[key]) scheduleData[key] = { type: 'open', slots: [] };
+  scheduleData[key].type = type;
+  if (type === 'open' && scheduleData[key].slots.length === 0) {
+    scheduleData[key].slots = defaultSlots();
+  }
+  renderSchedCal();
+  renderDayPanel();
+}
+
+function updateSlot(i, field, val) {
+  const key = schedKey(selectedDay.year, selectedDay.month, selectedDay.day);
+  if (scheduleData[key]?.slots?.[i]) scheduleData[key].slots[i][field] = val;
+}
+
+function addSlot() {
+  const key = schedKey(selectedDay.year, selectedDay.month, selectedDay.day);
+  if (!scheduleData[key]) scheduleData[key] = { type: 'open', slots: [] };
+  // Start new slot after last one
+  const last = scheduleData[key].slots.slice(-1)[0];
+  scheduleData[key].slots.push({ from: last?.to || '09:00', to: '20:00' });
+  renderDayPanel();
+}
+
+function addCommonHours(from = '09:00', to = '18:00') {
+  const key = schedKey(selectedDay.year, selectedDay.month, selectedDay.day);
+  if (!scheduleData[key]) scheduleData[key] = { type: 'open', slots: [] };
+  scheduleData[key].slots = [{ from, to }];
+  renderDayPanel();
+}
+
+function removeSlot(i) {
+  const key = schedKey(selectedDay.year, selectedDay.month, selectedDay.day);
+  scheduleData[key].slots.splice(i, 1);
+  renderDayPanel();
+}
+
+function bulkMark(type) {
+  const base = selectedDay
+    ? new Date(selectedDay.year, selectedDay.month, selectedDay.day)
+    : new Date();
+  const dow = base.getDay();
+  // Mon-Sun of the week containing selected (or current) day
+  const mon = new Date(base); mon.setDate(base.getDate() - (dow === 0 ? 6 : dow - 1));
+  for (let i = 0; i < 7; i++) {
+    const dt = new Date(mon); dt.setDate(mon.getDate() + i);
+    const key = schedKey(dt.getFullYear(), dt.getMonth(), dt.getDate());
+    scheduleData[key] = { type, slots: type === 'open' ? defaultSlots() : [] };
+  }
+  renderSchedCal();
+  if (selectedDay) renderDayPanel();
+  showToast('Week marked as ' + (type === 'open' ? 'open' : 'day off'), 'success');
+}
+
+function copyYesterdaySlots() {
+  if (!selectedDay) { showToast('Select a date first', 'warn'); return; }
+  const { year:y, month:m, day:d } = selectedDay;
+  const prev    = new Date(y, m, d - 1);
+  const prevKey = schedKey(prev.getFullYear(), prev.getMonth(), prev.getDate());
+  const currKey = schedKey(y, m, d);
+  const prevData = scheduleData[prevKey];
+  if (!prevData?.slots?.length) { showToast('No slots for previous day', 'warn'); return; }
+  scheduleData[currKey] = { type: prevData.type, slots: JSON.parse(JSON.stringify(prevData.slots)) };
+  renderDayPanel();
+  showToast('Copied from previous day', 'success');
+}
+
+async function saveSchedule() {
+  const saveBtn = document.querySelector('[onclick="saveSchedule()"]');
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...'; }
+  // Embed chairs into schedule data
+  const payload = { ...scheduleData, _chairs: schedChairs };
+  try {
+    const r = await fetchAPI('/api/schedule', {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ schedule: payload }),
+    });
+    showToast(r.ok ? 'Schedule saved!' : 'Failed to save', r.ok ? 'success' : 'error');
+  } catch { showToast('Network error', 'error'); }
+  if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = '<i class="fas fa-save"></i> Save Schedule'; }
+}
+
+async function loadScheduleFromServer() {
+  try {
+    const r = await fetch('/api/schedule', { credentials: 'same-origin' });
+    const d = await r.json();
+    if (d.schedule && typeof d.schedule === 'object') {
+      Object.assign(scheduleData, d.schedule);
+      // Restore chairs
+      if (scheduleData._chairs) { schedChairs = parseInt(scheduleData._chairs) || 1; }
+      renderChairsPicker();
+      renderSchedCal();
+      if (selectedDay) renderDayPanel();
+    }
+  } catch {}
+}
+
+// -- Ignore Schedule toggle (Schedule tab) -----------------------------------
+// ── Schedule mode (anytime / hourly) ─────────────────────────────────────────
+
+// Called on page load (no toast) — just updates UI
+function setScheduleMode(mode, save) {
+  save = save === true;   // only true when user explicitly clicks
+  _schedMode = mode;
+  const locked = document.getElementById('sched-locked-msg');
+  const editor = document.getElementById('sched-editor');
+  const cardA  = document.getElementById('mode-card-anytime');
+  const cardH  = document.getElementById('mode-card-hourly');
+  const radioA = document.getElementById('mode-radio-anytime');
+  const radioH = document.getElementById('mode-radio-hourly');
+
+  // Update card styles
+  if (cardA && cardH) {
+    if (mode === 'anytime') {
+      cardA.style.borderColor = '#f59e0b';
+      cardA.style.background  = '#fefce8';
+      cardH.style.borderColor = 'var(--g200)';
+      cardH.style.background  = '#fff';
+    } else {
+      cardH.style.borderColor = 'var(--t400)';
+      cardH.style.background  = 'var(--t50)';
+      cardA.style.borderColor = 'var(--g200)';
+      cardA.style.background  = '#fff';
+    }
+  }
+  // Radio indicators
+  if (radioA) radioA.innerHTML = mode === 'anytime' ? '<div style="width:8px;height:8px;border-radius:50%;background:#f59e0b"></div>' : '';
+  if (radioA) radioA.style.borderColor = mode === 'anytime' ? '#f59e0b' : 'var(--g300)';
+  if (radioA) radioA.style.background = mode === 'anytime' ? '#fef9c3' : '#fff';
+  if (radioH) radioH.innerHTML = mode === 'hourly' ? '<div style="width:8px;height:8px;border-radius:50%;background:#fff"></div>' : '';
+  if (radioH) radioH.style.background = mode === 'hourly' ? 'var(--t500)' : '#fff';
+  if (radioH) radioH.style.borderColor = mode === 'hourly' ? 'var(--t400)' : 'var(--g300)';
+
+  // Show/hide sections
+  if (locked) locked.style.display = mode === 'anytime' ? '' : 'none';
+  if (editor) editor.style.display = mode === 'anytime' ? 'none' : '';
+
+  // Keep bot_settings in sync
+  const waChk = document.getElementById('bot-ignore-schedule');
+  if (waChk) waChk.checked = (mode === 'anytime');
+
+  // Only save to server (with toast) when user explicitly switched — not on page load
+  if (save) {
+    const modeLabel = mode === 'anytime' ? 'Accept Anytime' : 'Set Hours';
+    showToast('Saving booking mode...', 'info');
+    fetchAPI('/api/schedule-mode', {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ schedule_mode: mode }),
+    }).then(r => r.json()).then(d => {
+      if (d.ok) showToast('Booking mode set to: ' + modeLabel, 'success');
+      else showToast('Could not save booking mode', 'error');
+    }).catch(() => showToast('Network error — mode not saved', 'error'));
+    saveBotSettingsQuiet({ ignore_schedule: mode === 'anytime' });
+  }
+}
+
+function toggleIgnoreSchedule() {
+  // Legacy — called from bot-ignore-schedule checkbox in WA tab
+  const chk = document.getElementById('bot-ignore-schedule');
+  const on = chk ? chk.checked : false;
+  setScheduleMode(on ? 'anytime' : 'hourly');
+}
+
+function _syncIgnoreScheduleUI(on) {
+  setScheduleMode(on ? 'anytime' : 'hourly');
+}
+
+async function loadScheduleMode() {
+  try {
+    const r = await fetch('/api/schedule-mode', { credentials: 'same-origin' });
+    const d = await r.json();
+    setScheduleMode(d.schedule_mode || 'hourly');
+  } catch {}
+}
+
+async function saveBotSettingsQuiet(extra = {}) {
+  try {
+    const lang   = document.getElementById('bot-language')?.value || 'auto';
+    const ignore = document.getElementById('bot-ignore-schedule')?.checked || false;
+    await fetchAPI('/api/bot-settings', {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ language: lang, ignore_schedule: ignore, ...extra }),
+    });
+  } catch {}
+}
+
+// Init chairs picker on tab open (also called on page load)
+renderChairsPicker();
+
+
+
+// ── ADVANCE PAYMENT ──────────────────────────────────────────────────────────
+
+function togglePaymentSettings() {
+  const tog  = document.getElementById('pay-enabled-toggle');
+  const body = document.getElementById('pay-settings-body');
+  const hdr  = document.getElementById('pay-enable-header');
+  const sub  = document.getElementById('pay-toggle-sub');
+  if (!tog) return;
+  const on = tog.checked;
+  if (body) body.style.display = on ? '' : 'none';
+  if (hdr) {
+    hdr.style.borderColor = on ? 'var(--t400)' : 'var(--g200)';
+    hdr.style.background  = on ? 'var(--t50)'  : '';
+  }
+  if (sub) sub.textContent = on
+    ? 'On — customers pay advance before booking is confirmed'
+    : 'Off — customers pay at the salon';
+}
+
+function switchUPIMethod(method) {
+  ['qr','id'].forEach(m => {
+    const el  = document.getElementById('upi-method-' + m);
+    const tab = document.getElementById('upi-tab-' + m);
+    if (el)  el.style.display = m === method ? '' : 'none';
+    if (tab) tab.classList.toggle('active', m === method);
+  });
+}
+
+function onUPIIdInput() {
+  const val = (document.getElementById('pay-upi-id')?.value || '').trim();
+  const pre = document.getElementById('upi-id-preview');
+  const dis = document.getElementById('upi-id-display');
+  if (pre) pre.style.display = val ? 'flex' : 'none';
+  if (dis) dis.textContent   = val;
+}
+
+function handleQRUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    _upiQrBase64 = ev.target.result;
+    const img = document.getElementById('pay-qr-img');
+    const ico = document.getElementById('pay-qr-placeholder');
+    if (img) { img.src = _upiQrBase64; img.style.display = 'block'; }
+    if (ico) ico.style.display = 'none';
+    showToast('QR uploaded! Extracting UPI ID...', 'info');
+    _tryExtractUPIFromQR(_upiQrBase64);
+  };
+  reader.readAsDataURL(file);
+}
+
+async function _tryExtractUPIFromQR(base64) {
+  try {
+    const r = await fetchAPI('/api/payment-settings/extract-upi', {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ qr_image: base64 }),
+    });
+    const d = await r.json();
+    if (d.ok && d.upi_id) {
+      _extractedUpiId = d.upi_id;
+      const extDiv = document.getElementById('qr-extracted-upi');
+      const extVal = document.getElementById('qr-upi-val');
+      const upiInp = document.getElementById('pay-upi-id');
+      if (extDiv) extDiv.style.display = '';
+      if (extVal) extVal.textContent   = d.upi_id;
+      if (upiInp) { upiInp.value = d.upi_id; onUPIIdInput(); }
+      showToast('UPI ID found: ' + d.upi_id, 'success');
+    } else {
+      showToast('QR uploaded. Enter UPI ID manually if needed.', 'info');
+    }
+  } catch {}
+}
+
+async function savePaymentSettings() {
+  const ind = document.getElementById('pay-settings-saved');
+  if (ind) { ind.className = 'save-indicator saving'; ind.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...'; }
+  const finalUpiId = (document.getElementById('pay-upi-id')?.value || '').trim() || _extractedUpiId;
+  const payload = {
+    payment_enabled: !!(document.getElementById('pay-enabled-toggle')?.checked),
+    advance_amount:  parseInt(document.getElementById('pay-advance-amount')?.value || '0') || 0,
+    upi_id:          finalUpiId,
+    upi_qr_code:     _upiQrBase64 || '',
+  };
+  try {
+    const r = await fetchAPI('/api/payment-settings', {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const d = await r.json();
+    if (d.ok) {
+      if (ind) { ind.className = 'save-indicator saved'; ind.innerHTML = '<i class="fas fa-check-circle"></i> Saved'; }
+      showToast('Payment settings saved!', 'success');
+      _upiQrBase64 = '';
+    } else {
+      if (ind) { ind.className = 'save-indicator'; ind.textContent = 'Failed'; }
+      showToast('Failed: ' + (d.error || 'Error'), 'error');
+    }
+  } catch {
+    if (ind) { ind.className = 'save-indicator'; ind.textContent = 'Error'; }
+    showToast('Network error - try again', 'error');
+  }
+  setTimeout(() => { if (ind) { ind.className = 'save-indicator'; ind.innerHTML = ''; } }, 3500);
+}
+
+async function loadPaymentSettings() {
+  try {
+    const r = await fetch('/api/payment-settings', { credentials: 'same-origin' });
+    const d = await r.json();
+    if (!d.ok) return;
+    const tog = document.getElementById('pay-enabled-toggle');
+    const amt = document.getElementById('pay-advance-amount');
+    const uid = document.getElementById('pay-upi-id');
+    const img = document.getElementById('pay-qr-img');
+    const ico = document.getElementById('pay-qr-placeholder');
+    if (tog) {
+      tog.checked = !!d.payment_enabled;
+      // Use setTimeout 0 so DOM is ready before we read tog.checked
+      setTimeout(togglePaymentSettings, 0);
+    }
+    if (amt && d.advance_amount && d.advance_amount !== '0') amt.value = d.advance_amount;
+    if (uid && d.upi_id) { uid.value = d.upi_id; onUPIIdInput(); }
+    if (d.upi_qr_code) {
+      if (img) { img.src = d.upi_qr_code; img.style.display = 'block'; }
+      if (ico) ico.style.display = 'none';
+      switchUPIMethod('qr');
+    } else if (d.upi_id) {
+      switchUPIMethod('id');
+    }
+  } catch(err) { console.error('[loadPaymentSettings]', err); }
+}
+
+// ── Utilities ────────────────────────────────────────────────────────────────
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function showToast(msg, type) {
+  type = type || 'info';
+  let t = document.getElementById('dash-toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'dash-toast';
+    t.style.cssText = 'position:fixed;bottom:22px;right:22px;z-index:99999;padding:12px 18px;'
+      + 'border-radius:12px;color:#fff;font-family:var(--bf,sans-serif);font-size:.86rem;'
+      + 'font-weight:500;box-shadow:0 8px 24px rgba(0,0,0,.18);transition:transform .3s,opacity .3s;'
+      + 'transform:translateY(80px);opacity:0;max-width:300px;display:flex;align-items:center;gap:8px;pointer-events:none';
+    document.body.appendChild(t);
+  }
+  const cfg = {
+    success: ['#10b981','fas fa-check-circle'],
+    error:   ['#ef4444','fas fa-exclamation-circle'],
+    warn:    ['#f59e0b','fas fa-exclamation-triangle'],
+    info:    ['#3b82f6','fas fa-info-circle'],
+  };
+  const [bg, ico] = cfg[type] || cfg.info;
+  t.style.background = bg;
+  t.innerHTML = '<i class="' + ico + '"></i><span>' + String(msg) + '</span>';
+  requestAnimationFrame(() => { t.style.transform = 'translateY(0)'; t.style.opacity = '1'; });
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => {
+    t.style.transform = 'translateY(80px)'; t.style.opacity = '0';
+  }, 3500);
+}
+
+// ── Service edit modal (mobile) ──────────────────────────────────────────────
+var _svcModalIdx = -1;
+
+function openSvcModal(i) {
+  _svcModalIdx = i;
+  var s = servicesData[i] || {};
+  document.getElementById('svc-modal-name').value  = s.name || '';
+  document.getElementById('svc-modal-price').value = s.price || '';
+  var dur = document.getElementById('svc-modal-dur');
+  if (dur) dur.value = String(s.duration_min || 30);
+  var modal = document.getElementById('svc-edit-modal');
+  if (modal) { modal.style.display = 'flex'; document.body.style.overflow = 'hidden'; }
+  setTimeout(function() { document.getElementById('svc-modal-name').focus(); }, 80);
+}
+
+function closeSvcModal() {
+  var modal = document.getElementById('svc-edit-modal');
+  if (modal) modal.style.display = 'none';
+  document.body.style.overflow = '';
+  _svcModalIdx = -1;
+}
+
+function saveSvcModal() {
+  if (_svcModalIdx < 0) return;
+  var name  = (document.getElementById('svc-modal-name').value || '').trim();
+  var price = parseInt(document.getElementById('svc-modal-price').value) || 0;
+  var dur   = parseInt(document.getElementById('svc-modal-dur').value)   || 30;
+  if (!name) { document.getElementById('svc-modal-name').focus(); return; }
+  servicesData[_svcModalIdx] = { name: name, price: price, duration_min: dur };
+  renderServices();
+  closeSvcModal();
+  showToast('Service updated', 'success');
+}
+
+function deleteSvcFromModal() {
+  if (_svcModalIdx < 0) return;
+  servicesData.splice(_svcModalIdx, 1);
+  renderServices();
+  closeSvcModal();
+}
+
+// Also update addServiceRow to open modal on mobile
+function addServiceRow() {
+  var isMobile = window.innerWidth <= 640;
+  servicesData.push({ name: '', price: 0, duration_min: 30 });
+  renderServices();
+  if (isMobile) {
+    openSvcModal(servicesData.length - 1);
+  } else {
+    var rows = document.querySelectorAll('.svc-row');
+    if (rows.length) {
+      var inp = rows[rows.length - 1].querySelector('.fi');
+      if (inp) inp.focus();
+    }
+  }
+}
+
+// ── Page init — hide loader only after all critical data is fetched ─────────
+(function pageInit() {
+  const loader = document.getElementById('page-loader');
+
+  function hideLoader() {
+    if (!loader || loader.classList.contains('hidden')) return;
+    loader.classList.add('hidden');
+    setTimeout(() => { if (loader) loader.style.display = 'none'; }, 380);
+  }
+
+  // Always hide after 4.5s no matter what
+  const fallback = setTimeout(hideLoader, 4500);
+
+  // Wait for all 3 critical calls: appointments, payment, schedule
+  let pending = 3;
+  function done() { pending--; if (pending <= 0) { clearTimeout(fallback); hideLoader(); } }
+
+  Promise.resolve()
+    .then(() => typeof loadAppointments    === 'function' ? loadAppointments()    : null)
+    .then(done).catch(done);
+
+  Promise.resolve()
+    .then(() => typeof loadPaymentSettings === 'function' ? loadPaymentSettings() : null)
+    .then(done).catch(done);
+
+  Promise.resolve()
+    .then(() => typeof loadScheduleMode    === 'function' ? loadScheduleMode()    : null)
+    .then(done).catch(done);
+
+  // Non-critical — fire and forget
+  if (typeof loadBotSettings === 'function') loadBotSettings();
+  if (typeof renderAnalytics === 'function') renderAnalytics();
+})();
+
+</script>
+{% endblock %}
