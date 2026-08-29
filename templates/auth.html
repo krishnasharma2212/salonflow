@@ -89,7 +89,13 @@ body{min-height:100vh;display:flex;background:var(--w)}
 @media(max-width:960px){.left{display:none}}
 @media(max-width:520px){.right{width:100%;padding:28px 20px}}
 </style>
-<script src="https://www.google.com/recaptcha/api.js?render=6LcnEJwsAAAAAFfZkh-0dOfuplK_N5uWD-jQlSZ6" async defer></script>
+<script>
+  window.SALONFLOW_RECAPTCHA_SITE_KEY = {{ recaptcha_site_key|default('', true)|tojson }};
+  window.SALONFLOW_FIREBASE_CONFIG = {{ firebase_config|default({}, true)|tojson }};
+</script>
+{% if recaptcha_site_key %}
+<script src="https://www.google.com/recaptcha/api.js?render={{ recaptcha_site_key|e }}" async defer></script>
+{% endif %}
 <!-- Firebase: signInWithPopup (reliable on localhost + production) -->
 <script type="module">
   import { initializeApp }
@@ -97,16 +103,17 @@ body{min-height:100vh;display:flex;background:var(--w)}
   import { getAuth, GoogleAuthProvider, signInWithPopup }
     from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
 
-  const firebaseConfig = {
-    apiKey:            "AIzaSyDWjjMiWeBc0WPQExRuCrTMSp1KHEOzJyA",
-    authDomain:        "salonflow-6d47a.firebaseapp.com",
-    projectId:         "salonflow-6d47a",
-    storageBucket:     "salonflow-6d47a.firebasestorage.app",
-    messagingSenderId: "531475018411",
-    appId:             "1:531475018411:web:0ef13822e813fd30653dee",
-  };
+  const firebaseConfig = window.SALONFLOW_FIREBASE_CONFIG || {};
+  const hasFirebaseConfig = [
+    "apiKey",
+    "authDomain",
+    "projectId",
+    "storageBucket",
+    "messagingSenderId",
+    "appId",
+  ].every((key) => Boolean(firebaseConfig[key]));
 
-  const auth     = getAuth(initializeApp(firebaseConfig));
+  const auth     = hasFirebaseConfig ? getAuth(initializeApp(firebaseConfig)) : null;
   const provider = new GoogleAuthProvider();
   provider.addScope("profile");
   provider.addScope("email");
@@ -114,6 +121,11 @@ body{min-height:100vh;display:flex;background:var(--w)}
   provider.setCustomParameters({ prompt: "select_account" });
 
   window._googleSignIn = async function() {
+    if (!auth) {
+      _showToast('Google sign-in is not configured for this deployment.', 'error');
+      return;
+    }
+
     const btns = document.querySelectorAll('.btn-google');
     btns.forEach(b => { b.disabled = true; b.querySelector('span').textContent = 'Connecting to Google…'; });
 
@@ -382,7 +394,9 @@ async function handleSignup(e){
   document.getElementById('su-txt').innerHTML='<i class="fas fa-spinner fa-spin"></i> Verifying…';
   // ── reCAPTCHA v3: wait for script then get token ──────────
   let recaptcha_token='';
+  const recaptchaSiteKey = window.SALONFLOW_RECAPTCHA_SITE_KEY || '';
   try{
+    if(recaptchaSiteKey){
     await new Promise((resolve)=>{
       if(typeof grecaptcha!=='undefined'&&grecaptcha.execute){resolve();}
       else{
@@ -396,7 +410,8 @@ async function handleSignup(e){
       }
     });
     if(typeof grecaptcha!=='undefined'){
-      recaptcha_token=await grecaptcha.execute('6LcnEJwsAAAAAFfZkh-0dOfuplK_N5uWD-jQlSZ6',{action:'signup'});
+      recaptcha_token=await grecaptcha.execute(recaptchaSiteKey,{action:'signup'});
+    }
     }
   }catch(rcErr){
     console.warn('reCAPTCHA unavailable:',rcErr);

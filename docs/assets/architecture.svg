@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="680" viewBox="0 0 1120 680" role="img" aria-labelledby="title desc">
+  <title id="title">SalonFlow technical architecture</title>
+  <desc id="desc">A technical architecture diagram for the Flask web app, PostgreSQL database, bot manager, WhatsApp bot, and external services.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="11" markerHeight="11" refX="9" refY="5.5" orient="auto">
+      <path d="M0 0h11L5.5 11z" fill="#334155"/>
+    </marker>
+    <filter id="shadow" x="-16%" y="-16%" width="140%" height="145%">
+      <feDropShadow dx="0" dy="12" stdDeviation="12" flood-color="#0f172a" flood-opacity="0.12"/>
+    </filter>
+    <style>
+      .box{fill:#ffffff;stroke:#cbd5e1;stroke-width:1.5;filter:url(#shadow)}
+      .dark{fill:#0f172a}
+      .teal{fill:#0f766e}
+      .blue{fill:#2563eb}
+      .amber{fill:#f59e0b}
+      .rose{fill:#be123c}
+      .head{font-family:Inter, Segoe UI, Arial, sans-serif;font-size:21px;font-weight:800;fill:#0f172a}
+      .copy{font-family:Inter, Segoe UI, Arial, sans-serif;font-size:15px;font-weight:500;fill:#475569}
+      .white{font-family:Inter, Segoe UI, Arial, sans-serif;font-size:16px;font-weight:800;fill:#ffffff}
+      .small{font-family:Inter, Segoe UI, Arial, sans-serif;font-size:13px;font-weight:700;fill:#64748b}
+      .line{stroke:#334155;stroke-width:3;stroke-linecap:round;marker-end:url(#arrow)}
+      .dash{stroke:#64748b;stroke-width:2.5;stroke-dasharray:7 8;stroke-linecap:round;marker-end:url(#arrow)}
+    </style>
+  </defs>
+  <rect width="1120" height="680" rx="30" fill="#f8fafc"/>
+  <text x="56" y="60" class="head" font-size="30">SalonFlow Architecture</text>
+  <text x="56" y="92" class="copy">The web app, bot fleet, database, and third-party services work together around one salon account.</text>
+
+  <g transform="translate(56 140)">
+    <rect class="box" width="230" height="130" rx="20"/>
+    <rect class="teal" x="22" y="22" width="42" height="42" rx="12"/>
+    <text x="43" y="49" text-anchor="middle" class="white">UI</text>
+    <text x="82" y="47" class="head">Owner Web App</text>
+    <text x="22" y="86" class="copy">Dashboard, onboarding,</text>
+    <text x="22" y="110" class="copy">billing, services, QR.</text>
+  </g>
+
+  <g transform="translate(445 140)">
+    <rect class="box" width="230" height="130" rx="20"/>
+    <rect class="blue" x="22" y="22" width="42" height="42" rx="12"/>
+    <text x="43" y="49" text-anchor="middle" class="white">PY</text>
+    <text x="82" y="47" class="head">Flask Backend</text>
+    <text x="22" y="86" class="copy">Auth, APIs, payments,</text>
+    <text x="22" y="110" class="copy">admin, bot control.</text>
+  </g>
+
+  <g transform="translate(834 140)">
+    <rect class="box" width="230" height="130" rx="20"/>
+    <rect class="dark" x="22" y="22" width="42" height="42" rx="12"/>
+    <text x="43" y="49" text-anchor="middle" class="white">DB</text>
+    <text x="82" y="47" class="head">PostgreSQL</text>
+    <text x="22" y="86" class="copy">Users, bookings, plans,</text>
+    <text x="22" y="110" class="copy">bot state, payments.</text>
+  </g>
+
+  <path class="line" d="M304 205h123"/>
+  <path class="line" d="M693 205h123"/>
+
+  <g transform="translate(56 395)">
+    <rect class="box" width="230" height="130" rx="20"/>
+    <rect class="amber" x="22" y="22" width="42" height="42" rx="12"/>
+    <text x="43" y="49" text-anchor="middle" class="white">WA</text>
+    <text x="82" y="47" class="head">WhatsApp Bot</text>
+    <text x="22" y="86" class="copy">Baileys session, AI</text>
+    <text x="22" y="110" class="copy">replies, reminders.</text>
+  </g>
+
+  <g transform="translate(445 395)">
+    <rect class="box" width="230" height="130" rx="20"/>
+    <rect class="rose" x="22" y="22" width="42" height="42" rx="12"/>
+    <text x="43" y="49" text-anchor="middle" class="white">OPS</text>
+    <text x="82" y="47" class="head">Bot Manager</text>
+    <text x="22" y="86" class="copy">Creates instances,</text>
+    <text x="22" y="110" class="copy">scales VPS capacity.</text>
+  </g>
+
+  <g transform="translate(834 395)">
+    <rect class="box" width="230" height="130" rx="20"/>
+    <rect fill="#7c3aed" x="22" y="22" width="42" height="42" rx="12"/>
+    <text x="43" y="49" text-anchor="middle" class="white">API</text>
+    <text x="82" y="47" class="head">External Services</text>
+    <text x="22" y="86" class="copy">OpenAI, Firebase, Maps,</text>
+    <text x="22" y="110" class="copy">Razorpay, email.</text>
+  </g>
+
+  <path class="line" d="M560 288v88"/>
+  <path class="line" d="M427 460H304"/>
+  <path class="line" d="M560 376V288"/>
+  <path class="dash" d="M676 460h140"/>
+  <path class="dash" d="M172 377V292"/>
+  <path class="dash" d="M834 270L676 395"/>
+
+  <g transform="translate(56 592)">
+    <rect width="1008" height="44" rx="16" fill="#e2e8f0"/>
+    <text x="24" y="29" class="small">Security boundary: real credentials live only in environment variables or deployment secret stores, never in source code.</text>
+  </g>
+</svg>

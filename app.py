@@ -416,16 +416,19 @@ def register_auth_routes(app: Flask, mail: Mail):
         # oauth2.googleapis.com/tokeninfo only works for Google OAuth2 tokens —
         # Firebase Auth tokens are signed by Firebase (different key), so we must
         # use google.oauth2.id_token.verify_firebase_token instead.
+        firebase_project_id = app.config.get("FIREBASE_PROJECT_ID", "").strip()
+        if not firebase_project_id:
+            return jsonify({"error": "Google sign-in is not configured."}), 503
+
         try:
             from google.oauth2.id_token import verify_firebase_token
             from google.auth.transport.requests import Request as GoogleRequest
             import google.auth.exceptions
 
-            FIREBASE_PROJECT_ID = "salonflow-6d47a"
             decoded = verify_firebase_token(
                 id_token,
                 GoogleRequest(),
-                audience=FIREBASE_PROJECT_ID,
+                audience=firebase_project_id,
             )
         except google.auth.exceptions.TransportError as e:
             print(f"[Google auth] network error verifying token: {e}")
@@ -555,7 +558,19 @@ def register_auth_routes(app: Flask, mail: Mail):
     def auth_login():
         if current_user.is_authenticated:
             return redirect(url_for("dashboard"))
-        return render_template("auth.html")
+        firebase_config = {
+            "apiKey": app.config.get("FIREBASE_API_KEY", ""),
+            "authDomain": app.config.get("FIREBASE_AUTH_DOMAIN", ""),
+            "projectId": app.config.get("FIREBASE_PROJECT_ID", ""),
+            "storageBucket": app.config.get("FIREBASE_STORAGE_BUCKET", ""),
+            "messagingSenderId": app.config.get("FIREBASE_MESSAGING_SENDER_ID", ""),
+            "appId": app.config.get("FIREBASE_APP_ID", ""),
+        }
+        return render_template(
+            "auth.html",
+            recaptcha_site_key=app.config.get("RECAPTCHA_SITE_KEY", ""),
+            firebase_config=firebase_config,
+        )
 
     # ── Verify required page ─────────────────────────
     @app.route("/verify-required")
@@ -588,11 +603,11 @@ def register_auth_routes(app: Flask, mail: Mail):
     # ════════════════════════════════════════════════════
 
     # ── Bot file download (used by manager.py on VPS) ───────────────────────
-    BOT_API_KEY = app.config.get("BOT_API_KEY", os.environ.get("BOT_API_KEY", "sf-bot-manager-secret-change-this"))
+    BOT_API_KEY = app.config.get("BOT_API_KEY", "").strip()
 
     def _check_bot_key():
         key = request.headers.get("X-API-Key", "").strip()
-        return key == BOT_API_KEY
+        return bool(BOT_API_KEY) and secrets.compare_digest(key, BOT_API_KEY)
 
     @app.route("/bot/reply.js", methods=["GET"])
     @csrf.exempt
@@ -902,10 +917,11 @@ def register_auth_routes(app: Flask, mail: Mail):
         db.session.commit()
         return jsonify({"ok": True, "appointment": appt}), 200
 
-    # ── Appointments API (real data from wa_appointments) ────────────────────
-    @app.route("/api/appointments", methods=["GET"])
+    # ── Appointment delete ────────────────────────────────────────────────────
+    @app.route("/api/appointments/<appt_id>", methods=["DELETE"])
     @login_required
-    def api_appointments():
+    def api_appointment_delete(appt_id):
+        import json as _j
         from sqlalchemy import text as _t
         row = db.session.execute(
             _t("SELECT wa_appointments FROM users WHERE id=:uid"),
@@ -914,7 +930,95 @@ def register_auth_routes(app: Flask, mail: Mail):
         raw = row.wa_appointments if row else None
         appts = []
         if raw:
-            import json as _j
+            data = _j.loads(raw) if isinstance(raw, str) else raw
+            appts = data if isinstance(data, list) else list(data.values())
+        appts = [a for a in appts if a.get("id") != appt_id]
+        db.session.execute(
+            _t("UPDATE users SET wa_appointments=:d WHERE id=:uid"),
+            {"d": _j.dumps(appts), "uid": current_user.id}
+        )
+        db.session.commit()
+        return jsonify({"ok": True}), 200
+
+    # ── Appointment update (edit) ─────────────────────────────────────────────
+    @app.route("/api/appointments/<appt_id>", methods=["PATCH"])
+    @login_required
+    def api_appointment_update(appt_id):
+        import json as _j
+        from sqlalchemy import text as _t
+        data = request.get_json(silent=True) or {}
+        row = db.session.execute(
+            _t("SELECT wa_appointments FROM users WHERE id=:uid"),
+            {"uid": current_user.id}
+        ).fetchone()
+        raw = row.wa_appointments if row else None
+        appts = []
+        if raw:
+            d = _j.loads(raw) if isinstance(raw, str) else raw
+            appts = d if isinstance(d, list) else list(d.values())
+        updated = False
+        allowed = ["customer_name","service","date","time","duration_min","notes","payment_status"]
+        for a in appts:
+            if a.get("id") == appt_id:
+                for k in allowed:
+                    if k in data:
+                        a[k] = data[k]
+                updated = True
+                break
+        if not updated:
+            return jsonify({"ok": False, "error": "Appointment not found"}), 404
+        db.session.execute(
+            _t("UPDATE users SET wa_appointments=:d WHERE id=:uid"),
+            {"d": _j.dumps(appts), "uid": current_user.id}
+        )
+        db.session.commit()
+        return jsonify({"ok": True}), 200
+
+    # ── Appointments API (real data from wa_appointments) ────────────────────
+    @app.route("/api/appointments", methods=["GET"])
+    @login_required
+    def api_appointments():
+        from sqlalchemy import text as _t
+        import json as _j
+
+        # ── Auto-backfill screenshot_path from payment_screenshots table ──────
+        # Fixes appointments paid before screenshot_path was saved on the appt object
+        try:
+            ss_rows = db.session.execute(_t("""
+                SELECT appointment_id, screenshot_path
+                FROM payment_screenshots
+                WHERE user_id = :uid AND screenshot_path IS NOT NULL
+            """), {"uid": current_user.id}).fetchall()
+            if ss_rows:
+                ss_map = {r.appointment_id: r.screenshot_path for r in ss_rows}
+                appt_row = db.session.execute(
+                    _t("SELECT wa_appointments FROM users WHERE id=:uid"),
+                    {"uid": current_user.id}
+                ).fetchone()
+                if appt_row and appt_row.wa_appointments:
+                    raw2 = appt_row.wa_appointments
+                    appts2 = raw2 if isinstance(raw2, list) else list(raw2.values()) if isinstance(raw2, dict) else []
+                    changed = False
+                    for a in appts2:
+                        if not a.get("screenshot_path") and a.get("id") in ss_map:
+                            a["screenshot_path"] = ss_map[a["id"]]
+                            changed = True
+                    if changed:
+                        db.session.execute(
+                            _t("UPDATE users SET wa_appointments=:d WHERE id=:uid"),
+                            {"d": _j.dumps(appts2), "uid": current_user.id}
+                        )
+                        db.session.commit()
+        except Exception as _e:
+            db.session.rollback()
+
+        row = db.session.execute(
+            _t("SELECT wa_appointments FROM users WHERE id=:uid"),
+            {"uid": current_user.id}
+        ).fetchone()
+        raw = row.wa_appointments if row else None
+        appts = []
+        if raw:
             data = _j.loads(raw) if isinstance(raw, str) else raw
             if isinstance(data, list):
                 appts = data
@@ -947,15 +1051,14 @@ def register_auth_routes(app: Flask, mail: Mail):
                 db.session.rollback()
 
         row = db.session.execute(
-            _t("""SELECT upi_id, upi_qr_code, advance_amount, payment_enabled
-                  FROM users WHERE id=:uid"""),
+            _t("""SELECT upi_id, advance_amount, payment_enabled
+                  , google_maps_url FROM users WHERE id=:uid"""),
             {"uid": current_user.id}
         ).fetchone()
 
         return jsonify({
             "ok":              True,
             "upi_id":          (row.upi_id or "") if row else "",
-            "upi_qr_code":     (row.upi_qr_code or "") if row else "",
             "advance_amount":  str((row.advance_amount or 0) if row else 0),
             "payment_enabled": bool((row.payment_enabled) if row else False),
         }), 200
@@ -978,20 +1081,17 @@ def register_auth_routes(app: Flask, mail: Mail):
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS upi_qr_code TEXT",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS advance_amount NUMERIC(10,2) DEFAULT 0",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS payment_enabled BOOLEAN DEFAULT FALSE",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS brand_color VARCHAR(20) DEFAULT '#1a1a2e'",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS logo_url TEXT",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS google_maps_url TEXT",
         ]:
             try:
                 db.session.execute(_t(col)); db.session.commit()
             except Exception:
                 db.session.rollback()
 
-        if upi_qr:
-            db.session.execute(_t("""
-                UPDATE users SET upi_id=:uid, upi_qr_code=:qr,
-                                 advance_amount=:amt, payment_enabled=:pe
-                WHERE id=:id
-            """), {"uid": upi_id, "qr": upi_qr, "amt": adv_amount, "pe": pay_enabled, "id": current_user.id})
-        else:
-            db.session.execute(_t("""
+        # QR image is never stored — only upi_id extracted client-side
+        db.session.execute(_t("""
                 UPDATE users SET upi_id=:uid, advance_amount=:amt, payment_enabled=:pe
                 WHERE id=:id
             """), {"uid": upi_id, "amt": adv_amount, "pe": pay_enabled, "id": current_user.id})
@@ -1132,7 +1232,8 @@ def register_auth_routes(app: Flask, mail: Mail):
 
         # Verify API key
         api_key = request.headers.get("X-API-Key", "").strip()
-        if api_key != os.environ.get("BOT_API_KEY", ""):
+        expected_api_key = app.config.get("BOT_API_KEY", "").strip()
+        if not expected_api_key or not secrets.compare_digest(api_key, expected_api_key):
             return jsonify({"ok": False, "error": "Unauthorized"}), 401
 
         data = request.get_json(silent=True) or {}
@@ -1145,6 +1246,7 @@ def register_auth_routes(app: Flask, mail: Mail):
         verified       = bool(data.get("verified", False))
         fake_score     = float(data.get("fake_score", 0))
         ai_notes       = data.get("ai_notes", "")
+        banking_name   = data.get("banking_name", "")
 
         if not user_id or not screenshot_b64:
             return jsonify({"ok": False, "error": "Missing user_id or screenshot_b64"}), 400
@@ -1169,8 +1271,8 @@ def register_auth_routes(app: Flask, mail: Mail):
             row = db.session.execute(_t("""
                 INSERT INTO payment_screenshots
                   (user_id, appointment_id, phone, screenshot_path, screenshot_b64,
-                   transaction_id, amount_verified, verified, fake_score, ai_notes)
-                VALUES (:uid, :appt, :phone, :path, :b64, :txn, :amt, :ver, :fs, :notes)
+                   transaction_id, amount_verified, verified, fake_score, ai_notes, banking_name)
+                VALUES (:uid, :appt, :phone, :path, :b64, :txn, :amt, :ver, :fs, :notes, :bname)
                 RETURNING id
             """), {
                 "uid":   user_id,   "appt":  appointment_id,
@@ -1178,7 +1280,7 @@ def register_auth_routes(app: Flask, mail: Mail):
                 "b64":   screenshot_b64 if not screenshot_path else None,
                 "txn":   transaction_id, "amt":   amount_verified,
                 "ver":   verified,  "fs":    fake_score,
-                "notes": ai_notes,
+                "notes": ai_notes,  "bname": banking_name,
             }).fetchone()
             screenshot_id = row.id if row else None
             db.session.commit()
@@ -1212,6 +1314,30 @@ def register_auth_routes(app: Flask, mail: Mail):
             print(f"[SCREENSHOT] appt update error: {e}")
 
         return jsonify({"ok": True, "screenshot_id": screenshot_id, "path": screenshot_path}), 200
+
+    # ── Get screenshot for appointment ──────────────────────────────────────────
+    @app.route("/api/appointment/<appt_id>/screenshot", methods=["GET"])
+    @login_required
+    def api_appt_screenshot(appt_id):
+        from sqlalchemy import text as _t
+        row = db.session.execute(_t("""
+            SELECT screenshot_path, screenshot_b64, verified, amount_verified,
+                   banking_name, transaction_id, created_at
+            FROM payment_screenshots
+            WHERE user_id = :uid AND appointment_id = :appt
+            ORDER BY created_at DESC LIMIT 1
+        """), {"uid": current_user.id, "appt": appt_id}).fetchone()
+        if not row:
+            return jsonify({"ok": False, "error": "No screenshot found"}), 404
+        return jsonify({
+            "ok": True,
+            "screenshot_path": row.screenshot_path,
+            "screenshot_b64":  row.screenshot_b64 if not row.screenshot_path else None,
+            "verified":        row.verified,
+            "amount":          str(row.amount_verified) if row.amount_verified else None,
+            "banking_name":    row.banking_name,
+            "transaction_id":  row.transaction_id,
+        }), 200
 
     # ── AI usage stats endpoint ────────────────────────────────────────────────
     @app.route("/api/ai-usage", methods=["GET"])
@@ -1344,7 +1470,7 @@ def register_user_routes(app: Flask):
             return redirect(url_for("verify_required"))
         # Read fresh from DB — never trust ORM cache for onboarding state
         row = db.session.execute(
-            sa_text("SELECT onboarding_complete, onboarding_step, onboarding_data FROM users WHERE id=:uid"),
+            sa_text("SELECT onboarding_complete, onboarding_step, onboarding_data , google_maps_url FROM users WHERE id=:uid"),
             {"uid": current_user.id}
         ).fetchone()
         if row and row[0]:  # onboarding_complete
@@ -2200,11 +2326,12 @@ def register_api_routes(app: Flask):
         sn = (data.get("salon_name") or "").strip()
         db.session.execute(sa_text("""
             UPDATE users SET
-              salon_name = CASE WHEN :sn != '' THEN :sn ELSE salon_name END,
-              owner_name = :on,
-              phone      = :ph,
-              city       = :ci,
-              address    = :ad
+              salon_name      = CASE WHEN :sn != '' THEN :sn ELSE salon_name END,
+              owner_name      = :on,
+              phone           = :ph,
+              city            = :ci,
+              address         = :ad,
+              google_maps_url = :mu
             WHERE id = :uid
         """), {
             "sn": sn,
@@ -2212,6 +2339,7 @@ def register_api_routes(app: Flask):
             "ph": (data.get("phone") or "").strip(),
             "ci": (data.get("city") or "").strip(),
             "ad": (data.get("address") or "").strip(),
+            "mu": (data.get("google_maps_url") or "").strip(),
             "uid": current_user.id,
         })
         db.session.commit()

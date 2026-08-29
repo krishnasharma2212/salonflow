@@ -37,6 +37,7 @@ class User(UserMixin, db.Model):
     owner_name = db.Column(db.String(120), nullable=True)
     city = db.Column(db.String(80), nullable=True)
     address = db.Column(db.Text, nullable=True)
+    google_maps_url = db.Column(db.Text, nullable=True)
     avatar_url = db.Column(db.String(300), nullable=True)
 
     # Verification / status

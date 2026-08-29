@@ -83,7 +83,49 @@
 .dc-btn-neutral:hover{background:var(--g100);border-color:var(--g300)}
 
 /* ═══ APPOINTMENTS ═══ */
-.appt-item{display:flex;align-items:center;gap:13px;padding:12px 20px;border-bottom:1px solid var(--g50);transition:background .15s}
+.appt-item{display:flex;align-items:center;gap:13px;padding:12px 16px;border-bottom:1px solid var(--g50);transition:background .15s}
+.appt-actions{display:flex;align-items:center;gap:4px;margin-left:auto;flex-shrink:0}
+@media(max-width:420px){
+  .appt-item{padding:11px 12px;gap:9px}
+  .appt-time .t{font-size:.88rem}
+  .appt-pill{display:none}  /* hidden on tiny screens — status shown via manage modal */
+  .appt-manage-btn{width:36px;height:36px}
+}
+.appt-manage-btn{background:none;border:1px solid var(--g200);border-radius:8px;width:32px;height:32px;cursor:pointer;color:var(--g500);display:flex;align-items:center;justify-content:center;transition:all .15s}
+.appt-manage-btn:hover{background:var(--g100);color:var(--g800)}
+.pay-badge{font-size:.68rem;padding:2px 7px;border-radius:99px;margin-left:6px;font-weight:700;white-space:nowrap}
+.pay-paid{background:#dcfce7;color:#16a34a}
+.pay-pending{background:#fef9c3;color:#b45309}
+.pay-suspicious{background:#fee2e2;color:#dc2626}
+.pay-review{background:#ede9fe;color:#7c3aed}
+@keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+/* Appt manage modal */
+#appt-manage-modal{display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.45);align-items:flex-end;justify-content:center}
+#appt-manage-modal.open{display:flex}
+.appt-modal-sheet{background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:480px;padding:0 0 env(safe-area-inset-bottom,16px);animation:slideUp .22s ease}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.appt-modal-drag{width:40px;height:4px;background:var(--g200);border-radius:99px;margin:12px auto 0}
+.appt-modal-header{padding:16px 20px 12px;border-bottom:1px solid var(--g100)}
+.appt-modal-name{font-weight:700;font-size:1rem;color:var(--g900)}
+.appt-modal-meta{font-size:.83rem;color:var(--g500);margin-top:2px}
+.appt-modal-body{padding:8px 0}
+.appt-modal-action{display:flex;align-items:center;gap:14px;padding:13px 20px;cursor:pointer;transition:background .15s;font-size:.9rem;font-weight:500;color:var(--g800)}
+.appt-modal-action:hover{background:var(--g50)}
+.appt-modal-action i{width:20px;text-align:center;color:var(--g400)}
+.appt-modal-action.danger{color:#dc2626}
+.appt-modal-action.danger i{color:#dc2626}
+/* Edit form inside modal */
+.appt-edit-form{padding:16px 20px;display:none}
+.appt-edit-form.open{display:block}
+.appt-edit-row{margin-bottom:12px}
+.appt-edit-row label{display:block;font-size:.78rem;font-weight:600;color:var(--g600);margin-bottom:4px}
+.appt-edit-row input,.appt-edit-row select{width:100%;padding:9px 12px;border:1.5px solid var(--g200);border-radius:10px;font-size:.88rem;outline:none;transition:border .15s}
+.appt-edit-row input:focus,.appt-edit-row select:focus{border-color:var(--primary)}
+@media(min-width:480px){
+  #appt-manage-modal{align-items:center}
+  .appt-modal-sheet{border-radius:16px;margin:16px;max-height:90vh;overflow-y:auto}
+  @keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+}
 .appt-item:last-child{border-bottom:none}
 .appt-item:hover{background:var(--t50)}
 .appt-time{min-width:46px;text-align:right}
@@ -537,9 +579,11 @@ function initPlacesDash() {
   <!-- Filter bar -->
   <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap">
     <div style="display:flex;gap:4px;background:var(--g100);padding:3px;border-radius:9px">
-      <button class="dash-tab active" style="padding:6px 14px;font-size:.78rem" onclick="filterAppts('all',this)">All</button>
+      <button class="dash-tab active" style="padding:6px 14px;font-size:.78rem" onclick="filterAppts('upcoming',this)">Upcoming</button>
       <button class="dash-tab" style="padding:6px 14px;font-size:.78rem" onclick="filterAppts('today',this)">Today</button>
-      <button class="dash-tab" style="padding:6px 14px;font-size:.78rem" onclick="filterAppts('upcoming',this)">Upcoming</button>
+      <button class="dash-tab" style="padding:6px 14px;font-size:.78rem" onclick="filterAppts('all',this)">All</button>
+      <button class="dash-tab" style="padding:6px 14px;font-size:.78rem" onclick="filterAppts('past',this)">Past</button>
+      <button class="dash-tab" style="padding:6px 14px;font-size:.78rem;color:#dc2626" onclick="filterAppts('expired',this)">Expired</button>
     </div>
     <button class="dc-btn dc-btn-primary" style="margin-left:auto" onclick="openNewApptModal()"><i class="fas fa-plus"></i> New Appointment</button>
   </div>
@@ -1056,7 +1100,7 @@ function initPlacesDash() {
                 <div id="pay-qr-preview" style="width:150px;height:150px;background:var(--g50);border:2px dashed var(--g200);border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;overflow:hidden" onclick="document.getElementById('pay-qr-input').click()">
                   <i class="fas fa-qrcode" id="pay-qr-placeholder" style="font-size:2.5rem;color:var(--g300);margin-bottom:8px"></i>
                   <span style="font-size:.72rem;color:var(--g400)">Click to upload</span>
-                  <img id="pay-qr-img" src="" style="display:none;width:100%;height:100%;object-fit:contain">
+                  <!-- QR image not stored — UPI ID extracted client-side via jsQR -->
                 </div>
                 <input type="file" id="pay-qr-input" accept="image/*" style="display:none" onchange="handleQRUpload(event)">
                 <button class="dc-btn dc-btn-ghost" onclick="document.getElementById('pay-qr-input').click()" style="width:100%;margin-top:8px;font-size:.8rem">
@@ -1120,6 +1164,16 @@ function initPlacesDash() {
           <div class="dc-hd-left"><h3><i class="fas fa-store" style="color:var(--t500);margin-right:7px"></i>Salon Information</h3><p>Used by the booking bot and shown to clients</p></div>
         </div>
         <div class="dc-bd">
+          <div class="form-item" style="margin-top:12px">
+            <label class="form-label">Google Maps Link <span style="color:var(--g400);font-size:.78rem">(optional — sent to customers after booking)</span></label>
+            <div style="position:relative">
+              <i class="fas fa-map" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--g400);font-size:.84rem;pointer-events:none;z-index:1"></i>
+              <input type="url" class="fi" id="set-maps-url"
+                     value="{{ current_user.google_maps_url or '' }}"
+                     placeholder="https://maps.google.com/?q=your+salon"
+                     style="padding-left:34px">
+            </div>
+          </div>
           <div class="form-grid form-grid-2" style="margin-bottom:14px">
             <div class="form-field">
               <label>Salon Name *</label>
@@ -1433,28 +1487,275 @@ window.switchTab = switchTab;
 // ===================================================
 //  APPOINTMENTS  -  real data from /api/appointments
 // ===================================================
-let APPTS = [];
+let APPTS        = [];
+let ALL_APPTS_RAW = [];  // includes expired/pending — for Expired tab
+let _amAppt = null;
+
+// ══ APPOINTMENT MANAGE MODAL ═════════════════════════════════════════════════
+function openApptManage(apptJson) {
+  _amAppt = apptJson;
+  const a = _amAppt;
+  document.getElementById('am-name').textContent = a.customer_name || 'Customer';
+  const dateStr = a.date ? new Date(a.date + 'T00:00:00').toLocaleDateString('en-IN',
+    {weekday:'short',day:'numeric',month:'short',year:'numeric'}) : '';
+  document.getElementById('am-meta').textContent =
+    `${a.service || ''}  ·  ${dateStr}  ·  ${friendlyTime(a.time)}`;
+  document.getElementById('am-mark-paid').style.display =
+    ['pending','wrong_amount','manual_review','suspicious'].includes(a.payment_status) ? 'flex' : 'none';
+  document.getElementById('am-actions').style.display = 'block';
+  document.getElementById('am-edit-form').classList.remove('open');
+  document.getElementById('am-detail-view').style.display = 'none';
+  document.getElementById('appt-manage-modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeApptManage() {
+  document.getElementById('appt-manage-modal').classList.remove('open');
+  document.body.style.overflow = '';
+  _amAppt = null;
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeApptManage();
+});
+// Opens screenshot viewer for any appointment by ID
+function _openScreenshot(apptId) {
+  // Look up from _apptData cache (always populated) or ALL_APPTS_RAW
+  const appt = (window._apptData && window._apptData[apptId])
+    || (ALL_APPTS_RAW || []).find(a => a.id === apptId);
+
+  if (!appt) {
+    console.warn('[Screenshot] appt not found for id:', apptId);
+    return;
+  }
+
+  _amAppt = appt;
+
+  // Open modal
+  const modal = document.getElementById('appt-manage-modal');
+  modal.classList.add('open');
+  document.body.style.overflow = 'hidden';
+  document.getElementById('am-name').textContent = appt.customer_name || 'Customer';
+  const ds = appt.date ? new Date(appt.date + 'T00:00:00').toLocaleDateString('en-IN',
+    {weekday:'short',day:'numeric',month:'short'}) : '';
+  document.getElementById('am-meta').textContent =
+    [appt.service, ds, friendlyTime(appt.time)].filter(Boolean).join(' · ');
+
+  // Show correct action buttons
+  const actionsEl   = document.getElementById('am-actions');
+  const markPaidBtn = document.getElementById('am-mark-paid');
+  if (actionsEl)   actionsEl.style.display   = 'flex';
+  if (markPaidBtn) markPaidBtn.style.display = appt.payment_status === 'pending' ? 'flex' : 'none';
+
+  // Reset views
+  const editForm   = document.getElementById('am-edit-form');
+  const detailView = document.getElementById('am-detail-view');
+  if (editForm)   editForm.style.display   = 'none';
+  if (detailView) detailView.style.display = 'none';
+
+  // Go straight to detail + screenshot
+  setTimeout(amViewDetails, 80);
+}
+
+async function amViewDetails() {
+  const a = _amAppt; if (!a) return;
+  document.getElementById('am-actions').style.display = 'none';
+  document.getElementById('am-detail-view').style.display = 'block';
+
+  const dateStr = a.date ? new Date(a.date + 'T00:00:00').toLocaleDateString('en-IN',
+    {weekday:'long',day:'numeric',month:'long',year:'numeric'}) : '—';
+  const rows = [
+    ['Customer', escHtml(a.customer_name||'—')],
+    ['Service',  escHtml(a.service||'—')],
+    ['Date',     dateStr],
+    ['Time',     friendlyTime(a.time)||'—'],
+    ['Duration', a.duration_min ? a.duration_min+' min' : '—'],
+    ['Phone',    escHtml(a.phone||'—')],
+    ['Payment',  escHtml(a.payment_status||'N/A')],
+    ['Amount',   a.amount_paid ? '₹'+a.amount_paid : '—'],
+    ['TXN ID',   escHtml(a.transaction_id||'—')],
+    ['Paid By',  escHtml(a.banking_name||'—')],
+    ['Notes',    escHtml(a.notes||'—')],
+    ['ID',       `<code style="font-size:.73rem">${escHtml(a.id||'')}</code>`],
+  ];
+
+  // Render details immediately
+  document.getElementById('am-detail-content').innerHTML = rows.map(([k,v]) =>
+    `<div style="display:flex;gap:12px;padding:5px 0;border-bottom:1px solid var(--g50)">
+      <span style="min-width:85px;font-weight:600;color:var(--g500);flex-shrink:0">${k}</span>
+      <span style="word-break:break-all">${v}</span></div>`
+  ).join('') + (a.payment_status === 'paid' || a.payment_status === 'manual_review'
+    ? `<div id="am-ss-area" style="margin-top:14px">
+        <div style="font-weight:600;color:var(--g500);font-size:.78rem;margin-bottom:6px;letter-spacing:.04em">
+          PAYMENT SCREENSHOT
+        </div>
+        <div id="am-ss-inner" style="color:var(--g400);font-size:.82rem">Loading...</div>
+       </div>`
+    : '');
+
+  // Fetch screenshot from DB (works even if screenshot_path was never saved on appt)
+  if (a.payment_status === 'paid' || a.payment_status === 'manual_review') {
+    try {
+      // First try screenshot_path on appt object itself
+      let ssPath = a.screenshot_path || null;
+
+      // If not on appt, fetch from dedicated endpoint
+      if (!ssPath) {
+        const res = await fetchAPI(`/api/appointment/${encodeURIComponent(a.id)}/screenshot`);
+        if (res.ok) ssPath = res.screenshot_path;
+      }
+
+      const ssArea = document.getElementById('am-ss-inner');
+      if (!ssArea) return;
+      if (ssPath) {
+        ssArea.innerHTML = `
+          <a href="${escHtml(ssPath)}" target="_blank" rel="noopener"
+             style="display:inline-block;margin-top:4px">
+            <img src="${escHtml(ssPath)}"
+                 style="max-width:100%;border-radius:10px;border:2px solid #16a34a;display:block"
+                 alt="Payment screenshot"
+                 onerror="this.parentElement.innerHTML='<span style=\'color:#dc2626\'>Image not available. <a href=\'${escHtml(ssPath)}\' target=\'_blank\'>Open link</a></span>'">
+          </a>
+          <div style="margin-top:6px;font-size:.75rem;color:var(--g400)">
+            Tap image to open full size
+          </div>`;
+      } else {
+        ssArea.innerHTML = '<span style="color:var(--g400);font-size:.82rem">No screenshot on file.</span>';
+      }
+    } catch(e) {
+      const ssArea = document.getElementById('am-ss-inner');
+      if (ssArea) ssArea.innerHTML = '<span style="color:var(--g400)">Could not load screenshot.</span>';
+    }
+  }
+}
+function amDetailClose() {
+  document.getElementById('am-actions').style.display = 'block';
+  document.getElementById('am-detail-view').style.display = 'none';
+}
+function amEditToggle() {
+  const form = document.getElementById('am-edit-form');
+  const actions = document.getElementById('am-actions');
+  if (form.classList.contains('open')) {
+    form.classList.remove('open'); actions.style.display = 'block';
+  } else {
+    document.getElementById('ame-name').value    = _amAppt.customer_name || '';
+    document.getElementById('ame-service').value = _amAppt.service || '';
+    document.getElementById('ame-date').value    = _amAppt.date || '';
+    document.getElementById('ame-time').value    = _amAppt.time || '';
+    document.getElementById('ame-dur').value     = _amAppt.duration_min || 30;
+    document.getElementById('ame-notes').value   = _amAppt.notes || '';
+    actions.style.display = 'none';
+    form.classList.add('open');
+  }
+}
+async function amSaveEdit() {
+  const btn = document.querySelector('#am-edit-form .dc-btn-primary');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+  const r = await fetch(`/api/appointments/${encodeURIComponent(_amAppt.id)}`, {
+    method: 'PATCH', credentials: 'same-origin',
+    headers: {'Content-Type':'application/json','X-CSRFToken': csrf},
+    body: JSON.stringify({
+      customer_name: document.getElementById('ame-name').value.trim(),
+      service:       document.getElementById('ame-service').value.trim(),
+      date:          document.getElementById('ame-date').value,
+      time:          document.getElementById('ame-time').value,
+      duration_min:  parseInt(document.getElementById('ame-dur').value)||30,
+      notes:         document.getElementById('ame-notes').value.trim(),
+    }),
+  });
+  btn.disabled = false; btn.textContent = 'Save Changes';
+  const d = await r.json();
+  if (d.ok) { closeApptManage(); loadAppointments(); showToast('Appointment updated ✓','success'); }
+  else showToast(d.error||'Update failed','error');
+}
+async function amMarkPaid() {
+  if (!confirm('Mark this appointment as paid?')) return;
+  const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+  const r = await fetch(`/api/appointments/${encodeURIComponent(_amAppt.id)}`, {
+    method:'PATCH', credentials:'same-origin',
+    headers:{'Content-Type':'application/json','X-CSRFToken':csrf},
+    body:JSON.stringify({payment_status:'paid'}),
+  });
+  const d = await r.json();
+  if (d.ok) { closeApptManage(); loadAppointments(); showToast('Marked as paid ✓','success'); }
+  else showToast(d.error||'Failed','error');
+}
+async function amDelete() {
+  const name = _amAppt?.customer_name || 'this appointment';
+  if (!confirm(`Delete ${name}'s appointment? This cannot be undone.`)) return;
+  const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+  const r = await fetch(`/api/appointments/${encodeURIComponent(_amAppt.id)}`, {
+    method:'DELETE', credentials:'same-origin',
+    headers:{'X-CSRFToken':csrf},
+  });
+  const d = await r.json();
+  if (d.ok) { closeApptManage(); loadAppointments(); showToast('Appointment deleted','success'); }
+  else showToast(d.error||'Delete failed','error');
+}
+
+// Format HH:MM → natural 12h time
+function friendlyTime(t) {
+  if (!t) return '';
+  const [hh, mm] = t.split(':').map(Number);
+  const suffix = hh >= 12 ? 'PM' : 'AM';
+  const h12 = hh > 12 ? hh - 12 : (hh === 0 ? 12 : hh);
+  return mm === 0 ? `${h12} ${suffix}` : `${h12}:${String(mm).padStart(2,'0')} ${suffix}`;
+}
+
+// Format YYYY-MM-DD → "Mon, 6 Apr"
+function friendlyDateShort(d) {
+  if (!d) return '';
+  return new Date(d + 'T00:00:00').toLocaleDateString('en-IN', {
+    weekday:'short', day:'numeric', month:'short'
+  });
+}
 
 function apptHTML(a) {
   const today = new Date().toLocaleDateString('sv-SE');
   const isToday = a.date === today;
   const isPast  = a.date < today;
-  const payBadge = a.payment_status === 'paid'        ? '<span style="font-size:.68rem;background:#dcfce7;color:#16a34a;padding:2px 7px;border-radius:99px;margin-left:6px;font-weight:700">Paid</span>'
-                 : a.payment_status === 'pending'     ? '<span style="font-size:.68rem;background:#fef9c3;color:#b45309;padding:2px 7px;border-radius:99px;margin-left:6px;font-weight:700">Awaiting Payment</span>'
-                 : a.payment_status === 'suspicious'  ? '<span style="font-size:.68rem;background:#fee2e2;color:#dc2626;padding:2px 7px;border-radius:99px;margin-left:6px;font-weight:700">Suspicious</span>'
-                 : a.payment_status === 'manual_review' ? '<span style="font-size:.68rem;background:#ede9fe;color:#7c3aed;padding:2px 7px;border-radius:99px;margin-left:6px;font-weight:700">Review</span>'
+  const ps = a.payment_status;
+  const payBadge = ps === 'paid'            ? '<span class="pay-badge pay-paid">Paid</span>'
+                 : ps === 'pending'         ? '<span class="pay-badge pay-pending">Awaiting Payment</span>'
+                 : ps === 'payment_timeout' ? '<span class="pay-badge pay-suspicious">Expired</span>'
+                 : ps === 'suspicious'      ? '<span class="pay-badge pay-suspicious">Suspicious</span>'
+                 : ps === 'manual_review'   ? '<span class="pay-badge pay-review">Review</span>'
+                 : ps === 'wrong_amount'    ? '<span class="pay-badge pay-suspicious">Wrong Amount</span>'
+                 : ps === 'cancelled'       ? '<span class="pay-badge" style="background:#f1f5f9;color:#64748b">Cancelled</span>'
                  : '';
   const statusLabel = isPast ? 'Completed' : isToday ? 'Today' : 'Upcoming';
   const statusClass = isPast ? 'pill-c' : isToday ? 'pill-p' : 'pill-u';
-  const durLabel = a.duration_min ? a.duration_min + 'm' : '';
-  return `<div class="appt-item" data-status="${statusLabel.toLowerCase()}">
-    <div class="appt-time"><span class="t">${a.time || ''}</span><span class="d">${durLabel}</span></div>
+  const durLabel = a.duration_min ? a.duration_min + 'min' : '';
+  const timeStr  = friendlyTime(a.time);
+  const dateStr  = isToday ? 'Today' : friendlyDateShort(a.date);
+  const phone    = escHtml(a.phone || '');
+  const notes    = escHtml(a.notes || '');
+  const txn      = a.transaction_id ? `<span style="color:var(--g400);font-size:.74rem">TXN: ${escHtml(a.transaction_id)}</span>` : '';
+  // Show screenshot badge for all paid appts — clicking opens the manage modal detail view
+  const apptId = escHtml(a.id || '');
+  const ssThumb = (ps === 'paid' || ps === 'manual_review')
+    ? `<span onclick="event.stopPropagation();_openScreenshot('${apptId}')"
+            title="View payment screenshot"
+            style="display:inline-flex;align-items:center;gap:3px;margin-top:3px;cursor:pointer;
+                   background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;
+                   border-radius:99px;padding:2px 8px;font-size:.7rem;font-weight:600">
+        📷 Screenshot
+      </span>`
+    : '';
+  const isExpired = ps === 'payment_timeout' || ps === 'cancelled';
+  return `<div class="appt-item" data-status="${statusLabel.toLowerCase()}" data-id="${escHtml(a.id||'')}"
+    style="${isExpired ? 'opacity:0.55;' : ''}">
+    <div class="appt-time"><span class="t">${timeStr}</span><span class="d">${durLabel}</span></div>
     <div class="appt-line"></div>
     <div class="appt-info">
       <div class="appt-name">${escHtml(a.customer_name || 'Customer')}${payBadge}</div>
-      <div class="appt-svc">${escHtml(a.service || '')}${a.date ? '  .  ' + a.date : ''}${a.transaction_id ? '  ·  TXN: ' + a.transaction_id : ''}</div>
+      <div class="appt-svc">${escHtml(a.service || '')} &nbsp;·&nbsp; ${dateStr}${phone ? ' &nbsp;·&nbsp; ' + phone : ''}${txn ? '<br>' + txn : ''}${ssThumb ? '<br>' + ssThumb : ''}</div>
     </div>
-    <span class="appt-pill ${statusClass}">${statusLabel}</span>
+    <div class="appt-actions">
+      <span class="appt-pill ${statusClass}" style="margin-right:4px">${statusLabel}</span>
+      <button class="appt-manage-btn" onclick="openApptManage(window._apptData[this.dataset.id])" data-id="${escHtml(a.id||'')}" title="Manage">
+        <i class="fas fa-ellipsis-v"></i>
+      </button>
+    </div>
   </div>`;
 }
 
@@ -1463,17 +1764,36 @@ async function loadAppointments() {
     const r = await fetch('/api/appointments', { credentials: 'same-origin' });
     const d = await r.json();
     if (!d.ok) return;
-    APPTS = d.appointments || [];
-    renderAppointmentLists();
+    // Fix 3: filter out unpaid/pending appointments from dashboard view
+    ALL_APPTS_RAW = d.appointments || [];  // all including expired/pending
+    APPTS = ALL_APPTS_RAW.filter(a =>
+      a.payment_status !== 'pending' && a.payment_status !== 'payment_timeout'
+    );
+    renderAppointmentLists('upcoming');
     updateOverviewStats();
   } catch(e) { console.warn('[APPTS]', e); }
 }
 
-function renderAppointmentLists(filter = 'all') {
+function renderAppointmentLists(filter = 'upcoming') {
+  // Build a fast lookup map so manage buttons can find appt data by id
+  window._apptData = {};
+  // Include expired appts in lookup so manage modal works for expired tab
+  (filter === 'expired' ? ALL_APPTS_RAW : APPTS).forEach(a => {
+    if (a.id) window._apptData[a.id] = a;
+  });
+
   const today = new Date().toLocaleDateString('sv-SE');
   // Update count label
   const countEl = document.getElementById('appt-count');
-  if (countEl) countEl.textContent = APPTS.length + ' appointment' + (APPTS.length !== 1 ? 's' : '');
+  if (countEl) {
+    const n = filter === 'expired'
+      ? ALL_APPTS_RAW.filter(a => a.payment_status === 'payment_timeout' || a.payment_status === 'cancelled').length
+      : filter === 'past'   ? APPTS.filter(a => a.date < new Date().toLocaleDateString('sv-SE')).length
+      : filter === 'today'  ? APPTS.filter(a => a.date === new Date().toLocaleDateString('sv-SE')).length
+      : filter === 'upcoming'? APPTS.filter(a => a.date >= new Date().toLocaleDateString('sv-SE')).length
+      : APPTS.length;
+    countEl.textContent = n + ' appointment' + (n !== 1 ? 's' : '');
+  }
 
   // Overview: today's appointments
   const overviewList = document.getElementById('overview-appts');
@@ -1492,9 +1812,14 @@ function renderAppointmentLists(filter = 'all') {
   // Full list
   const fullList = document.getElementById('full-appt-list');
   if (fullList) {
+    // Expired = payment_timeout (reserved but not paid in time) — loaded separately
     let filtered = APPTS;
     if (filter === 'today')    filtered = APPTS.filter(a => a.date === today);
     if (filter === 'upcoming') filtered = APPTS.filter(a => a.date >= today);
+    if (filter === 'past')     filtered = APPTS.filter(a => a.date < today);
+    if (filter === 'expired')  filtered = ALL_APPTS_RAW.filter(a =>
+      a.payment_status === 'payment_timeout' || a.payment_status === 'cancelled'
+    );
     if (filtered.length === 0) {
       fullList.innerHTML = '<div style="text-align:center;padding:32px;color:var(--g400)"><i class="fas fa-calendar-times" style="display:block;font-size:2rem;margin-bottom:10px"></i>No appointments found</div>';
     } else {
@@ -1559,6 +1884,14 @@ function updateOverviewStats() {
 function filterAppts(filter, btn) {
   document.querySelectorAll('#tab-appointments .dash-tab').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
+  // Update header label
+  const h3 = document.querySelector('#tab-appointments .dc-hd h3');
+  if (h3) h3.textContent =
+    filter === 'upcoming' ? 'Upcoming Appointments' :
+    filter === 'today'    ? "Today's Appointments" :
+    filter === 'past'     ? 'Past Appointments' :
+    filter === 'expired'  ? 'Expired Reservations' :
+    'All Appointments';
   renderAppointmentLists(filter);
 }
 
@@ -1803,6 +2136,49 @@ async function saveBotSettings() {
   } catch { showToast('Could not save settings', 'error'); }
 }
 
+// ── Client-side QR decoder (jsQR) ─────────────────────────────────────────────
+let _jsQRReady = false;
+function ensureJsQR(cb) {
+  if (window.jsQR) { cb(); return; }
+  if (_jsQRReady) { cb(); return; }
+  const s = document.createElement('script');
+  s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js';
+  s.onload = () => { _jsQRReady = true; cb(); };
+  document.head.appendChild(s);
+}
+
+function decodeQRFromFile(file, onResult) {
+  ensureJsQR(() => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width  = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        const imageData = ctx.getImageData(0, 0, img.width, img.height);
+        const code = jsQR(imageData.data, img.width, img.height);
+        onResult(code?.data || null);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function extractUPIFromQRString(str) {
+  if (!str) return null;
+  // UPI deep-link: upi://pay?pa=7906839138@yaml&...
+  const m = str.match(/[?&]pa=([^&]+)/i);
+  if (m) return decodeURIComponent(m[1]).trim();
+  // Plain UPI ID: something@bank
+  const plain = str.match(/[\w.\-+]+@[\w]+/);
+  if (plain) return plain[0].trim();
+  return null;
+}
+
 async function loadBotSettings() {
   try {
     const r = await fetch('/api/bot-settings', { credentials: 'same-origin' });
@@ -1907,12 +2283,6 @@ document.getElementById('new-appt-modal')?.addEventListener('click', function(e)
 // -- Analytics (real data) -------------------------------------------------
 let analyticsPeriod = 'week';
 
-function setPeriod(p, btn) {
-  analyticsPeriod = p;
-  document.querySelectorAll('#tab-analytics .dash-tab').forEach(b => b.classList.remove('active'));
-  if (btn) btn.classList.add('active');
-  renderAnalytics();
-}
 
 function renderAnalytics() {
   const today = new Date().toLocaleDateString('sv-SE');
@@ -2038,6 +2408,7 @@ async function saveSettings() {
     address:      document.getElementById('set-address').value.trim(),
     city:         document.getElementById('set-city').value.trim(),
     phone:        document.getElementById('set-phone').value.trim(),
+    google_maps_url: document.getElementById('set-maps-url')?.value.trim() || '',
   };
   try {
     const r = await fetchAPI('/api/profile/update', {
@@ -2079,15 +2450,6 @@ async function loadServices() {
 }
 
 // Escape HTML entities — prevents XSS and broken service name rendering
-function escHtml(str) {
-  if (!str) return "";
-  return String(str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
 
 function _svcDurLabel(d) {
   return d < 60 ? d + ' min' : (d === 60 ? '1 hr' : (d / 60) + ' hr');
@@ -2539,40 +2901,28 @@ function onUPIIdInput() {
 function handleQRUpload(e) {
   const file = e.target.files[0];
   if (!file) return;
-  const reader = new FileReader();
-  reader.onload = (ev) => {
-    _upiQrBase64 = ev.target.result;
-    const img = document.getElementById('pay-qr-img');
-    const ico = document.getElementById('pay-qr-placeholder');
-    if (img) { img.src = _upiQrBase64; img.style.display = 'block'; }
-    if (ico) ico.style.display = 'none';
-    showToast('QR uploaded! Extracting UPI ID...', 'info');
-    _tryExtractUPIFromQR(_upiQrBase64);
-  };
-  reader.readAsDataURL(file);
+  // Don't store the image — just extract UPI ID client-side via jsQR
+  showToast('Scanning QR code...', 'info');
+  _tryExtractUPIFromQR(file);  // pass file object, not base64
 }
 
-async function _tryExtractUPIFromQR(base64) {
-  try {
-    const r = await fetchAPI('/api/payment-settings/extract-upi', {
-      method: 'POST', credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ qr_image: base64 }),
-    });
-    const d = await r.json();
-    if (d.ok && d.upi_id) {
-      _extractedUpiId = d.upi_id;
-      const extDiv = document.getElementById('qr-extracted-upi');
-      const extVal = document.getElementById('qr-upi-val');
-      const upiInp = document.getElementById('pay-upi-id');
+async function _tryExtractUPIFromQR(file) {
+  // Client-side: decode QR with jsQR, extract UPI ID — no image sent to server
+  decodeQRFromFile(file, (qrData) => {
+    const upiId = extractUPIFromQRString(qrData);
+    const extDiv = document.getElementById('qr-extracted-upi');
+    const extVal = document.getElementById('qr-upi-val');
+    const upiInp = document.getElementById('pay-upi-id');
+    if (upiId) {
+      _extractedUpiId = upiId;
       if (extDiv) extDiv.style.display = '';
-      if (extVal) extVal.textContent   = d.upi_id;
-      if (upiInp) { upiInp.value = d.upi_id; onUPIIdInput(); }
-      showToast('UPI ID found: ' + d.upi_id, 'success');
+      if (extVal) extVal.textContent   = upiId;
+      if (upiInp) { upiInp.value = upiId; onUPIIdInput(); }
+      showToast('UPI ID detected: ' + upiId, 'success');
     } else {
-      showToast('QR uploaded. Enter UPI ID manually if needed.', 'info');
+      showToast('QR scanned. If UPI ID not found, enter it manually.', 'info');
     }
-  } catch {}
+  });
 }
 
 async function savePaymentSettings() {
@@ -2583,7 +2933,7 @@ async function savePaymentSettings() {
     payment_enabled: !!(document.getElementById('pay-enabled-toggle')?.checked),
     advance_amount:  parseInt(document.getElementById('pay-advance-amount')?.value || '0') || 0,
     upi_id:          finalUpiId,
-    upi_qr_code:     _upiQrBase64 || '',
+    // QR image never sent to server — only UPI ID is stored
   };
   try {
     const r = await fetchAPI('/api/payment-settings', {
@@ -2595,7 +2945,6 @@ async function savePaymentSettings() {
     if (d.ok) {
       if (ind) { ind.className = 'save-indicator saved'; ind.innerHTML = '<i class="fas fa-check-circle"></i> Saved'; }
       showToast('Payment settings saved!', 'success');
-      _upiQrBase64 = '';
     } else {
       if (ind) { ind.className = 'save-indicator'; ind.textContent = 'Failed'; }
       showToast('Failed: ' + (d.error || 'Error'), 'error');
@@ -2624,11 +2973,8 @@ async function loadPaymentSettings() {
     }
     if (amt && d.advance_amount && d.advance_amount !== '0') amt.value = d.advance_amount;
     if (uid && d.upi_id) { uid.value = d.upi_id; onUPIIdInput(); }
-    if (d.upi_qr_code) {
-      if (img) { img.src = d.upi_qr_code; img.style.display = 'block'; }
-      if (ico) ico.style.display = 'none';
-      switchUPIMethod('qr');
-    } else if (d.upi_id) {
+    // QR image no longer stored — just use UPI ID directly
+    if (d.upi_id) {
       switchUPIMethod('id');
     }
   } catch(err) { console.error('[loadPaymentSettings]', err); }
@@ -2760,4 +3106,47 @@ function addServiceRow() {
 })();
 
 </script>
+<!-- ═══════ APPOINTMENT MANAGE MODAL ═══════ -->
+<div id="appt-manage-modal" role="dialog" aria-modal="true" onclick="if(event.target===this)closeApptManage()">
+  <div class="appt-modal-sheet">
+    <div class="appt-modal-drag"></div>
+    <div class="appt-modal-header">
+      <div class="appt-modal-name" id="am-name">Customer</div>
+      <div class="appt-modal-meta" id="am-meta"></div>
+    </div>
+    <div class="appt-modal-body" id="am-actions">
+      <div class="appt-modal-action" onclick="amViewDetails()">
+        <i class="fas fa-eye"></i> View Details
+      </div>
+      <div class="appt-modal-action" onclick="amEditToggle()">
+        <i class="fas fa-pen"></i> Edit Appointment
+      </div>
+      <div class="appt-modal-action" id="am-mark-paid" onclick="amMarkPaid()" style="display:none">
+        <i class="fas fa-check-circle"></i> Mark as Paid
+      </div>
+      <div class="appt-modal-action danger" onclick="amDelete()">
+        <i class="fas fa-trash"></i> Delete Appointment
+      </div>
+    </div>
+    <!-- Edit form (shown inline) -->
+    <div class="appt-edit-form" id="am-edit-form">
+      <div class="appt-edit-row"><label>Customer Name</label><input id="ame-name" type="text"></div>
+      <div class="appt-edit-row"><label>Service</label><input id="ame-service" type="text"></div>
+      <div style="display:flex;gap:10px">
+        <div class="appt-edit-row" style="flex:1"><label>Date</label><input id="ame-date" type="date"></div>
+        <div class="appt-edit-row" style="flex:1"><label>Time</label><input id="ame-time" type="time"></div>
+      </div>
+      <div class="appt-edit-row"><label>Duration (min)</label><input id="ame-dur" type="number" min="5" max="480"></div>
+      <div class="appt-edit-row"><label>Notes</label><input id="ame-notes" type="text"></div>
+      <button class="dc-btn dc-btn-primary" style="width:100%;margin-top:4px" onclick="amSaveEdit()">Save Changes</button>
+      <button class="dc-btn" style="width:100%;margin-top:8px" onclick="amEditToggle()">Cancel</button>
+    </div>
+    <!-- Detail view -->
+    <div id="am-detail-view" style="display:none;padding:16px 20px;font-size:.88rem;color:var(--g700)">
+      <div id="am-detail-content" style="line-height:1.8"></div>
+      <button class="dc-btn" style="width:100%;margin-top:14px" onclick="amDetailClose()">Close</button>
+    </div>
+  </div>
+</div>
+
 {% endblock %}

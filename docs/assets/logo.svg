@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="260" viewBox="0 0 960 260" role="img" aria-labelledby="title desc">
+  <title id="title">SalonFlow logo</title>
+  <desc id="desc">A polished SalonFlow wordmark with a scissors and calendar symbol.</desc>
+  <defs>
+    <linearGradient id="markGradient" x1="22" y1="18" x2="198" y2="206" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0f766e"/>
+      <stop offset="0.55" stop-color="#14b8a6"/>
+      <stop offset="1" stop-color="#f59e0b"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#0f172a" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+  <rect width="960" height="260" rx="34" fill="#f8fafc"/>
+  <g filter="url(#shadow)">
+    <rect x="52" y="42" width="176" height="176" rx="42" fill="url(#markGradient)"/>
+    <path d="M94 99c0-20 16-36 36-36 19 0 35 16 35 36 0 11-5 21-13 28l35 54h-28l-27-42-27 42H77l35-54a36 36 0 0 1-18-28Z" fill="#ffffff" opacity="0.98"/>
+    <circle cx="130" cy="99" r="14" fill="#0f766e" opacity="0.92"/>
+    <path d="M162 113l39-29M162 133l39 29" stroke="#ffffff" stroke-width="12" stroke-linecap="round"/>
+    <rect x="104" y="154" width="73" height="42" rx="13" fill="#ffffff" opacity="0.96"/>
+    <path d="M120 171h42M120 184h28" stroke="#0f766e" stroke-width="7" stroke-linecap="round"/>
+  </g>
+  <text x="270" y="122" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="64" font-weight="800" fill="#0f172a">SalonFlow</text>
+  <text x="273" y="166" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="25" font-weight="500" fill="#475569">WhatsApp bookings, payments, and salon operations in one flow.</text>
+  <g transform="translate(274 188)">
+    <rect width="112" height="34" rx="17" fill="#ccfbf1"/>
+    <text x="56" y="23" text-anchor="middle" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="14" font-weight="700" fill="#115e59">BOOKINGS</text>
+    <rect x="124" width="112" height="34" rx="17" fill="#fef3c7"/>
+    <text x="180" y="23" text-anchor="middle" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="14" font-weight="700" fill="#92400e">PAYMENTS</text>
+    <rect x="248" width="126" height="34" rx="17" fill="#e0f2fe"/>
+    <text x="311" y="23" text-anchor="middle" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="14" font-weight="700" fill="#075985">WHATSAPP</text>
+  </g>
+</svg>

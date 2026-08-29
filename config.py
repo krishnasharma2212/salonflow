@@ -56,8 +56,16 @@ class Config:
     RECAPTCHA_SCORE_THRESHOLD = 0.5   # scores below this are flagged as bots
     RECAPTCHA_ENABLED    = True        # set False in tests
 
+    # Firebase / Google sign-in
+    FIREBASE_API_KEY = os.environ.get("FIREBASE_API_KEY", "")
+    FIREBASE_AUTH_DOMAIN = os.environ.get("FIREBASE_AUTH_DOMAIN", "")
+    FIREBASE_PROJECT_ID = os.environ.get("FIREBASE_PROJECT_ID", "")
+    FIREBASE_STORAGE_BUCKET = os.environ.get("FIREBASE_STORAGE_BUCKET", "")
+    FIREBASE_MESSAGING_SENDER_ID = os.environ.get("FIREBASE_MESSAGING_SENDER_ID", "")
+    FIREBASE_APP_ID = os.environ.get("FIREBASE_APP_ID", "")
+
     # ── Bot Manager ──────────────────────────────────────
-    BOT_API_KEY = os.environ.get("BOT_API_KEY", "sf-bot-manager-secret-change-this")
+    BOT_API_KEY = os.environ.get("BOT_API_KEY", "")
 
     # ── Razorpay ─────────────────────────────────────────
     RAZORPAY_KEY_ID     = os.environ.get("RAZORPAY_KEY_ID", "")

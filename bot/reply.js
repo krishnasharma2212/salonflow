@@ -27,7 +27,9 @@ import { OpenAI }      from "openai";
 import { google }      from "googleapis";
 import pkg             from "pg";
 import fs              from "fs/promises";
+import { createReadStream } from "fs";
 import path            from "path";
+import os              from "os";
 import crypto          from "crypto";
 import QRCode          from "qrcode";
 import { v4 as uuid }  from "uuid";
@@ -39,7 +41,7 @@ import { v4 as uuid }  from "uuid";
 const CFG = {
   openaiKey:    process.env.OPENAI_API_KEY  || "",
   dbUrl:        process.env.DATABASE_URL    || "",
-  debounceMs:   parseInt(process.env.DEBOUNCE_MS     || "7000"),
+  debounceMs:   parseInt(process.env.DEBOUNCE_MS     || "3000"),  // 3s default (was 7s)
   bufferMinutes:parseInt(process.env.APPT_BUFFER_MIN || "15"),
   timezone:     "Asia/Kolkata",
   lookaheadDays: 7,
@@ -55,7 +57,18 @@ const CFG = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const openai = new OpenAI({ apiKey: CFG.openaiKey });
-const pool   = new pkg.Pool({ connectionString: CFG.dbUrl });
+const pool   = new pkg.Pool({
+  connectionString:        CFG.dbUrl,
+  max:                     10,
+  idleTimeoutMillis:       30_000,
+  connectionTimeoutMillis: 8_000,  // fail fast if DB unreachable
+  allowExitOnIdle:         false,
+});
+
+// Prevent stuck pool clients from crashing the process silently
+pool.on("error", (err) => {
+  console.error("[POOL] Client error:", err.message);
+});
 
 // Baileys logger — suppress noisy output in production
 const logger = P({ level: process.env.LOG_LEVEL || "warn" });
@@ -65,6 +78,25 @@ const logger = P({ level: process.env.LOG_LEVEL || "warn" });
 // ─────────────────────────────────────────────────────────────────────────────
 
 const SESSION_FILE = "sessionID.txt";
+
+// Clean up rate-limiting Maps every hour — prevents unbounded memory growth
+setInterval(() => {
+  const cutoff = Date.now() - Math.max(CFG.userCooldownMs, CFG.sessionBlockMs);
+  for (const [jid, times] of userMessageLog.entries()) {
+    if (!times.some(t => t > cutoff)) userMessageLog.delete(jid);
+  }
+  for (const [sid, times] of sessionMessageLog.entries()) {
+    if (!times.some(t => t > cutoff)) sessionMessageLog.delete(sid);
+  }
+  // Also clean lastReply map
+  for (const [jid, ts] of lastReply.entries()) {
+    if (Date.now() - ts > 3_600_000) lastReply.delete(jid);
+  }
+  // Clean _lastSentTs
+  for (const [jid, ts] of _lastSentTs.entries()) {
+    if (Date.now() - ts > 3_600_000) _lastSentTs.delete(jid);
+  }
+}, 3_600_000);
 const AUTH_DIR     = path.resolve("./wa_credentials");
 
 const userMessageLog    = new Map();
@@ -410,6 +442,9 @@ async function buildProfile(user) {
     advance_amount:      advanceAmount,
     upi_id:              upiId,
     upi_qr_code:         upiQrCode,
+    brand_color:         user.brand_color     || "#1a1a2e",
+    logo_url:            user.logo_url        || "",
+    google_maps_url:     user.google_maps_url || "",
   };
   _profileCache.set(user.id, { ts: Date.now(), profile: _profile });
   return _profile;
@@ -490,6 +525,53 @@ function nowTimeIST() {
   return new Date().toLocaleTimeString("en-GB", {
     timeZone: TZ, hour: "2-digit", minute: "2-digit",
   });
+}
+
+/**
+ * Human-like send: mark as read → composing indicator → delay → send message.
+ * Makes every bot message feel like a real person typing.
+ * @param {string} jid - recipient JID
+ * @param {string} text - message text
+ * @param {object} [msgKey] - message key for read receipt (optional)
+ * @param {string} [lang] - language for delay calibration
+ */
+async function humanSend(jid, text, msgKey = null, lang = "hinglish") {
+  const liveSock = sock;
+  if (!liveSock) return;
+
+  // 1. Mark as read (blue ticks)
+  try {
+    if (msgKey?.id) {
+      await liveSock.readMessages([{
+        remoteJid: jid, id: msgKey.id,
+        fromMe: false, participant: msgKey.participant || undefined,
+      }]);
+    }
+  } catch {}
+
+  // 2. Short pause before composing (person reads message first)
+  await sleep(humanDelay(600, 1400));
+
+  // 3. Show composing indicator
+  try { await liveSock.sendPresenceUpdate("composing", jid); } catch {}
+
+  // 4. Typing delay proportional to message length
+  const typingMs = typingDuration(text);
+  await sleep(typingMs);
+
+  // 5. Stop composing and send
+  try { await liveSock.sendPresenceUpdate("paused", jid); } catch {}
+  await sleep(humanDelay(100, 300));
+  await sendSafe(jid, text);
+}
+
+/** Convert HH:MM (24h) to natural "2:30 PM" format */
+function friendlyTime12(t) {
+  if (!t) return t;
+  const [hh, mm] = t.split(":").map(Number);
+  const suffix = hh >= 12 ? "PM" : "AM";
+  const h12    = hh > 12 ? hh - 12 : (hh === 0 ? 12 : hh);
+  return mm === 0 ? `${h12} ${suffix}` : `${h12}:${String(mm).padStart(2,"0")} ${suffix}`;
 }
 
 function friendlyDate(dateStr) {
@@ -610,8 +692,11 @@ function buildAvailabilityChart(avail, lookahead = CFG.lookaheadDays) {
 
 function detectLanguage(text) {
   if (/[\u0900-\u097F]/.test(text)) return "hindi";
-  if (/\b(kya|mujhe|mera|aapka|bhai|yaar|haan|nahi|karo|chahiye|booking|balo|facial|wax|salon)\b/i.test(text))
+  // Common Hinglish words + Indian SMS shorthand (kl=kal, h=hai, bje=baje, etc.)
+  if (/\b(kya|mujhe|mera|aapka|bhai|yaar|haan|nahi|karo|chahiye|booking|balo|facial|wax|salon|kal|kl|aaj|kal|bje|baj|baje|aunga|aana|krna|krwana|karana|theek|thik|accha|achha|acha|bilkul|zaroor|bas|sirf|abhi|jaldi|thoda|bahut|kitna|kab|kaise|kahan|milte|milna|dena|lena|karein|batao|batana|chahte|chahiye|price|kitne|paise|rupaye|paisa|time|slot|appointment|salon|haircut|baal|hair|cut|wax|massage|facial)\b/i.test(text))
     return "hinglish";
+  // Short messages with numbers like "3 pm", "kl 2 bje" are almost always hinglish
+  if (/\b(pm|am|bje|baj)\b/i.test(text) && text.length < 50) return "hinglish";
   return "english";
 }
 
@@ -773,7 +858,14 @@ async function execGetServices({}, ctx) {
 
 async function execBookAppointment(args, ctx) {
   const { user, p, phone, remoteJid, lang } = ctx;
-  const { customer_name, service, date, time, duration_min, notes = "" } = args;
+  const { service, date, time, duration_min, notes = "" } = args;
+  // Use AI-collected name first; fall back to WhatsApp profile name if available
+  const customer_name = (args.customer_name || "").trim() || ctx.customerName || "";
+  if (!customer_name) {
+    if (lang === "hindi")    return "Aapka naam batayein please.";
+    if (lang === "hinglish") return "Bhai apna naam batao pehle.";
+    return "Please share your name to complete the booking.";
+  }
 
   // Per-customer upcoming booking limit (prevent calendar flooding)
   const today0 = todayIST();
@@ -784,7 +876,7 @@ async function execBookAppointment(args, ctx) {
   const MAX_UPCOMING = 3;
   if (customerUpcoming.length >= MAX_UPCOMING) {
     const existing = customerUpcoming.sort((a,b) => a.date.localeCompare(b.date))
-      .map(b => `• ${b.service} — ${friendlyDate(b.date)} at ${b.time}`).join("\n");
+      .map(b => `• ${b.service} — ${friendlyDate(b.date)} at ${friendlyTime12(b.time)}`).join("\n");
     if (lang === "hindi")    return `Aapki already ${MAX_UPCOMING} upcoming bookings hain:\n${existing}\n\nPehle ek cancel karein, phir naya book karein.`;
     if (lang === "hinglish") return `Bhai already ${MAX_UPCOMING} bookings hain:\n${existing}\n\nEk cancel karo pehle.`;
     return `You already have ${MAX_UPCOMING} upcoming bookings:\n${existing}\n\nPlease cancel one before making a new booking.`;
@@ -798,10 +890,12 @@ async function execBookAppointment(args, ctx) {
 
   // Prevent booking in the past (including earlier today)
   const nowMs = Date.now();
-  if (reqStart < nowMs - 5 * 60_000) {  // 5-min grace window for slight clock drift
-    if (lang === "hindi")    return `${date} ${time} ka time already nikal gaya hai. Koi future time batayein.`;
-    if (lang === "hinglish") return `Bhai ${time} toh already hua hua hai! Koi aage ka time batao.`;
-    return `${time} on ${date} has already passed. Please choose a future time slot.`;
+  if (reqStart < nowMs - 5 * 60_000) {
+    const fdl2 = friendlyDate(date);
+    const ftm2 = friendlyTime12(time);
+    if (lang === "hindi")    return `${fdl2} ${ftm2} ka time already nikal gaya hai. Koi aage ka time batayein.`;
+    if (lang === "hinglish") return `Bhai ${ftm2} toh pehle ho chuka hai! Koi future time batao.`;
+    return `${ftm2} on ${fdl2} has already passed. Please choose a future time.`;
   }
 
   const slotOk    = (avail.slots[date] || []).some(s => {
@@ -811,9 +905,11 @@ async function execBookAppointment(args, ctx) {
   });
 
   if (!slotOk) {
-    if (lang === "hindi")    return `${time} ka slot ${date} pe available nahi hai.`;
-    if (lang === "hinglish") return `Yaar ${time} wala slot ${date} pe nahi milega.`;
-    return `Sorry, ${time} on ${date} is not available. Please choose another slot.`;
+    const fdl = friendlyDate(date);
+    const ftm = friendlyTime12(time);
+    if (lang === "hindi")    return `${ftm} ka slot ${fdl} pe available nahi hai. Koi aur time batayein.`;
+    if (lang === "hinglish") return `Yaar ${ftm} wala slot ${fdl} pe nahi milega. Koi aur time?`;
+    return `Sorry, ${ftm} on ${fdl} is not available. Please choose another time.`;
   }
 
   const startDt = new Date(reqStart), endDt = new Date(reqEnd);
@@ -843,7 +939,13 @@ async function execBookAppointment(args, ctx) {
     } catch (e) { console.error("[GCal] create:", e.message); }
   }
 
-  // Atomic save: lock the row and append — prevents lost bookings under concurrent load
+  // Set payment_status before saving so image handler can find it as "pending"
+  if (p.advance_enabled && p.advance_amount > 0) {
+    appt.payment_status = "pending";
+    appt.advance_amount  = p.advance_amount;
+  }
+
+  // Atomic save: lock the row and append
   await atomicUpdateJsonb(user.id, "wa_appointments", (appts) => {
     appts.push(appt);
     return appts;
@@ -851,70 +953,72 @@ async function execBookAppointment(args, ctx) {
 
   const dl = friendlyDate(date);
 
-  // ── Advance payment: send QR + instructions after booking ─────────────────
-  let payMsg = "";
+  // ── Advance payment: send premium branded QR code only ─────────────────────
   if (p.advance_enabled && p.advance_amount > 0) {
     const amt = `₹${p.advance_amount}`;
     const upi = p.upi_id || "";
 
-    // Mark appointment as pending payment
-    const books2 = getAppointments(user);
-    const bi = books2.findIndex(b => b.id === id);
-    if (bi !== -1) {
-      books2[bi].payment_status = "pending";
-      books2[bi].advance_amount = p.advance_amount;
-      await saveAppointments(user.id, books2);
-    }
-
-    if (lang === "hindi") {
-      payMsg = `\n\n💳 *Advance Payment Required*\nBooking confirm karne ke liye *${amt}* bhejein.\n📱 UPI ID: *${upi}*\n\nPayment ke baad apna *screenshot* bhejein — hum verify karenge aur booking confirm ho jaayegi. 🙏`;
-    } else if (lang === "hinglish") {
-      payMsg = `\n\n💳 *Advance Chahiye*\nBooking pakki karne ke liye *${amt}* bhejo.\n📱 UPI: *${upi}*\n\nPayment ka *screenshot* bhejo — hum check karke confirm kar denge. ✅`;
-    } else {
-      payMsg = `\n\n💳 *Advance Payment Required*\nTo confirm your booking, please pay *${amt}* in advance.\n📱 UPI ID: *${upi}*\n\nAfter payment, please send a *screenshot* — we'll verify it and confirm your booking. 🙏`;
-    }
-
-    // Send UPI QR code image after a short delay
-    if (ctx.sock) {
-      setTimeout(async () => {
+    // Generate and send QR code immediately (fire-and-forget)
+    if (upi) {
+      (async () => {
         try {
-          let imgBuf = null;
-          // Prefer stored QR image; fallback to generating one from UPI ID
-          if (p.upi_qr_code) {
-            const b64 = p.upi_qr_code.replace(/^data:image\/[^;]+;base64,/, "");
-            imgBuf = Buffer.from(b64, "base64");
-          } else if (upi) {
-            // Generate a fresh QR from the UPI deep-link
-            const upiLink = `upi://pay?pa=${encodeURIComponent(upi)}&pn=${encodeURIComponent(p.business_name)}&am=${p.advance_amount}&cu=INR`;
-            const dataUrl = await QRCode.toDataURL(upiLink, { width: 400, margin: 2 });
-            const b64 = dataUrl.replace(/^data:image\/[^;]+;base64,/, "");
-            imgBuf = Buffer.from(b64, "base64");
-          }
-          if (imgBuf) {
-            const qrCaption = lang === "hindi"
-              ? `💳 *${p.business_name}* ko *${amt}* bhejein\nUPI: *${upi}*\n\n📸 Screenshot bhejein confirmation ke liye`
-              : lang === "hinglish"
-              ? `💳 *${p.business_name}* ko *${amt}* bhejo\nUPI: *${upi}*\n\n📸 Phir screenshot bhejo`
-              : `💳 Pay *${amt}* to *${p.business_name}*\nUPI: *${upi}*\n\n📸 Send screenshot to confirm booking`;
-            await sleep(humanDelay(1500, 3000));
-            await ctx.sock.sendMessage(remoteJid, { image: imgBuf, caption: qrCaption });
-          }
-        } catch (e) { console.error("[QR-SEND]", e.message); }
-      }, 800);
+          const upiLink = `upi://pay?pa=${encodeURIComponent(upi)}&pn=${encodeURIComponent(p.business_name)}&am=${p.advance_amount}&cu=INR`;
+          const imgBuf  = await generatePremiumQR(upiLink, p.brand_color);
+          if (!imgBuf) { console.error("[QR-SEND] null buffer — skipping"); return; }
+
+          const caption = lang === "hindi"
+            ? `💳 *${p.business_name}*\n💰 *${amt}* bhejein\nUPI: *${upi}*\n\n📸 Payment ka screenshot bhejein — booking confirm ho jaayegi!\n⏱ Slot *10 min* ke liye hold hai.`
+            : lang === "hinglish"
+            ? `💳 *${p.business_name}*\n💰 *${amt}* bhejo\nUPI: *${upi}*\n\n📸 Screenshot bhejo — booking confirm ho jaayegi!\n⏱ Slot *10 min* ke liye hold hai.`
+            : `💳 *${p.business_name}*\n💰 Pay *${amt}*\nUPI: *${upi}*\n\n📸 Send payment screenshot to confirm.\n⏱ Slot held for *10 minutes*.`;
+
+          // Wait for slot-reserved text to arrive first
+          await sleep(humanDelay(2000, 3000));
+
+          // Use live global sock at send time (most reliable — handles reconnects)
+          const liveSock = sock;
+          if (!liveSock) { console.error("[QR-SEND] sock null at send time"); return; }
+          await liveSock.sendMessage(remoteJid, { image: imgBuf, caption });
+          console.log(`[QR-SEND] ✅ QR sent to ${remoteJid}`);
+        } catch (e) {
+          console.error("[QR-SEND] failed:", e.message, e.stack?.split("\n")[1] || "");
+        }
+      })();
     }
   }
 
-  if (lang === "hindi")
-    return p.advance_enabled
-      ? `📋 *Slot Reserve Hua!*\n*Naam:* ${customer_name}\n*Service:* ${service}\n*Date:* ${dl}\n*Time:* ${time}\n*ID:* ${id}${payMsg}\n\n⚠️ *Slot reserve hai — payment milne ke baad booking confirm hogi.*`
-      : `✅ *Booking Confirm!*\n*Naam:* ${customer_name}\n*Service:* ${service}\n*Date:* ${dl}\n*Time:* ${time}\n*ID:* ${id}\n\nAapka intezaar rahega! 🙏`;
-  if (lang === "hinglish")
-    return p.advance_enabled
-      ? `📋 *Slot Reserve!*\n*Naam:* ${customer_name}\n*Service:* ${service}\n*Date:* ${dl}\n*Time:* ${time}\n*ID:* \`${id}\`${payMsg}\n\n⚠️ *Slot hold hai — payment ke baad pakka hoga.*`
-      : `✅ *Pakki ho gayi bhai!*\n*Naam:* ${customer_name}\n*Service:* ${service}\n*Date:* ${dl}\n*Time:* ${time}\n*ID:* \`${id}\`\n\nMilte hain! 😊`;
-  return p.advance_enabled
-    ? `📋 *Slot Reserved!*\n*Name:* ${customer_name}\n*Service:* ${service}\n*Date:* ${dl}\n*Time:* ${time}\n*ID:* \`${id}\`${payMsg}\n\n⚠️ *Your slot is reserved but NOT confirmed until payment is received.*`
-    : `✅ *Confirmed!*\n*Name:* ${customer_name}\n*Service:* ${service}\n*Date:* ${dl}\n*Time:* ${time}\n*ID:* \`${id}\`\n\nSee you! 🙏`;
+  // Send slot confirmation text DIRECTLY via sendSafe — bypasses AI entirely
+  // This guarantees correct order: text first, QR 2-3s later
+  const amt = p.advance_amount ? `₹${p.advance_amount}` : "";
+  const confirmationText = p.advance_enabled
+    ? (lang === "hindi"
+        ? `📋 *Slot Reserve Hua!*\n*Naam:* ${customer_name} | *${service}*\n*Date:* ${dl}, ${friendlyTime12(time)}\n⏳ QR code aa raha hai — payment karo confirm karne ke liye. 🙏`
+        : lang === "hinglish"
+        ? `📋 *Slot Reserve!*\n${customer_name} | *${service}*\n${dl}, ${friendlyTime12(time)}\n⏳ QR code aa raha hai — pay karo confirm karne ke liye. ✅`
+        : `📋 *Slot Reserved* — ${customer_name} | ${service} | ${dl} at ${friendlyTime12(time)}\n⏳ QR code on its way — scan to pay ${amt} & confirm.`)
+    : (lang === "hindi"
+        ? `✅ *Booking Confirm!*\n*Naam:* ${customer_name} | *${service}*\n*Date:* ${dl}, ${friendlyTime12(time)}\nAapka intezaar rahega! 🙏`
+        : lang === "hinglish"
+        ? `✅ *Pakki ho gayi!*\n${customer_name} | *${service}*\n${dl}, ${friendlyTime12(time)}\nMilte hain! 😊`
+        : `✅ *Confirmed!* — ${customer_name} | ${service} | ${dl} at ${friendlyTime12(time)}\nSee you! 🙏`);
+
+  // Send slot confirmation with human-like typing indicator
+  ;(async () => {
+    try {
+      const liveSock = sock;
+      if (!liveSock) return;
+      // Show composing (person is writing the confirmation)
+      try { await liveSock.sendPresenceUpdate("composing", remoteJid); } catch {}
+      await sleep(humanDelay(800, 1600));  // typing the confirmation
+      try { await liveSock.sendPresenceUpdate("paused", remoteJid); } catch {}
+      await sleep(humanDelay(80, 200));
+      await sendSafe(remoteJid, confirmationText);
+    } catch (e) { console.error("[BOOKING-TEXT]", e.message); }
+  })();
+
+  // Return a minimal string so the AI tool result is non-empty but
+  // the second OpenAI call gets suppressed (single tool call + finalReply set)
+  return "__BOOKING_DONE__";
 }
 
 async function execReschedule(args, ctx) {
@@ -922,7 +1026,11 @@ async function execReschedule(args, ctx) {
   const { appointment_id, new_date, new_time, new_duration_min } = args;
   let books = getAppointments(user);
   const idx = books.findIndex(b => b.id === appointment_id);
-  if (idx === -1) return lang === "hindi" ? "Appointment ID nahi mili." : "Appointment not found.";
+  if (idx === -1) {
+    if (lang === "hindi")    return "Appointment ID nahi mili. Sahi ID daalein.";
+    if (lang === "hinglish") return "Bhai yeh ID nahi mila. Sahi ID daalein.";
+    return "Appointment not found. Please check the ID and try again.";
+  }
   // Ownership check — customer can only reschedule their own booking
   if (books[idx].phone && ctx.phone && books[idx].phone !== ctx.phone) {
     if (lang === "hindi")    return "Aap sirf apni booking reschedule kar sakte hain.";
@@ -943,9 +1051,11 @@ async function execReschedule(args, ctx) {
   });
 
   if (!ok) {
-    if (lang === "hindi")    return `${new_time} ka ${new_date} pe slot nahi hai.`;
-    if (lang === "hinglish") return `${new_date} pe ${new_time} available nahi yaar.`;
-    return `${new_time} on ${new_date} is not available.`;
+    const friendlyNewDate = friendlyDate(new_date);
+    const friendlyNewTime = friendlyTime12(new_time);
+    if (lang === "hindi")    return `${friendlyNewDate} ko ${friendlyNewTime} ka slot nahi hai. Koi aur time batayein?`;
+    if (lang === "hinglish") return `${friendlyNewDate} pe ${friendlyNewTime} available nahi yaar. Koi doosra time?`;
+    return `${friendlyNewTime} on ${friendlyNewDate} is not available. Want to try another time?`;
   }
 
   const sd = new Date(rs), ed = new Date(re);
@@ -962,16 +1072,20 @@ async function execReschedule(args, ctx) {
 
   await saveAppointments(user.id, books);
   const dl = friendlyDate(new_date);
-  if (lang === "hindi")    return `✅ Reschedule ho gaya!\n*Nayi date:* ${dl}\n*Time:* ${new_time}`;
-  if (lang === "hinglish") return `✅ Done! Nayi booking: ${dl} at ${new_time}`;
-  return `✅ Rescheduled to ${dl} at ${new_time}`;
+  if (lang === "hindi")    return `✅ Reschedule ho gaya!\n*Nayi date:* ${dl}\n*Time:* ${friendlyTime12(new_time)}`;
+  if (lang === "hinglish") return `✅ Done! Nayi booking: ${dl} at ${friendlyTime12(new_time)}`;
+  return `✅ Rescheduled to ${dl} at ${friendlyTime12(new_time)}`;
 }
 
 async function execCancel(args, ctx) {
   const { user, lang } = ctx;
   let books = getAppointments(user);
   const idx = books.findIndex(b => b.id === args.appointment_id);
-  if (idx === -1) return lang === "hindi" ? "Appointment nahi mili." : "Appointment not found.";
+  if (idx === -1) {
+    if (lang === "hindi")    return "Appointment nahi mili. Sahi ID check karein.";
+    if (lang === "hinglish") return "Bhai yeh booking nahi mili. ID sahi hai?";
+    return "Appointment not found. Please check the ID and try again.";
+  }
   // Ownership check — customer can only cancel their own booking
   if (books[idx].phone && ctx.phone && books[idx].phone !== ctx.phone) {
     if (lang === "hindi")    return "Aap sirf apni booking cancel kar sakte hain.";
@@ -1006,15 +1120,30 @@ async function execCancel(args, ctx) {
 async function execGetMyAppointments({}, ctx) {
   const { user, phone, lang } = ctx;
   const today    = todayIST();
-  const upcoming = getAppointments(user).filter(b => b.phone === phone && b.date >= today);
+  // Show ALL upcoming — including pending (unpaid) so customer knows slot is reserved
+  // Exclude only permanently cancelled/timed-out ones
+  const upcoming = getAppointments(user).filter(b =>
+    b.phone === phone &&
+    b.date >= today &&
+    b.payment_status !== "cancelled" &&
+    b.payment_status !== "cancelled_paid" &&
+    b.payment_status !== "payment_timeout"
+  );
   if (!upcoming.length) {
     if (lang === "hindi")    return "Koi upcoming appointment nahi hai.";
     if (lang === "hinglish") return "Bhai koi booking nahi hai.";
     return "No upcoming appointments.";
   }
   const lines = upcoming.sort((a,b)=>a.date.localeCompare(b.date))
-    .map(b=>`• *${b.service}* — ${friendlyDate(b.date)} at ${b.time} (ID: \`${b.id}\`)`);
-  if (lang === "hindi")    return `Upcoming:\n${lines.join("\n")}`;
+    .map(b => {
+      const statusTag =
+        b.payment_status === "pending"      ? (lang === "hinglish" ? " ⏳ Payment pending" : lang === "hindi" ? " ⏳ Payment baaki" : " ⏳ Awaiting payment") :
+        b.payment_status === "paid"         ? " ✅" :
+        b.payment_status === "wrong_amount" ? " ⚠️ Wrong amount" :
+        "";
+      return `• *${b.service}* — ${friendlyDate(b.date)} at ${friendlyTime12(b.time)}${statusTag} (ID: \`${b.id}\`)`;
+    });
+  if (lang === "hindi")    return `Aapki upcoming bookings:\n${lines.join("\n")}`;
   if (lang === "hinglish") return `Teri bookings:\n${lines.join("\n")}`;
   return `Your appointments:\n${lines.join("\n")}`;
 }
@@ -1027,7 +1156,11 @@ async function executeTool(name, args, ctx) {
     case "reschedule_appointment": return execReschedule(args, ctx);
     case "cancel_appointment":     return execCancel(args, ctx);
     case "get_my_appointments":    return execGetMyAppointments(args, ctx);
-    default: return "Samajh nahi aaya. Dobara try karein.";
+    default: {
+      if (lang === "hindi")    return "Yeh action abhi available nahi hai. Koi aur kaam batayein.";
+      if (lang === "hinglish") return "Yaar yeh nahi ho sakta. Kuch aur batao kya chahiye.";
+      return "This action isn't available right now. How else can I help?";
+    }
   }
 }
 
@@ -1035,7 +1168,7 @@ async function executeTool(name, args, ctx) {
 // SECTION 11 — SYSTEM PROMPT
 // ─────────────────────────────────────────────────────────────────────────────
 
-function buildSystemPrompt(user, p, availChart, userAppts, lang) {
+function buildSystemPrompt(user, p, availChart, userAppts, lang, customerName = null) {
   const todayFull = new Date().toLocaleDateString("en-IN", {
     timeZone: TZ, weekday:"long", day:"numeric", month:"long", year:"numeric"
   });
@@ -1052,8 +1185,15 @@ function buildSystemPrompt(user, p, availChart, userAppts, lang) {
                                    "Reply in clear, friendly English only.";
 
   const servicesList = (p.services_list || [])
-    .map(s => `${s.name}${s.price ? ` ₹${s.price}` : ""}${s.duration_min ? ` ${s.duration_min}min` : ""}`)
-    .join(", ") || "No services listed — ask salon owner to add services";
+    .map(s => {
+      const price = s.price ? `₹${s.price}` : "";
+      const dur   = s.duration_min ? `${s.duration_min}min` : "";
+      const adv   = (p.advance_enabled && s.price && p.advance_amount)
+        ? ` (₹${p.advance_amount} advance, baaki ${s.price > p.advance_amount ? "₹"+(s.price-p.advance_amount)+" baad mein" : "adjust hoga"})`
+        : "";
+      return `• ${s.name} — ${price}${dur ? " · "+dur : ""}${adv}`;
+    })
+    .join("\n") || "No services listed — ask salon owner to add services";
 
   // Extended availability context: past 10 days (for reference) + next 10 days
   const windowDays  = [];
@@ -1070,17 +1210,30 @@ function buildSystemPrompt(user, p, availChart, userAppts, lang) {
       : "No availability configured — ask owner to set schedule";
 
   const apptText = userAppts.length
-    ? userAppts.map(b => `ID:${b.id} | ${b.service} | ${b.date} ${b.time}`).join("\n")
+    ? userAppts.map(b => {
+        const ps = b.payment_status === "paid" ? " ✅ Paid"
+                 : b.payment_status === "pending" ? " ⏳ Awaiting payment"
+                 : "";
+        return `ID:${b.id} | ${b.service} | ${friendlyDate(b.date)} at ${friendlyTime12(b.time)}${ps}`;
+      }).join("\n")
     : "None";
 
   // Date range context for the AI
   const windowStart = windowDays[0];
   const windowEnd   = windowDays[windowDays.length - 1];
 
+  const nameGreeting = customerName
+    ? `
+CUSTOMER NAME: ${customerName}. Address them as "${customerName} ji" in Hindi/Hinglish, or "${customerName}" in English. Use their name naturally once or twice — don't overdo it.`
+    : "";
+
   return [
     `You are the AI booking assistant for *${p.business_name}*, an Indian salon/beauty parlour.`,
-    `Today: ${todayFull} (${todayKey}), ${now} IST.`,
-    `Location: ${p.location || "India"}.`,
+    `Today: ${todayFull} (${todayKey}), current time ${now} IST (India Standard Time, UTC+5:30).`,
+    `Tomorrow is ${(() => { const d=new Date(todayKey+"T00:00:00+05:30"); d.setDate(d.getDate()+1); return d.toLocaleDateString("sv-SE"); })()}.`,
+    `IMPORTANT: Always use IST timezone. "Kal"/"tomorrow" = the date shown above as Tomorrow. Never use server local time.`,
+    `Location: ${p.location || "India"}.${p.google_maps_url ? " Google Maps: " + p.google_maps_url : ""}`,
+    nameGreeting,
     ``,
     `SERVICES & PRICING:`,
     servicesList,
@@ -1093,20 +1246,44 @@ function buildSystemPrompt(user, p, availChart, userAppts, lang) {
     apptText,
     ``,
     `BOOKING RULES:`,
-    `- Confirm customer name, service, date, and time BEFORE calling book_appointment.`,
+    `- NEVER say "please wait", "thoda intezaar", "booking kar raha hoon" or any variation. Call the tool immediately and respond with the result directly.`,
+    `- NEVER mention QR code, UPI ID, or payment in your text — these are sent automatically as a separate image by the system.`,
+    `- NEVER say "booking ho rahi hai" or "main book kar raha hoon" — the booking either succeeded or failed, report the result only.`,
+    `- BOOKING FLOW (follow exactly):
+  STEP 1: Collect name, service, date, time (ask only what is missing).
+  STEP 2: Once you have all 4, show a short summary and ask for confirmation. Example:
+    Hinglish: "Theek hai! Haircut kal 4 baje — Rs.100. Kya main book kar dun? 😊"
+    Hindi: "Bilkul! Haircut kal 4 baje ke liye. Confirm kar dun?"
+    English: "Great! Haircut on [date] at [time]. Shall I book this for you?"
+  STEP 3: When customer replies yes/haan/ha/ok/bilkul/done/book/confirm/zaroor/please → call book_appointment IMMEDIATELY.
+  STEP 4: After tool returns, send the result (slot reserved + QR coming).`,
+    `- At STEP 2 ask ONE short question only. Do not re-ask unless customer changes something.`,
+    `- If customer replies with a change (different time/date/service) at STEP 3 → update and re-ask confirmation.`,
     p.ignore_schedule
-      ? `- ACCEPT ANYTIME MODE is ON. When customer gives a time (e.g. "2 baje", "2 PM", "kal 3 pm"), accept it directly. Do NOT call check_availability. Do NOT show time ranges. Just confirm the slot and proceed to book.`
+      ? `- ACCEPT ANYTIME MODE is ON. When customer gives service+date+time (and name is known from CUSTOMER NAME above), show a short confirmation summary and ask "Kya main book kar dun?" or similar. When they say yes → call book_appointment. If all 4 are in a single message like "kal 2 bje haircut", jump straight to asking confirmation — no need to re-collect anything.`
       : `- Use check_availability tool to verify the slot before booking.`,
     `- If a requested date is beyond ${windowEnd}, tell customer that far-future bookings are not open yet.`,
     p.ignore_schedule
       ? `- Only reject a time if another appointment already exists at that exact slot.`
       : `- If requested slot is unavailable, suggest the next 2-3 available times in natural language (e.g. "2:30 PM or 4 PM are free").`,
     `- Duration: use service default or ask. Never assume.`,
-    `- Keep replies SHORT (2-4 lines). Be warm and helpful.`,
+    `- Keep replies SHORT (2-4 lines max). Warm, friendly, conversational.`,
     `- NEVER say "00:00 - 23:59" or show raw time ranges to customers.`,
+    `- ALWAYS convert 24-hour time to 12-hour format in your messages. "17:00" → "5 PM", "14:30" → "2:30 PM", "09:00" → "9 AM". NEVER show times like "17:00" or "14:00" to customers.`,
+    `- ALWAYS show full service price before confirming. Example in Hinglish: "Haircut ₹150 hai — ₹50 advance abhi dena hoga, baaki ₹100 salon mein."`,
+    `- NEVER just say "advance ₹50" without mentioning the total service price first.`,
+    `- Use natural Indian expressions: "bilkul", "zaroor", "acha", "theek hai". Don't sound robotic.`,
+    `- Don't ask for name if CUSTOMER NAME is already provided above — use it directly.`,
+    `- Greet warmly on first message. Keep subsequent replies short and direct.`,
     `- ${langInstruction}`,
     p.advance_enabled
-      ? `\nADVANCE PAYMENT: ₹${p.advance_amount} required via UPI ID: *${p.upi_id}*.\n- After booking, slot is RESERVED (not confirmed). Customer must send payment screenshot to confirm.\n- If payment not received in 30 minutes, slot is automatically released.\n- Never say "booking confirmed" until payment_status = "paid".`
+      ? `\nADVANCE PAYMENT RULES:
+- Advance required: ₹${p.advance_amount} (full service price shown in services list above)
+- After booking tool call: tell customer their slot is reserved and a QR code is on its way. DO NOT mention the UPI ID — it is shown on the QR code.
+- Say something like: "Aapka slot reserve ho gaya! QR code aa raha hai, ussse pay karo." Keep it short.
+- NEVER include the UPI ID (${p.upi_id}) in your text messages — it is on the QR image.
+- If payment not received in 10 minutes, slot is automatically released.
+- NEVER say "booking confirmed" until payment_status = "paid".`
       : "",
     p.chairs > 1
       ? `CHAIRS: Up to ${p.chairs} clients can be served simultaneously.`
@@ -1121,7 +1298,46 @@ function buildSystemPrompt(user, p, availChart, userAppts, lang) {
 // SECTION 12 — MAIN AI PIPELINE
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function buildPrompt(text, sessionId, remoteJid) {
+/**
+ * Summarize old chat history when it grows too long.
+ * Keeps the last 6 messages verbatim + a running summary.
+ * Saves API costs by replacing 20+ messages with ~50 tokens of summary.
+ */
+async function summarizeHistoryIfNeeded(userId, sessionId, phone, allHistory) {
+  const msgs = allHistory[sessionId]?.[phone] || [];
+  if (msgs.length < 20) return msgs;  // only summarize when history is long
+
+  const keepLast       = 6;
+  const oldMsgs        = msgs.slice(0, msgs.length - keepLast);
+  const recentMsgs     = msgs.slice(msgs.length - keepLast);
+  const previousSummary = allHistory[sessionId][phone + "_summary"] || "";
+
+  const summaryPrompt = `You are summarizing a salon booking chat for an AI assistant's memory.
+Extract and keep: customer's preferred services, preferred stylist name, allergies/sensitivities, communication style, past issues, and any personal details mentioned.
+Be concise (max 100 words). Write in third person.
+${previousSummary ? "Previous summary:\n" + previousSummary + "\n" : ""}New messages to incorporate:
+${oldMsgs.map(m => m.role + ": " + m.content).join("\n")}`;
+
+  try {
+    const resp = await openai.chat.completions.create({
+      model:       "gpt-4o-mini",
+      messages:    [{ role: "system", content: summaryPrompt }],
+      temperature: 0.2,
+      max_tokens:  150,
+    });
+    await trackUsage(userId, "gpt-4o-mini", resp.usage);
+    const newSummary = resp.choices[0].message.content?.trim() || "";
+    allHistory[sessionId][phone + "_summary"] = newSummary;
+    allHistory[sessionId][phone]              = recentMsgs;
+    console.log(`[MEMORY] Summarized ${oldMsgs.length} old messages for ${phone}`);
+    return recentMsgs;
+  } catch (e) {
+    console.error("[MEMORY] Summarization failed:", e.message);
+    return msgs;  // fall back to full history on error
+  }
+}
+
+async function buildPrompt(text, sessionId, remoteJid, senderName = null) {
   try {
     const user = await getUserBySession(sessionId);
     if (!user) return null;
@@ -1130,12 +1346,24 @@ async function buildPrompt(text, sessionId, remoteJid) {
     const phone = (remoteJid.match(/\d+/) || [])[0] || "";
     const lang  = detectLanguage(text);
 
-    // Chat history
-    const allHistory = getChatHistory(user);
-    allHistory[sessionId]        ??= {};
-    allHistory[sessionId][phone] ??= [];
-    const msgs = allHistory[sessionId][phone];
-    msgs.push({ role: "user", content: text });
+    // Chat history — read snapshot for building prompt (atomic save handles merging)
+    const allHistorySnapshot = (() => {
+      try { return getChatHistory(user); } catch { return {}; }
+    })();
+    allHistorySnapshot[sessionId]        = allHistorySnapshot[sessionId]        || {};
+    allHistorySnapshot[sessionId][phone] = allHistorySnapshot[sessionId][phone] || [];
+
+    // Summarize old messages if history is getting long (>20 msgs)
+    const trimmedHistory = await summarizeHistoryIfNeeded(user.id, sessionId, phone, allHistorySnapshot);
+    const msgs = [...trimmedHistory, { role: "user", content: text }];
+
+    // Pull any existing summary to inject into system prompt
+    const customerMemory = allHistorySnapshot[sessionId][phone + "_summary"]
+      ? `
+CUSTOMER MEMORY (from previous conversations):
+${allHistorySnapshot[sessionId][phone + "_summary"]}
+`
+      : "";
 
     // Google Calendar bookings
     let gcalBookings = [];
@@ -1169,9 +1397,33 @@ async function buildPrompt(text, sessionId, remoteJid) {
     const today      = todayIST();
     const userAppts  = getAppointments(user).filter(b=>b.phone===phone&&b.date>=today);
 
-    const ctx = { user, p, phone, remoteJid, sessionId, lang, gcalBookings, sock };
+    // Validate WhatsApp display name — only use if it looks like a real name
+    // Reject: pure emojis, numbers only, too short, or no letters
+    let customerName = null;
+    if (senderName && senderName.trim().length >= 2) {
+      const cleaned = senderName.trim();
+      const hasLetter = /[a-zA-Z\u0900-\u097F]/.test(cleaned);
+      const emojiOnly = /^[\u{1F000}-\u{1FFFF}\u{2600}-\u{27FF}\s]+$/u.test(cleaned);
+      if (hasLetter && !emojiOnly) customerName = cleaned;
+    }
 
-    const systemContent = buildSystemPrompt(user, p, availChart, userAppts, lang);
+    const ctx = { user, p, phone, remoteJid, sessionId, lang, gcalBookings, sock, customerName };
+
+    const effectiveLang = (p.language && p.language !== "auto") ? p.language : lang;
+    // Check for pending payment — warn AI not to create new bookings
+    const allPhoneAppts = getAppointments(user).filter(b => b.phone === phone && b.date >= today);
+    const pendingPayAppt = allPhoneAppts.find(b => b.payment_status === "pending");
+    const paidAppt       = allPhoneAppts.find(b => b.payment_status === "paid" && b.date >= today);
+    const pendingNote = pendingPayAppt
+      ? `\n\n⚠️ PENDING PAYMENT: Customer already has *${pendingPayAppt.service}* slot RESERVED for ${friendlyDate(pendingPayAppt.date)} at ${friendlyTime12(pendingPayAppt.time)} — awaiting payment screenshot. Do NOT book another appointment. Remind them to send screenshot.`
+      : paidAppt
+      ? ("\n\nCRITICAL — BOOKING FULLY CONFIRMED AND PAID:\n"
+        + "Customer's " + paidAppt.service + " on " + friendlyDate(paidAppt.date) + " at " + friendlyTime12(paidAppt.time) + " is CONFIRMED.\n"
+        + "RULES: NEVER book again. NEVER send QR. NEVER ask for payment. NEVER say slot unavailable.\n"
+        + "If customer says ok/thanks/done — confirm booking warmly, say milte hain.\n"
+        + "If they ask something else — help, but no re-booking or re-charging.")
+      : "";
+    const systemContent = buildSystemPrompt(user, p, availChart, userAppts, lang, customerName) + customerMemory + pendingNote;
     const openaiMessages = [
       { role:"system", content:systemContent },
       ...msgs.slice(-(CFG.historyTurns * 2)),
@@ -1196,6 +1448,8 @@ async function buildPrompt(text, sessionId, remoteJid) {
     let finalReply   = null;
 
     if (assistantMsg.tool_calls?.length) {
+      // Suppress any "wait I'm booking" text the AI sends alongside tool calls
+      // Customer only needs the result, not "thoda intezaar kijiye, booking kar raha hoon"
       const toolResults = [];
       for (const tc of assistantMsg.tool_calls) {
         const args   = JSON.parse(tc.function.arguments);
@@ -1204,16 +1458,31 @@ async function buildPrompt(text, sessionId, remoteJid) {
         finalReply = result;
       }
 
-      if (assistantMsg.tool_calls.length > 1 || !finalReply) {
+      // Booking was handled directly by execBookAppointment — suppress AI follow-up
+      if (finalReply === "__BOOKING_DONE__") {
+        finalReply = null;  // don't send anything — text was already sent via sendSafe
+        // Add a neutral assistant message to history so context is maintained
+        msgs.push({ role:"assistant", content:"[Booking confirmed and sent to customer]" });
+      } else if (assistantMsg.tool_calls.length > 1 || !finalReply) {
+        // Second call: pass language in system so AI replies in right language
+        const langHint = effectiveLang === "hindi"
+          ? "Sirf Hindi mein jawab dena."
+          : effectiveLang === "hinglish"
+          ? "Hinglish mein jawab dena (Roman Hindi + English mix). Friendly aur short raho."
+          : "Reply in English only. Keep it short.";
         const r2 = await openai.chat.completions.create({
           model:MODEL,
-          messages:[...openaiMessages, assistantMsg, ...toolResults],
+          messages:[
+            { role:"system", content: systemContent + "\n\nIMPORTANT: " + langHint },
+            ...openaiMessages.slice(1),  // skip old system, keep history
+            assistantMsg,
+            ...toolResults,
+          ],
           max_tokens:250, temperature:0.3,
         });
-        // Track second call cost too
         await trackUsage(user.id, MODEL, r2.usage);
         finalReply = r2.choices[0].message.content?.trim() || finalReply;
-      }
+      }  // end else-if (multiple tools or no reply)
     } else {
       finalReply = assistantMsg.content?.trim() || null;
     }
@@ -1221,24 +1490,90 @@ async function buildPrompt(text, sessionId, remoteJid) {
     if (finalReply) msgs.push({ role:"assistant", content:finalReply });
     const trimmedMsgs = msgs.slice(-(CFG.historyTurns * 2 + 2));
 
-    // Atomic update: lock row, merge our changes, commit — prevents parallel message data loss
+    // Atomic update: lock row, merge with FRESH DB data — no stale overwrites
     await atomicUpdateJsonb(user.id, "wa_chat_history", (allHist) => {
-      allHist[sessionId]        = allHist[sessionId] || {};
-      allHist[sessionId][phone] = trimmedMsgs;
-      // Keep only 50 most-recent phones to prevent unbounded JSONB growth
-      const sHist  = allHist[sessionId];
-      const pList  = Object.keys(sHist);
-      if (pList.length > 50) {
-        pList.slice(0, pList.length - 50).forEach(p => delete sHist[p]);
+      allHist[sessionId] = allHist[sessionId] || {};
+      // Merge our new messages on top of what's currently in the DB (fresh, not stale)
+      const freshMsgs  = allHist[sessionId][phone] || [];
+      const ourNewMsgs = trimmedMsgs.slice(freshMsgs.length);
+      const merged = [...freshMsgs, ...ourNewMsgs].slice(-(CFG.historyTurns * 2 + 2));
+      allHist[sessionId][phone] = merged;
+      // Persist the summary key if summarization ran this call
+      const summaryKey = phone + "_summary";
+      if (allHistorySnapshot[sessionId][summaryKey]) {
+        allHist[sessionId][summaryKey] = allHistorySnapshot[sessionId][summaryKey];
+      }
+      // Keep only 50 most-recent phones
+      const sHist = allHist[sessionId];
+      const allKeys = Object.keys(sHist).filter(k => !k.endsWith("_summary"));
+      if (allKeys.length > 50) {
+        allKeys.slice(0, allKeys.length - 50).forEach(k => {
+          delete sHist[k];
+          delete sHist[k + "_summary"];
+        });
       }
       allHist[sessionId] = sHist;
       return allHist;
     });
 
+        // Post-process 0: strip "booking in progress" filler sentences from replies
+    // Strategy: REMOVE filler sentences rather than suppressing the whole reply
+    if (finalReply) {
+      // Strip ONLY "currently booking" filler — keep "kya main book kar dun?" (that's good)
+      const fillerSentencePatterns = [
+        /[^।।.!?]*(?:main|hum)\s+abhi\s+booking\s+kar\s+raha\s+hoon[^।।.!?]*[।।.!?]?\s*/gi,
+        /[^।।.!?]*(?:main|hum)\s+(?:abhi\s+)?book\s+kar\s+raha\s+hoon[^।।.!?]*[।।.!?]?\s*/gi,
+        /[^।।.!?]*booking\s+kar\s+raha\s+hoon[^।।.!?]*[।।.!?]?\s*/gi,
+        /[^।।.!?]*thodi?\s+der\s+(?:mein|me)\s+confirm\s+kar\s+(?:deta|raha)\s+hoon[^।।.!?]*[।।.!?]?\s*/gi,
+        /[^।।.!?]*book\s+karne\s+ka\s+soch\s+rahe?\s+(?:hain|hai)[^।।.!?]*[।।.!?]?\s*/gi,
+      ];
+      let cleaned = finalReply;
+      for (const pattern of fillerSentencePatterns) {
+        cleaned = cleaned.replace(pattern, '');
+      }
+      cleaned = cleaned.trim().replace(/\s{2,}/g, ' ').replace(/^\s*[।।.!?,]\s*/g, '');
+      if (cleaned !== finalReply && cleaned.length > 10) {
+        console.warn("[FILLER-STRIPPED]", finalReply.length, "→", cleaned.length);
+        finalReply = cleaned;
+      } else if (cleaned.length <= 10 && finalReply.length > 20) {
+        // Whole reply was filler — suppress entirely
+        console.warn("[FILLER-SUPPRESSED]", finalReply.substring(0, 80));
+        finalReply = null;
+      }
+    }
+
+
+    // Post-process 1: convert HH:MM to 12h
+    if (finalReply) {
+      finalReply = finalReply.replace(/\b([01]?\d|2[0-3]):([0-5]\d)\b/g, (_, h, m) => {
+        const hh = parseInt(h), mm = parseInt(m);
+        const suffix = hh >= 12 ? "PM" : "AM";
+        const h12 = hh > 12 ? hh - 12 : (hh === 0 ? 12 : hh);
+        return mm === 0 ? `${h12} ${suffix}` : `${h12}:${String(mm).padStart(2,"0")} ${suffix}`;
+      });
+    }
+    // Post-process 2: translate English error phrases when conversation is Hinglish/Hindi
+    if (finalReply && effectiveLang !== "english") {
+      finalReply = finalReply
+        .replace(/Sorry,?\s*(.+?)\s*is not available\. Please choose another time\.?/gi,
+          effectiveLang === "hindi"
+            ? "Yeh time available nahi hai. Koi aur time batayein?"
+            : "Yaar yeh time available nahi hai. Koi aur time batao?")
+        .replace(/Appointment not found\. Please check the ID and try again\.?/gi,
+          effectiveLang === "hindi" ? "Appointment nahi mili." : "Booking nahi mili bhai.")
+        .replace(/You can only (cancel|reschedule) your own appointments\.?/gi,
+          effectiveLang === "hindi" ? "Sirf apni booking $1 kar sakte hain." : "Sirf apni booking $1 kar sakte ho.")
+        .replace(/No upcoming appointments\.?/gi,
+          effectiveLang === "hindi" ? "Koi upcoming appointment nahi hai." : "Koi booking nahi hai bhai.");
+    }
     return finalReply;
   } catch (err) {
     console.error("[buildPrompt]", err);
-    return "Kuch technical problem aa gayi hai. Thodi der baad try karo. 🙏";
+    // Return a language-aware error message
+    const errLang = detectLanguage(text);
+    if (errLang === "hindi")    return "Kuch technical problem aa gayi hai. Thodi der baad try karo. 🙏";
+    if (errLang === "hinglish") return "Bhai kuch gadbad ho gayi! Thodi der mein dobara try karo. 🙏";
+    return "A technical issue occurred. Please try again in a moment. 🙏";
   }
 }
 
@@ -1247,21 +1582,22 @@ async function buildPrompt(text, sessionId, remoteJid) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function reminderMessage(appt, salonName, minutesUntil, lang = "hinglish") {
-  const t = appt.time;
+  const t  = friendlyTime12(appt.time);   // "2:30 PM" not "14:30"
   const dl = friendlyDate(appt.date);
   if (lang === "hindi") {
-    if (minutesUntil <= 10)  return `🕐 *${salonName}* mein aapka *${appt.service}* appointment ${t} pe shuru hone wala hai (10 min). Please aa jaiye! 🙏`;
-    if (minutesUntil <= 30)  return `⏰ Reminder: *${salonName}* — *${appt.service}* ${dl} ${t}. 30 min baad milte hain!`;
-    return `📅 Kal ${t} ko aapka *${appt.service}* appointment hai *${salonName}* mein. Yaad rakhen! 🙏`;
+    if (minutesUntil <= 10)  return `🕐 *${salonName}* mein aapka *${appt.service}* appointment ${t} pe shuru hone wala hai. Aa jaiye! 🙏`;
+    if (minutesUntil <= 30)  return `⏰ 30 minute mein milte hain! *${salonName}* — *${appt.service}* ${dl} ${t}.`;
+    return `📅 Kal *${t}* baje *${salonName}* mein *${appt.service}* appointment hai. Yaad rakhen! 🙏`;
   }
   if (lang === "english") {
     if (minutesUntil <= 10)  return `🕐 Your *${appt.service}* at *${salonName}* starts in 10 min at ${t}. See you soon! 🙏`;
-    if (minutesUntil <= 30)  return `⏰ Reminder: *${appt.service}* at *${salonName}* — ${dl} at ${t}. See you in 30 min! 😊`;
-    return `📅 Reminder: *${appt.service}* at *${salonName}* tomorrow at ${t}. Looking forward! 🙏`;
+    if (minutesUntil <= 30)  return `⏰ See you in 30 min! *${appt.service}* at *${salonName}* — ${dl} at ${t}. 😊`;
+    return `📅 Reminder: *${appt.service}* at *${salonName}* tomorrow at ${t}. Looking forward to seeing you! 🙏`;
   }
-  if (minutesUntil <= 10)  return `🕐 Bhai/Didi, *${salonName}* mein *${appt.service}* ${t} pe hai — 10 min baaki! Aa jaiye! 🙏`;
-  if (minutesUntil <= 30)  return `⏰ *${salonName}* — *${appt.service}*, ${dl} ${t}. 30 min mein milte hain! 😊`;
-  return `📅 Kal ${t} baje *${salonName}* mein *${appt.service}* appointment hai. Mat bhoolna! 😄`;
+  // hinglish (default)
+  if (minutesUntil <= 10)  return `🕐 Bhai/Didi, *${salonName}* mein *${appt.service}* ${t} pe hai — bas 10 min baaki! Aa jaiye! 🙏`;
+  if (minutesUntil <= 30)  return `⏰ 30 min mein milte hain! *${salonName}* — *${appt.service}*, ${dl} ${t}. 😊`;
+  return `📅 Kal *${t}* baje *${salonName}* mein *${appt.service}* appointment hai. Mat bhoolna! 😄`;
 }
 
 async function runReminderChecks(sessionId) {
@@ -1279,34 +1615,6 @@ async function runReminderChecks(sessionId) {
     books = books.filter(b => !b.date || b.date >= cutoffStr);
     if (books.length < sizeBefore) {
       console.log(`[CLEANUP] Removed ${sizeBefore - books.length} old appointments for user ${user.id}`);
-      await saveAppointments(user.id, books);
-      invalidateProfileCache(user.id);
-    }
-
-    // ── Auto-cancel pending payments older than 30 minutes ───────────────────
-    const payTimeoutMs = 30 * 60_000;
-    let payChanged = false;
-    for (const b of books) {
-      if (b.payment_status === "pending") {
-        const bookedAt = b.timestamp ? new Date(b.timestamp).getTime() : 0;
-        if (bookedAt > 0 && Date.now() - bookedAt > payTimeoutMs) {
-          b.payment_status = "payment_timeout";
-          payChanged = true;
-          console.log(`[PAY-TIMEOUT] Appointment ${b.id} auto-cancelled (no payment in 30 min)`);
-          // Notify customer
-          if (b.remoteJid && sock) {
-            const tLang = p.language || "hinglish";
-            const timeoutMsg = tLang === "hindi"
-              ? `⏱️ Aapki booking *${b.service}* ke liye advance payment 30 min mein nahi aayi, isliye slot release kar diya gaya hai. Dobara book karein.`
-              : tLang === "hinglish"
-              ? `⏱️ Yaar *${b.service}* booking ke liye 30 min mein payment nahi aayi — slot release ho gaya. Phir se book karo.`
-              : `⏱️ Your *${b.service}* booking has been released — payment was not received within 30 minutes. Please book again.`;
-            sendSafe(b.remoteJid, timeoutMsg).catch(() => {});
-          }
-        }
-      }
-    }
-    if (payChanged) {
       await saveAppointments(user.id, books);
       invalidateProfileCache(user.id);
     }
@@ -1343,9 +1651,9 @@ async function runReminderChecks(sessionId) {
           ? new Date(custMsgs[custMsgs.length - 1]?.ts || 0).getTime()
           : 0;
         const hoursSinceMsg = (Date.now() - lastMsgTs) / 3_600_000;
-        if (hoursSinceMsg > 48 && custMsgs.length === 0) {
-          // Never messaged us — skip to avoid unsolicited message (ban risk)
-          console.log(`[REMINDER] Skipping ${custPhone} — no prior conversation`);
+        // Skip if no conversation at all OR if last message was >48h ago
+        if (custMsgs.length === 0 || hoursSinceMsg > 48) {
+          console.log(`[REMINDER] Skipping ${custPhone} — no recent conversation (${Math.round(hoursSinceMsg)}h ago)`);
           continue;
         }
         // Check opt-out list
@@ -1384,11 +1692,22 @@ function typingDuration(text = "") {
  * Send text via Baileys with retry logic.
  * Uses the module-level `sock` variable.
  */
+// Per-JID last-send timestamps — prevent sending >1 message/2s to same number
+const _lastSentTs = new Map();
+
 async function sendSafe(to, text, retries = 2) {
+  // Enforce minimum 2s gap between outgoing messages to the same JID
+  const lastSent = _lastSentTs.get(to) || 0;
+  const gap = Date.now() - lastSent;
+  if (gap < 2000) await sleep(2000 - gap);
+  _lastSentTs.set(to, Date.now());
+
+  // Snapshot the socket NOW — in-flight calls survive reconnect setting sock=null
+  const activeSock = sock;
   for (let i = 0; i <= retries; i++) {
     try {
-      if (!sock) throw new Error("Socket not connected");
-      await sock.sendMessage(to, { text });
+      if (!activeSock) throw new Error("Socket not connected");
+      await activeSock.sendMessage(to, { text });
       return true;
     } catch (e) {
       console.warn(`[SEND] attempt ${i+1} failed: ${e.message}`);
@@ -1406,7 +1725,8 @@ async function sendSafe(to, text, retries = 2) {
 const MEDIA_REGEX = /https?:\/\/[^\s'"]+\.(?:png|jpe?g|gif|webp|mp4|mov|webm)(?:\?[^\s'"]*)?/gi;
 
 async function sendReply(sessionId, remoteJid, text) {
-  if (!sock) return;
+  const activeSock = sock;  // snapshot — immune to mid-flight reconnect
+  if (!activeSock) return;
   const urls = text.match(MEDIA_REGEX) || [];
 
   // Always send the text first — never swallow the message
@@ -1417,9 +1737,9 @@ async function sendReply(sessionId, remoteJid, text) {
     try {
       await sleep(humanDelay(400, 900));
       if (/\.(?:mp4|mov|webm)(?:\?|$)/i.test(url)) {
-        await sock.sendMessage(remoteJid, { video: { url } });
+        await activeSock.sendMessage(remoteJid, { video: { url } });
       } else {
-        await sock.sendMessage(remoteJid, { image: { url } });
+        await activeSock.sendMessage(remoteJid, { image: { url } });
       }
     } catch (e) {
       console.error(`[SEND-MEDIA] ${url}:`, e.message);
@@ -1457,20 +1777,31 @@ async function processUserQueue(sessionId, remoteJid) {
     }
     lastReply.set(remoteJid, lastTs);
 
-    const reply = await buildPrompt(combined, sessionId, remoteJid);
+    const senderName = burst.map(m => m.pushName).find(Boolean) || null;
+    const reply = await buildPrompt(combined, sessionId, remoteJid, senderName);
     if (reply) {
-      // Show "composing" presence then pause after typing duration
       const typingMs = typingDuration(reply);
+      const activeSockQ = sock;
+      // 1. Mark last message as read (blue ticks)
       try {
-        await sock.sendPresenceUpdate("composing", remoteJid);
-        await sleep(typingMs);
-        await sock.sendPresenceUpdate("paused", remoteJid);
-      } catch (e) {
-        // Non-fatal — presence update failure shouldn't block message
-        console.warn("[TYPING]", e.message);
-      }
-      await sleep(humanDelay(100, 600));
-      await sendReply(sessionId, remoteJid, reply);
+        const lastMsg = burst[burst.length - 1];
+        if (activeSockQ && lastMsg?.msgId) {
+          await activeSockQ.readMessages([{
+            remoteJid, id: lastMsg.msgId, fromMe: false,
+            participant: lastMsg.participant || undefined,
+          }]);
+        }
+      } catch {}
+      // 2. Short pause — simulates person reading before typing
+      await sleep(humanDelay(500, 1100));
+      // 3. Show composing indicator
+      try { if (activeSockQ) await activeSockQ.sendPresenceUpdate("composing", remoteJid); } catch {}
+      // 4. Natural typing delay scaled to message length
+      await sleep(typingMs);
+      // 5. Brief pause after typing before message appears
+      try { if (activeSockQ) await activeSockQ.sendPresenceUpdate("paused", remoteJid); } catch {}
+      await sleep(humanDelay(80, 200));
+      await sendReply(sessionId, remoteJid, reply);;
     }
   } catch (e) {
     console.error(`[QUEUE] ${remoteJid}:`, e);
@@ -1513,6 +1844,117 @@ function extractPhoneFromJid(remoteJid, msgKey) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// SECTION 14d — PREMIUM BRANDED QR CODE GENERATOR
+// ─────────────────────────────────────────────────────────────────────────────
+
+const QR_SIZE   = 480;
+const LOGO_SIZE = 112;  // ~23% of QR_SIZE
+
+function hexToRgb(hex) {
+  const c = hex.replace("#", "");
+  return {
+    r: parseInt(c.substring(0, 2), 16),
+    g: parseInt(c.substring(2, 4), 16),
+    b: parseInt(c.substring(4, 6), 16),
+  };
+}
+
+// Inline scissors SVG — no network fetch, always available
+function scissorsSVG(size, color = "#1a1a2e") {
+  const s = size;
+  // Clean professional scissors using standard path data
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24">
+  <rect width="24" height="24" rx="4" fill="white"/>
+  <path fill="${color}" d="M19.071 2.343 12 9.414 4.929 2.343 3.515 3.757 9.172 9.414l-1.415 1.415A3.5 3.5 0 1 0 9.9 13.07L12 10.97l2.1 2.1a3.5 3.5 0 1 0 1.415-1.414l-1.415-1.415 5.657-5.657-1.686-1.241ZM7 14.914a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0Zm10 0a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0Z"/>
+</svg>`;
+}
+
+/**
+ * Generate a branded UPI QR code with scissors icon centred.
+ * Uses sharp for compositing — falls back to plain QR if sharp unavailable.
+ * Never makes network requests — scissors are inline SVG.
+ */
+async function generatePremiumQR(upiLink, brandColor) {
+  const col = hexToRgb(brandColor || "#1a1a2e");
+  const darkHex = `#${col.r.toString(16).padStart(2,"0")}${col.g.toString(16).padStart(2,"0")}${col.b.toString(16).padStart(2,"0")}`;
+
+  // ── 1. Base QR buffer ──────────────────────────────────────────────────────
+  let qrBuf;
+  try {
+    qrBuf = await QRCode.toBuffer(upiLink, {
+      errorCorrectionLevel: "H",
+      width:  QR_SIZE,
+      margin: 2,
+      color: { dark: darkHex, light: "#ffffff" },
+    });
+  } catch (e) {
+    console.error("[QR] toBuffer failed:", e.message);
+    return null;
+  }
+
+  // ── 2. Try compositing scissors with sharp ─────────────────────────────────
+  try {
+    const sharp = (await import("sharp")).default;
+    const svgBuf = Buffer.from(scissorsSVG(LOGO_SIZE, darkHex));
+
+    // White padded background behind scissors
+    const padded = await sharp({
+      create: { width: LOGO_SIZE, height: LOGO_SIZE, channels: 4,
+                background: { r:255, g:255, b:255, alpha:255 } }
+    })
+      .composite([{ input: svgBuf }])
+      .png()
+      .toBuffer();
+
+    const centre = Math.round((QR_SIZE - LOGO_SIZE) / 2);
+    const final  = await sharp(qrBuf)
+      .composite([{ input: padded, top: centre, left: centre }])
+      .png()
+      .toBuffer();
+
+    return final;
+  } catch (e) {
+    console.warn("[QR-COMPOSITE] sharp failed, using plain QR:", e.message);
+    return qrBuf;  // plain branded QR — still works perfectly
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SECTION 14c — VOICE NOTE TRANSCRIPTION (Whisper)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Transcribe a voice note buffer using OpenAI Whisper.
+ * Saves to a temp file (Whisper requires a file stream), then cleans up.
+ * Cost: ~$0.006/min. Average voice note ≈15s ≈ $0.0015 per call.
+ */
+async function transcribeAudio(audioBuffer, userId) {
+  const tmpPath = path.join(os.tmpdir(), `voice_${Date.now()}_${userId}.ogg`);
+  try {
+    await fs.writeFile(tmpPath, audioBuffer);
+    const transcription = await openai.audio.transcriptions.create({
+      model: "whisper-1",
+      file:  createReadStream(tmpPath),
+      language: "hi",    // hint: Indian languages (handles Hindi, hinglish, English)
+      response_format: "text",
+    });
+    // Track Whisper cost — billed per second, approximate as 15s avg clip
+    try { await pool.query(`
+      INSERT INTO ai_usage (user_id, session_date, model, prompt_tokens, completion_tokens, total_tokens, cost_usd, calls)
+      VALUES ($1, CURRENT_DATE, 'whisper-1', 0, 0, 0, 0.0015, 1)
+      ON CONFLICT (user_id, session_date, model) DO UPDATE SET
+        cost_usd = ai_usage.cost_usd + 0.0015, calls = ai_usage.calls + 1, updated_at = NOW()
+    `, [userId]); } catch {}
+    return typeof transcription === "string" ? transcription.trim() : transcription?.text?.trim() || null;
+  } catch (e) {
+    console.error("[WHISPER] Transcription failed:", e.message);
+    return null;
+  } finally {
+    await fs.unlink(tmpPath).catch(() => {});  // always clean up temp file
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // SECTION 14b — PAYMENT SCREENSHOT VERIFICATION
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1537,7 +1979,7 @@ async function downloadImageBuffer(imageMessage) {
  * Upload screenshot to Flask static folder and store payment record in DB.
  * Calls POST /api/payment/screenshot (API-key protected).
  */
-async function uploadScreenshotToFlask(userId, appointmentId, phone, imgB64, txnId, verified, fakeScore, aiNotes, amount) {
+async function uploadScreenshotToFlask(userId, appointmentId, phone, imgB64, txnId, verified, fakeScore, aiNotes, amount, bankingName = null) {
   try {
     const payload = JSON.stringify({
       user_id:        userId,
@@ -1549,6 +1991,7 @@ async function uploadScreenshotToFlask(userId, appointmentId, phone, imgB64, txn
       verified,
       fake_score:     fakeScore,
       ai_notes:       aiNotes,
+      banking_name:   bankingName,
     });
     const res = await fetch(`${FLASK_APP_URL}/api/payment/screenshot`, {
       method:  "POST",
@@ -1568,37 +2011,34 @@ async function uploadScreenshotToFlask(userId, appointmentId, phone, imgB64, txn
  * Use GPT-4o-mini vision to verify a payment screenshot.
  * Returns { verified, transaction_id, amount, fake_score, notes }
  */
-async function verifyPaymentScreenshot(imgB64, expectedAmount, upiId, userId) {
-  const MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
-  const prompt = `You are a payment fraud detection expert for an Indian salon booking system.
-
-Analyze this image and respond with ONLY valid JSON (no markdown):
-{
-  "is_payment": true/false (false if this is a selfie, haircut photo, food, product, or ANYTHING not from a payment app),
-  "verified": true/false,
-  "transaction_id": "UTR/TXN number or null",
-  "amount": detected amount as number or null,
-  "fake_score": 0.0-1.0 (0=definitely real, 1=definitely fake),
-  "notes": "brief explanation"
-}
-
-FIRST check: is this actually a payment app screenshot (PhonePe, GPay, Paytm, BHIM, bank transfer)?
-If NOT a payment screenshot, set is_payment=false and stop — all other fields can be null.
-
-Expected payment: ₹${expectedAmount} to UPI ID: ${upiId}
-
-CHECK FOR THESE FAKE PAYMENT SIGNS:
-- Amount does not match ₹${expectedAmount}
-- Wrong UPI ID (should be ${upiId})
-- Screenshot looks edited/Photoshopped (perfect pixels, misaligned text)
-- Generic/stock screenshot without real transaction details
-- Missing UTR/transaction reference number
-- Timestamp from the future or very old
-- "Pending" or "Failed" status shown
-- Amount shown as text overlay (not part of app UI)
-- WhatsApp status screenshots (not payment app)
-
-If verified=true, transaction_id must be present.`;
+async function verifyPaymentScreenshot(imgB64, expectedAmount, upiId, userId, receivedAtISO = null) {
+  const MODEL = process.env.PAYMENT_VERIFY_MODEL || "gpt-4o";
+  const receivedStr = receivedAtISO ? new Date(receivedAtISO).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) : "unknown time";
+  const receivedLine = `Screenshot received at: ${receivedStr} IST`;
+  const expectedLine = `Expected: \u20b9${expectedAmount} to UPI ${upiId}`;
+  const prompt = [
+    "You are an expert payment fraud analyst for an Indian salon.",
+    receivedLine,
+    "",
+    "Respond ONLY with valid JSON (no markdown):",
+    '{ "is_payment": true/false, "verified": true/false, "transaction_id": "UTR string or null", "amount": number_or_null, "banking_name": "name or null", "screenshot_time": "time string or null", "fake_score": 0.0-1.0, "notes": "one line" }',
+    "",
+    "STEP 1: Is this a payment app? Accept PhonePe/GPay/Paytm/BHIM/bank UPI success. Reject selfies/food/etc (is_payment=false).",
+    "",
+    "STEP 2 (if is_payment=true):",
+    expectedLine,
+    "- Amount: extract exact rupee amount shown. Must equal expected.",
+    "- Status: must be Transaction Successful/Payment Successful/Sent. FAIL if Pending/Failed/Processing.",
+    "- Transaction ID: extract UTR/TXN/Reference ID. Required for verified=true.",
+    "- Time: extract timestamp shown IN screenshot. Flag suspicious if >2 hours before received time or in future.",
+    "- Banking name: extract payee account holder name if visible.",
+    "",
+    "STEP 3: UPI ID — apps mask accounts (XXXXXXXX6606). This is NORMAL. Do NOT fail for masked numbers.",
+    "",
+    "STEP 4: Fake signs (raise fake_score): no TXN ID=0.8, edited UI=0.7+, Pending/Failed=verified false, wrong amount=verified false.",
+    "",
+    "verified=true ONLY if: is_payment=true AND status=successful AND amount matches AND transaction_id present.",
+  ].join("\n")
 
   try {
     const resp = await openai.chat.completions.create({
@@ -1623,40 +2063,73 @@ If verified=true, transaction_id must be present.`;
   }
 }
 
-async function handlePaymentScreenshot(imageMessage, pendingAppt, user, p, remoteJid, sessionId, senderNum) {
-  const lang = p.language || "hinglish";
+async function handlePaymentScreenshot(imageMessage, msgKey, pendingAppt, user, p, remoteJid, sessionId, senderNum) {
+  const lang     = p.language || "hinglish";
+  const liveSock = sock;
 
-  // 1. Acknowledge receipt immediately
+  // 1. Human delay — read receipt first, then "seen", then start typing
+  await sleep(humanDelay(1200, 2200));  // simulate reading the image
+
+  // Send read receipt (marks screenshot as "seen" — blue ticks)
+  try {
+    if (liveSock && msgKey?.id) {
+      await liveSock.readMessages([{
+        remoteJid,
+        id:          msgKey.id,
+        fromMe:      false,
+        participant: msgKey.participant || undefined,
+      }]);
+    }
+  } catch (e) { console.warn("[IMG-READ]", e.message); }
+
+  // Short pause before acknowledging (human-like)
+  await sleep(humanDelay(800, 1500));
+
+  // 2. Show composing → type briefly → send ack
+  try { if (liveSock) await liveSock.sendPresenceUpdate("composing", remoteJid); } catch {}
+  await sleep(humanDelay(700, 1200));  // typing the ack message
+  try { if (liveSock) await liveSock.sendPresenceUpdate("paused", remoteJid); } catch {}
+  await sleep(humanDelay(80, 180));
+
   const ackMsg = lang === "hindi"
-    ? "📸 Screenshot mila! Verify kar raha hoon... ek second. 🔍"
+    ? "📸 Screenshot dekh raha hoon... 🔍"
     : lang === "hinglish"
-    ? "📸 Screenshot mila bhai! Check kar raha hoon... 🔍"
-    : "📸 Got your screenshot! Verifying payment... 🔍";
+    ? "📸 Screenshot dekh raha hoon bhai... 🔍"
+    : "📸 Checking your screenshot... 🔍";
   await sendSafe(remoteJid, ackMsg);
 
+  // 3. Download image
   let imgBuffer, imgB64;
   try {
     imgBuffer = await downloadImageBuffer(imageMessage);
     imgB64    = imgBuffer.toString("base64");
   } catch (e) {
     console.error("[DL-IMG]", e.message);
-    const failMsg = lang === "hindi"
-      ? "Screenshot download nahi ho saka. Dobara bhejein. 🙏"
+    try { if (liveSock) await liveSock.sendPresenceUpdate("paused", remoteJid); } catch {}
+    const failMsg = lang === "hinglish"
+      ? "Screenshot download nahi hua. Dobara bhejo. 🙏"
+      : lang === "hindi"
+      ? "Screenshot nahi aayi. Dobara bhejein. 🙏"
       : "Could not download screenshot. Please send again. 🙏";
+    try { if (liveSock) await liveSock.sendPresenceUpdate("composing", remoteJid); } catch {}
+    await sleep(humanDelay(600, 1000));
+    try { if (liveSock) await liveSock.sendPresenceUpdate("paused", remoteJid); } catch {}
+    await sleep(100);
     await sendSafe(remoteJid, failMsg);
     return;
   }
 
-  // 2. Typing indicator while verifying
-  try {
-    await sock.sendPresenceUpdate("composing", remoteJid);
-  } catch {}
+  // Composing while AI verifies
+  try { if (liveSock) await liveSock.sendPresenceUpdate("composing", remoteJid); } catch {}
 
-  // 3. AI verification
-  const result = await verifyPaymentScreenshot(imgB64, p.advance_amount, p.upi_id, user.id);
-  const { is_payment = true, verified, transaction_id, amount, fake_score = 0, notes } = result;
+  // 4. AI verification — with timestamp of when screenshot was received
+  const receivedAt = new Date().toISOString();
+  const result = await verifyPaymentScreenshot(imgB64, p.advance_amount, p.upi_id, user.id, receivedAt);
+  const { is_payment = true, verified, transaction_id, amount, fake_score = 0, notes,
+          banking_name = null, screenshot_time = null } = result;
 
-  try { await sock.sendPresenceUpdate("paused", remoteJid); } catch {}
+  try { if (liveSock) await liveSock.sendPresenceUpdate("paused", remoteJid); } catch {}
+  await sleep(humanDelay(600, 1200));  // pause before reply
 
   // Not a payment image (haircut photo, selfie, etc.) — respond naturally
   if (is_payment === false) {
@@ -1665,7 +2138,11 @@ async function handlePaymentScreenshot(imageMessage, pendingAppt, user, p, remot
       : lang === "hinglish"
       ? "Bhai ye payment screenshot nahi lag rahi. GPay/PhonePe ka screenshot bhejo. 🙏"
       : "This doesn't appear to be a payment screenshot. Please send your GPay/PhonePe/Paytm payment confirmation. 🙏";
-    await sleep(humanDelay(600, 1200));
+    await sleep(humanDelay(600, 1000));
+    try { sock?.sendPresenceUpdate("composing", remoteJid); } catch {}
+    await sleep(humanDelay(700, 1200));
+    try { sock?.sendPresenceUpdate("paused", remoteJid); } catch {}
+    await sleep(100);
     await sendSafe(remoteJid, notPayMsg);
     return;
   }
@@ -1673,7 +2150,7 @@ async function handlePaymentScreenshot(imageMessage, pendingAppt, user, p, remot
   // 4. Upload to Flask regardless of verification (for records)
   const uploadRes = await uploadScreenshotToFlask(
     user.id, pendingAppt.id, senderNum, imgB64,
-    transaction_id, verified, fake_score, notes, amount
+    transaction_id, verified, fake_score, notes, amount, banking_name
   );
 
   // 5. Update appointment in DB based on result
@@ -1687,60 +2164,166 @@ async function handlePaymentScreenshot(imageMessage, pendingAppt, user, p, remot
 
   if (verified && fake_score < 0.4 && amountOk) {
     // ── PAYMENT VERIFIED ────────────────────────────────────────────────────
-    if (bi !== -1) {
-      books[bi].payment_status   = "paid";
-      books[bi].transaction_id   = transaction_id;
-      books[bi].amount_paid      = amount || p.advance_amount;
-      books[bi].screenshot_id    = uploadRes.screenshot_id;
-      await saveAppointments(user.id, books);
-    }
-    const dl = pendingAppt.date ? ` on ${friendlyDate(pendingAppt.date)} at ${pendingAppt.time}` : "";
+    // Use fresh atomicUpdateJsonb to avoid stale user object bug
+    await atomicUpdateJsonb(user.id, "wa_appointments", (appts) => {
+      const appt = appts.find(b => b.id === pendingAppt.id);
+      if (appt) {
+        appt.payment_status = "paid";
+        appt.transaction_id = transaction_id;
+        appt.amount_paid    = amount || p.advance_amount;
+        appt.screenshot_id   = uploadRes.screenshot_id;
+        appt.screenshot_path = uploadRes.path || null;   // <-- was missing, needed by dashboard
+        if (banking_name)    appt.banking_name    = banking_name;
+        if (screenshot_time) appt.screenshot_time = screenshot_time;
+        appt.payment_verified_at = new Date().toISOString();
+      }
+      return appts;
+    });
+    invalidateProfileCache(user.id);
+    const dl = pendingAppt.date ? ` on ${friendlyDate(pendingAppt.date)} at ${friendlyTime12(pendingAppt.time)}` : "";
+    const txnLine = transaction_id ? `\n🔑 TXN: ${transaction_id}` : "";
+    const nameLine = banking_name ? `\n👤 ${banking_name}` : "";
     const confirmMsg = lang === "hindi"
-      ? `✅ *Payment Verified!*\n💰 Amount: ₹${amount || p.advance_amount}\n🔑 TXN: \`${transaction_id || "N/A"}\`\n\nAapki booking *${pendingAppt.service}*${dl} *confirm* ho gayi! Aapka intezaar rahega. 🙏`
+      ? `✅ *Payment Verified!*\n💰 ₹${amount || p.advance_amount}${txnLine}${nameLine}\n\nAapki *${pendingAppt.service}* booking *confirm* ho gayi${dl}! Milte hain. 🙏`
       : lang === "hinglish"
-      ? `✅ *Payment Verify Ho Gaya!*\n💰 Amount: ₹${amount || p.advance_amount}\n🔑 TXN: \`${transaction_id || "N/A"}\`\n\n*${pendingAppt.service}*${dl} ki booking *confirm* ho gayi bhai! Milte hain! 😊`
-      : `✅ *Payment Verified!*\n💰 Amount: ₹${amount || p.advance_amount}\n🔑 TXN: \`${transaction_id || "N/A"}\`\n\nYour *${pendingAppt.service}* booking${dl} is *confirmed*! See you soon. 🙏`;
-    await sleep(humanDelay(1000, 2000));
+      ? `✅ *Payment Confirmed!*\n💰 ₹${amount || p.advance_amount}${txnLine}${nameLine}\n\n*${pendingAppt.service}* booking *confirm* ho gayi${dl}! Milte hain bhai. 😊`
+      : `✅ *Payment Verified!*\n💰 ₹${amount || p.advance_amount}${txnLine}${nameLine}\n\n*${pendingAppt.service}* booking *confirmed*${dl}! See you soon. 🙏`;
+    await sleep(humanDelay(800, 1400));
+    try { sock?.sendPresenceUpdate("composing", remoteJid); } catch {}
+    await sleep(humanDelay(1000, 1800));
+    try { sock?.sendPresenceUpdate("paused", remoteJid); } catch {}
+    await sleep(150);
     await sendSafe(remoteJid, confirmMsg);
+
+    // ── Clear old booking-phase chat history so AI doesn't hallucinate ────────
+    // Inject only the payment confirmation exchange — wipes "QR code aa raha hai" etc.
+    await atomicUpdateJsonb(user.id, "wa_chat_history", (allHist) => {
+      allHist[sessionId] = allHist[sessionId] || {};
+      allHist[sessionId][senderNum] = [
+        { role: "user",      content: "[Payment screenshot sent — payment verified successfully]" },
+        { role: "assistant", content: confirmMsg },
+      ];
+      return allHist;
+    });
+
+    // ── Send salon location after payment confirmed ──────────────────────────
+    setTimeout(async () => {
+      try {
+        const liveSock2 = sock;
+        if (!liveSock2) return;
+        const mapsUrl = p.google_maps_url || "";
+        const addr    = p.location || "";
+        if (!mapsUrl && !addr) return;
+
+        // Extract lat/lng — supports ?q=lat,lng  @lat,lng  !3dlat  formats
+        // Match Google Maps coordinate patterns:
+        // maps.google.com/?q=28.6139,77.2090
+        // google.com/maps/@28.6139,77.2090,15z
+        // maps.app.goo.gl redirects (no coords — fall back to link)
+        // goo.gl/maps/... (no coords)
+        const coordMatch = mapsUrl.match(/(?:[?&@]|!3d)(-?[0-9]{1,3}\.[0-9]{3,}),(-?[0-9]{1,3}\.[0-9]{3,})/);
+
+        const salonName = p.business_name || "Salon";
+        const addrText  = addr || "";
+        const mapLine   = mapsUrl ? `\n🗺️ *Google Maps:* ${mapsUrl}` : "";
+
+        // ── Always send address text first ───────────────────────────────────
+        try { await liveSock2.sendPresenceUpdate("composing", remoteJid); } catch {}
+        await sleep(humanDelay(600, 1000));
+        try { await liveSock2.sendPresenceUpdate("paused", remoteJid); } catch {}
+        await sleep(100);
+
+        const addrMsg = lang === "hindi"
+          ? `📍 *${salonName}*${addrText ? "\n" + addrText : ""}${mapLine}\n\nAapka intezaar hai! 🙏`
+          : lang === "hinglish"
+          ? `📍 *${salonName}*${addrText ? "\n" + addrText : ""}${mapLine}\n\nMilte hain! 😊`
+          : `📍 *${salonName}*${addrText ? "\n" + addrText : ""}${mapLine}\n\nSee you! 🙏`;
+
+        await sendSafe(remoteJid, addrMsg);
+        console.log("[LOCATION] Address text sent");
+
+        // ── Then send native WhatsApp location pin if coords available ────────
+        if (coordMatch) {
+          const lat = parseFloat(coordMatch[1]);
+          const lng = parseFloat(coordMatch[2]);
+          await sleep(humanDelay(800, 1400));
+          await liveSock2.sendMessage(remoteJid, {
+            location: {
+              degreesLatitude:  lat,
+              degreesLongitude: lng,
+              name:    salonName,
+              address: addrText || mapsUrl,
+            }
+          });
+          console.log(`[LOCATION] ✅ WA pin sent: ${lat},${lng}`);
+        }
+      } catch (e) { console.error("[LOCATION-SEND]", e.message); }
+    }, humanDelay(2500, 3500));
 
   } else if (verified && fake_score < 0.4 && !amountOk) {
     // ── WRONG AMOUNT PAID ───────────────────────────────────────────────────
-    if (bi !== -1) { books[bi].payment_status = "wrong_amount"; await saveAppointments(user.id, books); }
+    await atomicUpdateJsonb(user.id, "wa_appointments", (appts) => {
+      const appt = appts.find(b => b.id === pendingAppt.id);
+      if (appt) { appt.payment_status = "wrong_amount"; appt.ai_notes = `Paid: ${paidAmount}, Expected: ${expectedAmount}`; }
+      return appts;
+    });
+    invalidateProfileCache(user.id);
     const wrongAmtMsg = lang === "hindi"
       ? `⚠️ Payment mili (₹${paidAmount}), lekin ₹${expectedAmount} chahiye tha.\n\nBaaki amount bhejein ya refund ke liye salon se contact karein.`
       : lang === "hinglish"
       ? `⚠️ Payment mili bhai (₹${paidAmount}) par ₹${expectedAmount} chahiye tha.\n\nBaaki bhejo ya salon se baat karo.`
       : `⚠️ Payment received (₹${paidAmount}) but ₹${expectedAmount} was required.\n\nPlease pay the remaining amount or contact the salon.`;
-    await sleep(humanDelay(800, 1500));
+    await sleep(humanDelay(700, 1200));
+    try { sock?.sendPresenceUpdate("composing", remoteJid); } catch {}
+    await sleep(humanDelay(900, 1600));
+    try { sock?.sendPresenceUpdate("paused", remoteJid); } catch {}
+    await sleep(120);
     await sendSafe(remoteJid, wrongAmtMsg);
 
   } else if (fake_score >= 0.6) {
     // ── SUSPICIOUS / FAKE PAYMENT ───────────────────────────────────────────
-    if (bi !== -1) {
-      books[bi].payment_status = "suspicious";
-      await saveAppointments(user.id, books);
-    }
+    await atomicUpdateJsonb(user.id, "wa_appointments", (appts) => {
+      const appt = appts.find(b => b.id === pendingAppt.id);
+      if (appt) { appt.payment_status = "suspicious"; appt.ai_notes = notes; }
+      return appts;
+    });
+    invalidateProfileCache(user.id);
     const suspectMsg = lang === "hindi"
       ? `⚠️ Payment verify nahi ho saka.\n\nPlease *original screenshot* bhejein PhonePe/GPay/Paytm app se. Edited ya WhatsApp status screenshot accept nahi hoga.\n\nDobara bhejein ya UPI ID se seedha bhejein: *${p.upi_id}*`
       : lang === "hinglish"
       ? `⚠️ Yaar payment verify nahi hua.\n\nPhonePe/GPay/Paytm ka *original screenshot* bhejo. Edited wala nahi chalega.\n\nDobara bhejo ya UPI karo: *${p.upi_id}*`
       : `⚠️ Could not verify this payment screenshot.\n\nPlease send the *original screenshot* directly from PhonePe/GPay/Paytm. Edited images are not accepted.\n\nResend screenshot or pay to: *${p.upi_id}*`;
-    await sleep(humanDelay(800, 1500));
+    await sleep(humanDelay(700, 1200));
+    try { sock?.sendPresenceUpdate("composing", remoteJid); } catch {}
+    await sleep(humanDelay(900, 1600));
+    try { sock?.sendPresenceUpdate("paused", remoteJid); } catch {}
+    await sleep(120);
     await sendSafe(remoteJid, suspectMsg);
 
   } else {
     // ── UNCLEAR / NEEDS MANUAL CHECK ────────────────────────────────────────
-    if (bi !== -1) {
-      books[bi].payment_status = "manual_review";
-      books[bi].transaction_id = transaction_id;
-      await saveAppointments(user.id, books);
-    }
+    await atomicUpdateJsonb(user.id, "wa_appointments", (appts) => {
+      const appt = appts.find(b => b.id === pendingAppt.id);
+      if (appt) {
+        appt.payment_status = "manual_review";
+        appt.transaction_id = transaction_id;
+        if (banking_name)    appt.banking_name    = banking_name;
+        if (screenshot_time) appt.screenshot_time = screenshot_time;
+        appt.ai_notes = notes;
+      }
+      return appts;
+    });
+    invalidateProfileCache(user.id);
     const reviewMsg = lang === "hindi"
-      ? `📋 Screenshot mila. Salon owner manual review karenge aur jald confirm karenge. 🙏\n\nApki booking: *${pendingAppt.service}* — ${friendlyDate(pendingAppt.date)} ${pendingAppt.time}`
+      ? `📋 Screenshot mila. Salon owner manual review karenge aur jald confirm karenge. 🙏\n\nApki booking: *${pendingAppt.service}* — ${friendlyDate(pendingAppt.date)} ${friendlyTime12(pendingAppt.time)}`
       : lang === "hinglish"
-      ? `📋 Screenshot mil gaya. Salon owner check karke confirm kar denge. 🙏\n\nBooking: *${pendingAppt.service}* — ${friendlyDate(pendingAppt.date)} ${pendingAppt.time}`
-      : `📋 Screenshot received. The salon owner will review and confirm your booking shortly. 🙏\n\nBooking: *${pendingAppt.service}* — ${friendlyDate(pendingAppt.date)} at ${pendingAppt.time}`;
-    await sleep(humanDelay(800, 1500));
+      ? `📋 Screenshot mil gaya. Salon owner check karke confirm kar denge. 🙏\n\nBooking: *${pendingAppt.service}* — ${friendlyDate(pendingAppt.date)} ${friendlyTime12(pendingAppt.time)}`
+      : `📋 Screenshot received. The salon owner will review and confirm your booking shortly. 🙏\n\nBooking: *${pendingAppt.service}* — ${friendlyDate(pendingAppt.date)} at ${friendlyTime12(pendingAppt.time)}`;
+    await sleep(humanDelay(700, 1200));
+    try { sock?.sendPresenceUpdate("composing", remoteJid); } catch {}
+    await sleep(humanDelay(900, 1600));
+    try { sock?.sendPresenceUpdate("paused", remoteJid); } catch {}
+    await sleep(120);
     await sendSafe(remoteJid, reviewMsg);
   }
 }
@@ -1761,12 +2344,17 @@ async function handleMessage(msg, sessionId) {
 
   const senderNum = extractPhoneFromJid(remoteJid, key);
 
-  // Blocklist
+  // Subscribe to typing presence — so we can pause the bot if they're still typing
+  // Fire-and-forget: non-fatal if it fails
+  try { sock?.presenceSubscribe(remoteJid); } catch {}
+
+  // Fetch user + profile once — reused for all checks below
+  let _user = null, _profile = null;
   try {
-    const user = await getUserBySession(sessionId);
-    if (user) {
-      const p       = await buildProfile(user);
-      const blocked = (p.blocked_numbers || []).map(n => String(n).replace(/\D/g,"").replace(/^00/,""));
+    _user = await getUserBySession(sessionId);
+    if (_user) {
+      _profile = await buildProfile(_user);
+      const blocked = (_profile.blocked_numbers || []).map(n => String(n).replace(/\D/g,"").replace(/^00/,""));
       if (blocked.includes(senderNum)) { console.log(`[BLOCKED] ${remoteJid}`); return; }
     }
   } catch (e) { console.error("[BLOCKLIST]", e); }
@@ -1775,8 +2363,17 @@ async function handleMessage(msg, sessionId) {
   if (!(await ensureAccess(sessionId))) {
     console.warn(`[ACCESS] denied for ${sessionId}`);
     try {
-      await sock.sendMessage(remoteJid, { text:
-        "This salon's booking assistant is currently inactive. Please contact the salon directly." });
+      // Determine lang from user profile if available
+      let aLang = "english";
+      try {
+        if (_profile) aLang = _profile.language || "english";
+      } catch {}
+      const accessMsg = aLang === "hindi"
+        ? "Is salon ka booking assistant abhi active nahi hai. Seedha salon se contact karein."
+        : aLang === "hinglish"
+        ? "Bhai yeh bot abhi active nahi hai. Salon se directly poocho."
+        : "This salon's booking assistant is currently inactive. Please contact the salon directly.";
+      await sock.sendMessage(remoteJid, { text: accessMsg });
     } catch {}
     return;
   }
@@ -1789,8 +2386,15 @@ async function handleMessage(msg, sessionId) {
   userMessageLog.set(remoteJid, ul);
   sessionMessageLog.set(sessionId, sl);
   if (ul.length > CFG.userMsgLimit) {
-    try { await sock.sendMessage(remoteJid, { text:
-      "You're sending messages very fast. Please wait a few minutes before continuing. 🙏" }); } catch {}
+    try {
+      const rlLang = _profile?.language || "hinglish";
+      const rlMsg  = rlLang === "hindi"
+        ? "Bhai bahut jaldi messages aa rahe hain. Thodi der ruko. 🙏"
+        : rlLang === "english"
+        ? "You're sending messages very fast. Please wait a few minutes. 🙏"
+        : "Yaar bahut fast messages aa rahe hain. Thoda ruko phir try karo. 🙏";
+      await sock.sendMessage(remoteJid, { text: rlMsg });
+    } catch {}
     await sleep(CFG.userCooldownMs);
     userMessageLog.set(remoteJid, []);
   }
@@ -1842,6 +2446,11 @@ async function handleMessage(msg, sessionId) {
           }
         } catch {}
       }
+      await sleep(humanDelay(600, 1200));
+      try { sock?.sendPresenceUpdate("composing", remoteJid); } catch {}
+      await sleep(humanDelay(800, 1400));
+      try { sock?.sendPresenceUpdate("paused", remoteJid); } catch {}
+      await sleep(100);
       await sendSafe(remoteJid,
         "You've been unsubscribed from this salon's WhatsApp bot. " +
         "You won't receive any further messages. Reply START to opt back in. 🙏");
@@ -1861,46 +2470,100 @@ async function handleMessage(msg, sessionId) {
             [JSON.stringify(bs), user.id]);
         } catch {}
       }
+      await sleep(humanDelay(500, 1000));
+      try { sock?.sendPresenceUpdate("composing", remoteJid); } catch {}
+      await sleep(humanDelay(700, 1200));
+      try { sock?.sendPresenceUpdate("paused", remoteJid); } catch {}
+      await sleep(100);
       await sendSafe(remoteJid,
         "Welcome back! 😊 You're now subscribed again. How can I help you today?");
       return;
     }
   }
 
-  // ── Audio / voice note handler ──────────────────────────────────────────────
+  // ── Audio / voice note handler — transcribe with Whisper ───────────────────
   if (message?.audioMessage) {
-    const user = await getUserBySession(sessionId);
-    const lang = user ? (() => {
-      try {
-        const bs = user.bot_settings
-          ? (typeof user.bot_settings === "string" ? JSON.parse(user.bot_settings) : user.bot_settings)
-          : {};
-        return bs.language || "hinglish";
-      } catch { return "hinglish"; }
-    })() : "hinglish";
-    const voiceMsg = lang === "hindi"
-      ? "Maaf kijiye, main abhi voice notes nahi sun sakta. Apna message type karke bhejein. 🙏"
+    const lang = _profile?.language || "hinglish";
+    // Acknowledge immediately so user knows we received it
+    const ackMsg = lang === "hindi"
+      ? "🎙️ Voice note mila! Samajh raha hoon..."
       : lang === "hinglish"
-      ? "Bhai voice note nahi sun sakta abhi. Type karke bhejo please. 🙏"
-      : "Sorry, I can't process voice notes yet. Please type your message. 🙏";
-    await sendSafe(remoteJid, voiceMsg);
-    return;
+      ? "🎙️ Voice note sun raha hoon bhai..."
+      : "🎙️ Got your voice note! Listening...";
+    // Human: read receipt already sent above; now compose before ack
+    try { sock?.sendPresenceUpdate("composing", remoteJid); } catch {}
+    await sleep(humanDelay(500, 900));
+    try { sock?.sendPresenceUpdate("paused", remoteJid); } catch {}
+    await sleep(80);
+    await sendSafe(remoteJid, ackMsg);
+    try {
+      const { downloadMediaMessage } = await import("@whiskeysockets/baileys");
+      const activeSock = sock;
+      const buffer = await downloadMediaMessage(
+        msg, "buffer", {},
+        { logger, reuploadRequest: activeSock?.updateMediaMessage }
+      );
+      const transcription = await transcribeAudio(buffer, _user?.id || "unknown");
+      if (transcription) {
+        // Inject transcription as text and let normal flow handle it
+        text = `[Voice Note]: "${transcription}"`;
+        console.log(`[WHISPER] Transcribed for ${senderNum}: ${transcription.slice(0, 60)}`);
+      } else {
+        const failMsg = lang === "hindi"
+          ? "Voice note clear nahi tha. Kya aap type kar sakte hain? 🙏"
+          : lang === "hinglish"
+          ? "Yaar voice clear nahi tha. Type karo please. 🙏"
+          : "Sorry, couldn't understand the voice note. Could you type instead? 🙏";
+        try { sock?.sendPresenceUpdate("composing", remoteJid); } catch {}
+        await sleep(humanDelay(600, 1000));
+        try { sock?.sendPresenceUpdate("paused", remoteJid); } catch {}
+        await sleep(80);
+        await sendSafe(remoteJid, failMsg);
+        return;
+      }
+    } catch (e) {
+      console.error("[AUDIO] Download/transcribe failed:", e.message);
+      const errMsg = lang === "hindi"
+        ? "Voice note process nahi ho saka. Type karke bhejein. 🙏"
+        : "Couldn't process voice note. Please type your message. 🙏";
+      try { sock?.sendPresenceUpdate("composing", remoteJid); } catch {}
+      await sleep(humanDelay(500, 900));
+      try { sock?.sendPresenceUpdate("paused", remoteJid); } catch {}
+      await sleep(80);
+      await sendSafe(remoteJid, errMsg);
+      return;
+    }
   }
 
   // ── Image / screenshot message handler ────────────────────────────────────
   if (message?.imageMessage) {
-    const user = await getUserBySession(sessionId);
-    if (user) {
-      const p = await buildProfile(user);
-      // Check if any of this user's appointments are pending payment
-      const books = getAppointments(user);
-      const pendingAppts = books.filter(b =>
-        b.phone === senderNum && b.payment_status === "pending"
-      );
-      if (p.advance_enabled && pendingAppts.length > 0) {
-        await handlePaymentScreenshot(message.imageMessage, pendingAppts[0], user, p, remoteJid, sessionId, senderNum);
-        return;
+    // Always fetch FRESH user from DB — _user may be stale from before booking was saved
+    const freshUser = await getUserBySession(sessionId);
+    if (freshUser) {
+      const freshProfile = await buildProfile(freshUser);
+      if (freshProfile.advance_enabled) {
+        const books = getAppointments(freshUser);
+        // Match by phone OR remoteJid (handles country-code prefix differences)
+        const pendingAppts = books.filter(b =>
+          b.payment_status === "pending" &&
+          (b.phone === senderNum ||
+           b.remoteJid === remoteJid ||
+           b.phone === remoteJid.split("@")[0] ||
+           senderNum.endsWith(b.phone) ||
+           b.phone?.endsWith(senderNum))
+        );
+        if (pendingAppts.length > 0) {
+          await handlePaymentScreenshot(message.imageMessage, key, pendingAppts[0], freshUser, freshProfile, remoteJid, sessionId, senderNum);
+          return;
+        }
       }
+    }
+    // No pending payment — check if image has a caption to process
+    const imgCaption = message.imageMessage?.caption?.trim();
+    if (imgCaption) {
+      text = imgCaption;  // use caption as text for AI
+    } else {
+      return;  // silent image, nothing to respond to
     }
   }
 
@@ -1914,14 +2577,82 @@ async function handleMessage(msg, sessionId) {
   } else {
     text = message.conversation ?? message.extendedTextMessage?.text ?? message.imageMessage?.caption ?? "";
   }
-  if (!text.trim()) return;
+  if (!text.trim()) {
+    // Handle other message types customer might send (location, document, sticker, video)
+    const hasContent = message && (
+      message.documentMessage || message.videoMessage ||
+      message.locationMessage  || message.stickerMessage ||
+      message.contactMessage
+    );
+    if (hasContent && _profile) {
+      const lang = _profile.language || "hinglish";
+      const unsupportedMsg = lang === "hindi"
+        ? "Maaf kijiye, main sirf text messages samajh sakta hoon. Apna sawaal type karke bhejein. 🙏"
+        : lang === "hinglish"
+        ? "Bhai main sirf text samajh sakta hoon. Type karke bhejo please. 🙏"
+        : "Sorry, I can only process text messages. Please type your question. 🙏";
+      await sleep(humanDelay(800, 1500));
+      try { sock?.sendPresenceUpdate("composing", remoteJid); } catch {}
+      await sleep(humanDelay(600, 1000));
+      try { sock?.sendPresenceUpdate("paused", remoteJid); } catch {}
+      await sleep(100);
+      await sendSafe(remoteJid, unsupportedMsg);
+    }
+    return;
+  }
 
-  // Read receipt
-  await sleep(humanDelay(400, 1800));
-  try {
-    await sock.readMessages([key]);
-  } catch (e) {
-    console.warn("[READ]", e.message);
+  // Natural async read receipt — proportional to message word count, non-blocking
+  // (setTimeout ensures it never blocks the event loop for incoming messages)
+  {
+    const wordCount    = text.split(/\s+/).filter(Boolean).length;
+    const readDelayMs  = humanDelay(1000, 2500) + Math.min(wordCount * 240, 6000);
+    const capturedSock = sock;
+    setTimeout(async () => {
+      try { if (capturedSock) await capturedSock.readMessages([key]); }
+      catch (e) { console.warn("[READ]", e.message); }
+    }, readDelayMs);
+  }
+
+  // ── Short ambiguous messages during pending payment — guide customer ─────────
+  {
+    const trimmedText = text.trim();
+    // "paid", "done", "hogaya" type messages also handled here if pending payment
+    const isPendingReminder = trimmedText.length <= 4 ||
+      /^[?!.,]+$/.test(trimmedText) ||
+      /^(ok|done|paid|sent|ho gaya|bhej diya|kar diya|check karo|dekho|yes|haan|ha|ji)$/i.test(trimmedText);
+    if (isPendingReminder) {
+      // Check if customer has a pending payment — if so, remind them
+      const checkUser = await getUserBySession(sessionId);
+      if (checkUser) {
+        const pendingBook = getAppointments(checkUser).find(b =>
+          b.payment_status === "pending" &&
+          (b.phone === senderNum || b.remoteJid === remoteJid)
+        );
+        if (pendingBook) {
+          const remLang = checkUser.bot_settings
+            ? (typeof checkUser.bot_settings === "string"
+                ? JSON.parse(checkUser.bot_settings) : checkUser.bot_settings).language || "hinglish"
+            : "hinglish";
+          const remindMsg = remLang === "hindi"
+            ? `⏳ Aapki *${pendingBook.service}* booking ka slot reserved hai.
+
+Payment screenshot bhejein confirm karne ke liye. 🙏`
+            : remLang === "hinglish"
+            ? `⏳ Bhai *${pendingBook.service}* ka slot abhi bhi hold hai!
+
+Payment ho gayi? Screenshot bhejo — booking confirm ho jaayegi. ✅`
+            : `⏳ Your *${pendingBook.service}* slot is still on hold.
+
+Please send your payment screenshot to confirm booking.`;
+          // Human delay: read message, think, then reply
+          await humanSend(remoteJid, remindMsg, key, checkUser.bot_settings
+            ? (typeof checkUser.bot_settings === "string"
+                ? JSON.parse(checkUser.bot_settings) : checkUser.bot_settings).language || "hinglish"
+            : "hinglish");
+          return;
+        }
+      }
+    }
   }
 
   // Burst queue
@@ -1929,7 +2660,8 @@ async function handleMessage(msg, sessionId) {
     userProcState.set(remoteJid, { burst:[], queue:[], timer:null, isProcessing:false });
   }
   const state = userProcState.get(remoteJid);
-  state.burst.push({ text, ts: now });
+  const pushName = msg.pushName || null;
+  state.burst.push({ text, ts: now, msgId: key.id, pushName });
   clearTimeout(state.timer);
   state.timer = setTimeout(() => {
     if (state.burst.length) { state.queue.push([...state.burst]); state.burst = []; }
@@ -1974,12 +2706,20 @@ async function connectBaileys(sessionId) {
 
   const { state, saveCreds } = await useMultiFileAuthState(authDir);
 
+  // Cache Baileys version for 24h — avoids hammering GitHub on every reconnect
   let version;
-  try {
-    ({ version } = await fetchLatestBaileysVersion());
-  } catch (e) {
-    console.warn("[WA] Could not fetch latest version, using default:", e.message);
-    version = undefined; // Baileys will use its built-in default
+  const now_v = Date.now();
+  if (!connectBaileys._cachedVersion || now_v - connectBaileys._cachedVersionTs > 86_400_000) {
+    try {
+      ({ version } = await fetchLatestBaileysVersion());
+      connectBaileys._cachedVersion   = version;
+      connectBaileys._cachedVersionTs = now_v;
+    } catch (e) {
+      console.warn("[WA] Could not fetch latest version, using cached/default:", e.message);
+      version = connectBaileys._cachedVersion;
+    }
+  } else {
+    version = connectBaileys._cachedVersion;
   }
 
   sock = makeWASocket({
@@ -2140,11 +2880,28 @@ async function connectBaileys(sessionId) {
     // Only process newly received messages (not history sync)
     if (type !== "notify") return;
 
+    // Process messages independently — don't block on sequential awaits
     for (const msg of messages) {
-      try {
-        await handleMessage(msg, sessionId);
-      } catch (e) {
-        console.error("[MSG-HANDLER]", e);
+      handleMessage(msg, sessionId).catch(e => console.error("[MSG-HANDLER]", e));
+    }
+  });
+
+  // ── Typing presence — pause bot if customer is mid-message ───────────────
+  sock.ev.on("presence.update", ({ id, presences }) => {
+    for (const [participant, presence] of Object.entries(presences || {})) {
+      const state = userProcState.get(participant) || userProcState.get(id);
+      if (!state || (!state.queue.length && !state.burst.length)) continue;
+      const p = presence.lastKnownPresence;
+      if (p === "composing" || p === "recording") {
+        // Customer is typing — pause the debounce timer so bot doesn't interrupt
+        if (state.timer) { clearTimeout(state.timer); state.timer = null; }
+        console.log(`[PAUSE] ${participant} is typing — holding response`);
+      } else if ((p === "paused" || p === "available") && !state.timer) {
+        // Customer stopped typing — restart the debounce countdown
+        state.timer = setTimeout(() => {
+          if (state.burst.length) { state.queue.push([...state.burst]); state.burst = []; }
+          processUserQueue(sessionId, participant);
+        }, CFG.debounceMs);
       }
     }
   });
@@ -2180,14 +2937,79 @@ async function startFreshSession(sessionId) {
 // ── Dashboard-triggered restart poll ─────────────────────────────────────
 // wa_status=9 is the dedicated "please restart" signal written by the dashboard.
 // wa_status=1 is normal idle/disconnected — must NOT trigger an exit here.
+// ── Batch expiry: check all sessions every 60s for unpaid slots ──────────────
 setInterval(async () => {
   if (isRestarting) return;
+  try {
+    const PAY_TIMEOUT_MS = 10 * 60_000;
+    const now = Date.now();
+    // Get all users with a connected bot session
+    const { rows: users } = await pool.query(
+      "SELECT id, wa_appointments, bot_settings, whatsapp_session_id FROM users WHERE wa_status = 3"
+    );
+    for (const user of users) {
+      let books;
+      try {
+        const raw = user.wa_appointments;
+        books = Array.isArray(raw) ? raw : (raw ? Object.values(raw) : []);
+      } catch { continue; }
+
+      const expiredIds = books
+        .filter(b => b.payment_status === "pending" && b.timestamp &&
+                     now - new Date(b.timestamp).getTime() > PAY_TIMEOUT_MS)
+        .map(b => b.id);
+
+      if (!expiredIds.length) continue;
+
+      // Read language from bot_settings
+      let tLang = "hinglish";
+      try {
+        const bs = user.bot_settings
+          ? (typeof user.bot_settings === "string" ? JSON.parse(user.bot_settings) : user.bot_settings)
+          : {};
+        tLang = bs.language || "hinglish";
+      } catch {}
+
+      // Expire and notify each expired booking
+      for (const expId of expiredIds) {
+        const b = books.find(x => x.id === expId);
+        if (!b) continue;
+        b.payment_status = "payment_timeout";
+        console.log(`[EXPIRY] Booking ${expId} for user ${user.id} expired (no payment in 10 min)`);
+
+        if (b.remoteJid && sock) {
+          const msg = tLang === "hindi"
+            ? `⏱️ Aapki *${b.service}* booking ka slot release ho gaya — 10 min mein payment nahi aayi. Dobara book karein.`
+            : tLang === "hinglish"
+            ? `⏱️ Bhai *${b.service}* ka slot release ho gaya — 10 min mein payment nahi aayi. Phir se book karo! 😊`
+            : `⏱️ Your *${b.service}* slot has been released — payment not received within 10 minutes. Please book again.`;
+          sendSafe(b.remoteJid, msg).catch(() => {});
+        }
+      }
+
+      // Save updated appointments atomically
+      await atomicUpdateJsonb(user.id, "wa_appointments", (appts) =>
+        appts.map(a => expiredIds.includes(a.id)
+          ? { ...a, payment_status: "payment_timeout" }
+          : a
+        )
+      );
+      invalidateProfileCache(user.id);
+    }
+  } catch (e) { console.error("[EXPIRY-BATCH]", e.message); }
+}, 60_000);
+
+setInterval(async () => {
+  if (isRestarting) return;
+  // Skip poll when already connected — only needed to detect dashboard restart signal
   try {
     const sessionId = await ensureSessionFile();
     const { rows }  = await pool.query(
       "SELECT wa_status FROM users WHERE whatsapp_session_id=$1 LIMIT 1",
       [sessionId]
     );
+    // Skip poll when bot is fully connected (wa_status=3) — saves 8,640 DB queries/day
+    if (rows[0]?.wa_status === 3) return;
     if (rows[0]?.wa_status === 9) {
       console.log("[RESTART] Dashboard requested restart (wa_status=9)");
       isRestarting = true;
@@ -2200,7 +3022,7 @@ setInterval(async () => {
       process.exit(0);  // exit code 0 so systemd does a clean restart
     }
   } catch {}
-}, 10_000);
+}, 30_000);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SECTION 17 — BOOT

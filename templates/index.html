@@ -596,8 +596,14 @@ footer {
   .footer-top { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 768px) {
-  .nav-links, .nav-ctas { display: none; }
+  .nav-links { display: none; }
+  .nav-ctas  { display: none; }
+  .nav-ctas-auth { display: flex !important; margin-left: auto; }  /* Dashboard btn for logged-in */
+  /* When logged in, hide hamburger — Dashboard btn is enough */
+  .nav-ctas-auth ~ .mob-menu-btn { display: none !important; }
   .mob-menu-btn { display: flex; margin-left: auto; }
+  .nav-inner { padding: 0 16px; }
+  .nav-logo-text { font-size: .95rem; }
   .feat-grid { grid-template-columns: 1fr; }
   .pricing-grid { grid-template-columns: 1fr; max-width:100%; }
   .price-card.featured { transform: none; }
@@ -606,6 +612,13 @@ footer {
   .cta-banner { padding: 40px 22px; }
   .footer-top { grid-template-columns: 1fr; gap: 28px; }
 }
+  @media(min-width:768px){
+    #nav-salon-label { display:inline !important; }
+  }
+  @media(max-width:380px){
+    .dash-btn-text { display:none; }
+    .btn.btn-primary i { font-size:.9rem !important; }
+  }
 </style>
 {% endblock %}
 
@@ -625,9 +638,17 @@ footer {
       <li><a href="#pricing">Pricing</a></li>
       <li><a href="#contact">Contact</a></li>
     </ul>
-    <div class="nav-ctas">
-      <a href="{{ url_for('auth_login') }}" class="btn btn-ghost" style="padding:9px 20px">Sign In</a>
-      <a href="{{ url_for('auth_login') }}?tab=signup" class="btn btn-primary" style="padding:9px 20px">Get Started Free</a>
+    <div class="nav-ctas{% if current_user.is_authenticated %} nav-ctas-auth{% endif %}">
+      {% if current_user.is_authenticated %}
+        <span class="nav-salon-name" style="font-size:.85rem;color:var(--g500);font-weight:500;display:none" id="nav-salon-label">{{ current_user.salon_name or current_user.email }}</span>
+        <a href="{{ url_for('dashboard') }}" class="btn btn-primary" style="padding:8px 16px;gap:6px;font-size:.84rem">
+          <i class="fas fa-th-large" style="font-size:.78rem"></i>
+          <span class="dash-btn-text">Dashboard</span>
+        </a>
+      {% else %}
+        <a href="{{ url_for('auth_login') }}" class="btn btn-ghost" style="padding:9px 20px">Sign In</a>
+        <a href="{{ url_for('auth_login') }}?tab=signup" class="btn btn-primary" style="padding:9px 20px">Get Started Free</a>
+      {% endif %}
     </div>
     <button class="mob-menu-btn" onclick="openMenu()"><i class="fas fa-bars"></i></button>
   </div>

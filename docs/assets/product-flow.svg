@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="500" viewBox="0 0 1120 500" role="img" aria-labelledby="title desc">
+  <title id="title">SalonFlow product workflow</title>
+  <desc id="desc">A simple workflow showing how a salon owner and customer use SalonFlow.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1120" y2="500" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f8fafc"/>
+      <stop offset="1" stop-color="#ecfeff"/>
+    </linearGradient>
+    <marker id="arrow" markerWidth="11" markerHeight="11" refX="9" refY="5.5" orient="auto">
+      <path d="M0 0h11L5.5 11z" fill="#0f766e"/>
+    </marker>
+    <filter id="softShadow" x="-12%" y="-20%" width="130%" height="150%">
+      <feDropShadow dx="0" dy="10" stdDeviation="10" flood-color="#0f172a" flood-opacity="0.12"/>
+    </filter>
+    <style>
+      .card{fill:#ffffff;stroke:#dbeafe;stroke-width:1.5;filter:url(#softShadow)}
+      .title{font-family:Inter, Segoe UI, Arial, sans-serif;font-size:24px;font-weight:800;fill:#0f172a}
+      .text{font-family:Inter, Segoe UI, Arial, sans-serif;font-size:16px;font-weight:500;fill:#475569}
+      .label{font-family:Inter, Segoe UI, Arial, sans-serif;font-size:13px;font-weight:800;fill:#0f766e}
+      .num{font-family:Inter, Segoe UI, Arial, sans-serif;font-size:19px;font-weight:900;fill:#ffffff}
+    </style>
+  </defs>
+  <rect width="1120" height="500" rx="28" fill="url(#bg)"/>
+  <text x="56" y="62" class="title" font-size="30">How SalonFlow Works For A Salon</text>
+  <text x="56" y="96" class="text">One setup by the owner turns into always-on WhatsApp booking for customers.</text>
+
+  <g transform="translate(56 145)">
+    <rect class="card" width="220" height="188" rx="22"/>
+    <circle cx="42" cy="42" r="22" fill="#0f766e"/>
+    <text x="42" y="49" text-anchor="middle" class="num">1</text>
+    <text x="28" y="88" class="title">Owner setup</text>
+    <text x="28" y="122" class="text">Salon profile, services,</text>
+    <text x="28" y="148" class="text">prices, timings, UPI,</text>
+    <text x="28" y="174" class="text">and bot instructions.</text>
+  </g>
+
+  <path d="M292 239h96" stroke="#0f766e" stroke-width="4" stroke-linecap="round" marker-end="url(#arrow)"/>
+
+  <g transform="translate(408 145)">
+    <rect class="card" width="220" height="188" rx="22"/>
+    <circle cx="42" cy="42" r="22" fill="#2563eb"/>
+    <text x="42" y="49" text-anchor="middle" class="num">2</text>
+    <text x="28" y="88" class="title">Connect WhatsApp</text>
+    <text x="28" y="122" class="text">The owner scans a QR</text>
+    <text x="28" y="148" class="text">code and links their</text>
+    <text x="28" y="174" class="text">salon WhatsApp number.</text>
+  </g>
+
+  <path d="M644 239h96" stroke="#0f766e" stroke-width="4" stroke-linecap="round" marker-end="url(#arrow)"/>
+
+  <g transform="translate(760 145)">
+    <rect class="card" width="220" height="188" rx="22"/>
+    <circle cx="42" cy="42" r="22" fill="#f59e0b"/>
+    <text x="42" y="49" text-anchor="middle" class="num">3</text>
+    <text x="28" y="88" class="title">Customer books</text>
+    <text x="28" y="122" class="text">The bot answers, checks</text>
+    <text x="28" y="148" class="text">availability, reserves</text>
+    <text x="28" y="174" class="text">a slot, and confirms.</text>
+  </g>
+
+  <g transform="translate(176 374)">
+    <rect width="768" height="70" rx="20" fill="#0f172a"/>
+    <text x="34" y="43" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="18" font-weight="700" fill="#ffffff">Result: fewer missed calls, faster bookings, payment proof saved, reminders sent automatically.</text>
+  </g>
+</svg>

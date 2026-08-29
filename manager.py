@@ -17,18 +17,34 @@ import subprocess
 import sys
 from pathlib import Path
 
-# Configuration -- edit these values before deploying
 
-DATABASE_URL  = "postgresql://postgres:krishna4704@178.104.93.94:5432/salonflow"
-API_KEY       = "sf-bot-manager-secret-change-this"
-FLASK_APP_URL = "https://www.salonflow.in"             # main website base URL
-MANAGER_PORT  = 8218
+def _load_env_file(path: Path) -> None:
+    if not path.exists():
+        return
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+
+
+_load_env_file(Path(__file__).with_name(".env"))
+
+# Configuration -- set these values in the environment before deploying.
+
+DATABASE_URL  = os.environ.get("DATABASE_URL", "").strip()
+API_KEY       = os.environ.get("BOT_API_KEY", "").strip()
+FLASK_APP_URL = os.environ.get("FLASK_APP_URL", os.environ.get("APP_URL", "http://localhost:5000")).strip()
+MANAGER_PORT  = int(os.environ.get("MANAGER_PORT", "8218"))
 MANAGER_SERVICE = "salonflow-manager"     # systemd service name for manager itself
 MANAGER_SCRIPT  = os.path.abspath(__file__)  # absolute path to this file
 
 # Bot source files live in the same directory as manager.py (the backend folder).
 # No bot.zip needed — edit reply.js directly and run --update-code to deploy.
-BOT_SOURCE_DIR = Path(os.path.dirname(os.path.abspath(__file__))) / "bot"
+# Bot files are downloaded from the Flask server using the API key.
+# Flask serves /bot/reply.js and /bot/package.json (GET, X-API-Key protected).
+BOT_FILES = ["reply.js", "package.json"]
 
 # VENV BOOTSTRAP
 # Ubuntu 24.04 uses PEP 668 -- system Python blocks pip install.
@@ -89,6 +105,7 @@ import argparse
 import json
 import logging
 import re
+import secrets
 import shutil
 import socket
 import threading
@@ -302,21 +319,19 @@ def ensure_directories():
 BOT_FILES = ["reply.js", "package.json"]
 
 def sync_bot_source():
-    """Copy reply.js and package.json from the backend folder to SHARED_DIR."""
+    """Download reply.js and package.json from the Flask server."""
     SHARED_DIR.mkdir(parents=True, exist_ok=True)
-    copied = []
     for fname in BOT_FILES:
-        src_file  = BOT_SOURCE_DIR / fname
-        dest_file = SHARED_DIR / fname
-        if not src_file.exists():
-            raise FileNotFoundError(
-                f"{fname} not found in backend folder: {src_file}\n"
-                f"Make sure reply.js is inside the bot/ folder next to manager.py"
+        url = f"{FLASK_APP_URL.rstrip('/')}/bot/{fname}"
+        log.info(f"[BOT] Downloading {fname} from {url}…")
+        resp = requests.get(url, headers={"X-API-Key": API_KEY}, timeout=60)
+        if resp.status_code != 200:
+            raise RuntimeError(
+                f"Failed to download {fname}: HTTP {resp.status_code} — {resp.text[:200]}"
             )
-        import shutil as _sh
-        _sh.copy2(str(src_file), str(dest_file))
-        copied.append(fname)
-    log.info(f"[BOT] Synced from backend: {copied}")
+        dest = SHARED_DIR / fname
+        dest.write_bytes(resp.content)
+        log.info(f"[BOT] Saved {fname} ({len(resp.content)} bytes) → {dest}")
 
 def npm_install_shared():
     if not (SHARED_DIR / "package.json").exists():
@@ -850,7 +865,7 @@ def require_key(f):
             request.headers.get("X-API-Key")
             or (request.get_json(silent=True) or {}).get("api_key", "")
         )
-        if key != API_KEY:
+        if not API_KEY or not secrets.compare_digest(str(key), API_KEY):
             return jsonify({"ok": False, "error": "Unauthorized"}), 401
         return f(*args, **kwargs)
     return wrapper
@@ -1136,12 +1151,20 @@ Examples:
         print("ERROR: manager.py must run as root.  sudo python3 manager.py <N>")
         sys.exit(1)
 
+    missing_env = [name for name, value in (
+        ("DATABASE_URL", DATABASE_URL),
+        ("BOT_API_KEY", API_KEY),
+    ) if not value]
+    if missing_env:
+        print(f"ERROR: Missing required environment variable(s): {', '.join(missing_env)}")
+        sys.exit(1)
+
     # DB check
     try:
         get_conn().close()
     except Exception as e:
         print(f"ERROR: Cannot connect to database: {e}")
-        print("       Edit DATABASE_URL at the top of manager.py")
+        print("       Set DATABASE_URL in the environment before starting manager.py")
         sys.exit(1)
 
     # Status-only path
@@ -1156,21 +1179,25 @@ Examples:
     log.info("=" * 60)
 
     ensure_schema()
+
+    # --update-code: fast path — only download + restart, skip all system setup
+    if args.update_code:
+        log.info("[UPDATE] Downloading latest bot files and restarting instances…")
+        update_bot_code()
+        print_status()
+        sys.exit(0)
+
+    # Full setup path (first run / scaling)
     install_system_deps()
     install_nodejs()
     ensure_bot_user()
     ensure_directories()
 
-    # Sync bot files from backend folder on first run or on --update-code
     if not (SHARED_DIR / "reply.js").exists():
-        log.info("[SETUP] First run — copying bot files from backend folder…")
+        log.info("[SETUP] First run — downloading bot files…")
         setup_shared_bot()
     else:
         log.info(f"[SETUP] Shared bot code already at {SHARED_DIR}")
-
-    if args.update_code:
-        log.info("[SETUP] --update-code: syncing latest reply.js + package.json…")
-        update_bot_code()
 
     # Scale
     if args.instances:
